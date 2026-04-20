@@ -6,14 +6,21 @@ import { isSupportedImage } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import type { TaskType } from "@/types";
 
+interface StagedImage {
+  file: File;
+  previewUrl: string;
+}
+
 interface Props {
   onSave: (
     text: string,
     type: TaskType,
-    imageFile?: File | null,
-    linkUrl?: string | null
+    imageFiles: File[],
+    linkUrls: string[]
   ) => Promise<void> | void;
 }
+
+const MAX_COMPOSER_IMAGES = 10;
 
 export default function Composer({ onSave }: Props) {
   const t = useT();
@@ -21,9 +28,8 @@ export default function Composer({ onSave }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState<string>(() => loadDraft());
   const [type, setType] = useState<TaskType>("napad");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [linkUrl, setLinkUrl] = useState<string | null>(null);
+  const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
+  const [linkUrls, setLinkUrls] = useState<string[]>([]);
   const [lastReturnAt, setLastReturnAt] = useState<number>(0);
   const [justSaved, setJustSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -40,50 +46,68 @@ export default function Composer({ onSave }: Props) {
     el.style.height = Math.min(el.scrollHeight, 280) + "px";
   }, [value]);
 
+  // Revoke all blob URLs on unmount
   useEffect(() => {
     return () => {
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
     };
-  }, [imagePreview]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
-    if (!isSupportedImage(file)) {
-      setError(t("detail.attachmentUnsupported"));
-      return;
+    if (files.length === 0) return;
+
+    const next: StagedImage[] = [];
+    for (const file of files) {
+      if (!isSupportedImage(file)) {
+        setError(t("detail.attachmentUnsupported"));
+        continue;
+      }
+      next.push({ file, previewUrl: URL.createObjectURL(file) });
     }
+    if (next.length === 0) return;
+
+    setStagedImages((prev) => {
+      const combined = [...prev, ...next];
+      if (combined.length > MAX_COMPOSER_IMAGES) {
+        // Revoke the overflow we're rejecting
+        combined.slice(MAX_COMPOSER_IMAGES).forEach((s) => URL.revokeObjectURL(s.previewUrl));
+      }
+      return combined.slice(0, MAX_COMPOSER_IMAGES);
+    });
     setError(null);
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
   }
 
-  function clearImage() {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImageFile(null);
-    setImagePreview(null);
+  function removeImage(index: number) {
+    setStagedImages((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function clearAllImages() {
+    stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
+    setStagedImages([]);
   }
 
   function promptForLink() {
-    const input = window.prompt(t("composer.linkPromptTitle"), linkUrl ?? "https://");
-    if (input === null) return; // cancelled
-    if (!input.trim()) {
-      setLinkUrl(null);
-      return;
-    }
+    const input = window.prompt(t("composer.linkPromptTitle"), "https://");
+    if (input === null) return;
+    if (!input.trim()) return;
     const normalized = normalizeUrl(input);
     if (!normalized) {
       setError(t("composer.linkInvalid"));
       return;
     }
     setError(null);
-    setLinkUrl(normalized);
+    setLinkUrls((prev) => [...prev, normalized]);
   }
 
-  function clearLink() {
-    setLinkUrl(null);
+  function removeLink(index: number) {
+    setLinkUrls((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function commit() {
@@ -91,17 +115,17 @@ export default function Composer({ onSave }: Props) {
     if (!trimmed || submitting) return;
     setSubmitting(true);
     try {
-      await onSave(trimmed, type, imageFile, linkUrl);
+      await onSave(trimmed, type, stagedImages.map((s) => s.file), linkUrls);
       setValue("");
       saveDraft("");
       setType("napad");
-      clearImage();
-      clearLink();
+      clearAllImages();
+      setLinkUrls([]);
       setJustSaved(true);
       textareaRef.current?.focus();
       window.setTimeout(() => setJustSaved(false), 1800);
     } catch {
-      // Parent handles errors via toast.
+      /* parent toast */
     } finally {
       setSubmitting(false);
     }
@@ -133,7 +157,6 @@ export default function Composer({ onSave }: Props) {
 
   const placeholder =
     type === "napad" ? t("composer.placeholder") : t("composer.placeholderOtazka");
-  const linkDomain = linkUrl ? parseDomain(linkUrl) : null;
 
   return (
     <section aria-label={t("aria.quickCapture")} className="mx-auto max-w-xl px-4 pt-3 pb-2">
@@ -143,21 +166,11 @@ export default function Composer({ onSave }: Props) {
           aria-label={t("composer.typeToggleLabel")}
           className="flex items-center gap-1 border-b border-line bg-bg-subtle/60 p-1 rounded-t-lg"
         >
-          <TypePill
-            active={type === "napad"}
-            onClick={() => setType("napad")}
-            label={t("composer.typeNapad")}
-          />
-          <TypePill
-            active={type === "otazka"}
-            onClick={() => setType("otazka")}
-            label={t("composer.typeOtazka")}
-          />
+          <TypePill active={type === "napad"} onClick={() => setType("napad")} label={t("composer.typeNapad")} />
+          <TypePill active={type === "otazka"} onClick={() => setType("otazka")} label={t("composer.typeOtazka")} />
         </div>
 
-        <label htmlFor="composer-textarea" className="sr-only">
-          {placeholder}
-        </label>
+        <label htmlFor="composer-textarea" className="sr-only">{placeholder}</label>
         <textarea
           id="composer-textarea"
           ref={textareaRef}
@@ -173,12 +186,12 @@ export default function Composer({ onSave }: Props) {
           className="block w-full resize-none rounded-b-none bg-transparent px-4 py-3 text-base leading-relaxed placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
         />
 
-        {(imagePreview || linkDomain) && (
+        {(stagedImages.length > 0 || linkUrls.length > 0) && (
           <div className="mx-2 mb-1 flex flex-wrap items-center gap-2">
-            {imagePreview && (
-              <div className="relative inline-block">
+            {stagedImages.map((img, i) => (
+              <div key={i} className="relative inline-block">
                 <img
-                  src={imagePreview}
+                  src={img.previewUrl}
                   alt={t("composer.attachPreview")}
                   width={80}
                   height={80}
@@ -187,28 +200,31 @@ export default function Composer({ onSave }: Props) {
                 />
                 <button
                   type="button"
-                  onClick={clearImage}
+                  onClick={() => removeImage(i)}
                   aria-label={t("composer.removeAttachment")}
                   className="absolute -right-1 -top-1 grid size-6 place-items-center rounded-pill bg-black/75 text-white shadow"
                 >
                   <XIcon aria-hidden size={14} />
                 </button>
               </div>
-            )}
-            {linkDomain && (
-              <span className="inline-flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-sm text-ink-muted">
-                <LinkIcon aria-hidden size={14} />
-                {linkDomain}
-                <button
-                  type="button"
-                  onClick={clearLink}
-                  aria-label={t("composer.removeAttachment")}
-                  className="ml-1 grid size-5 place-items-center rounded-pill hover:bg-black/10"
-                >
-                  <XIcon aria-hidden size={12} />
-                </button>
-              </span>
-            )}
+            ))}
+            {linkUrls.map((url, i) => {
+              const domain = parseDomain(url) ?? url;
+              return (
+                <span key={i} className="inline-flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-sm text-ink-muted">
+                  <LinkIcon aria-hidden size={14} />
+                  <span className="max-w-[10rem] truncate">{domain}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeLink(i)}
+                    aria-label={t("composer.removeAttachment")}
+                    className="ml-1 grid size-5 place-items-center rounded-pill hover:bg-black/10"
+                  >
+                    <XIcon aria-hidden size={12} />
+                  </button>
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -217,8 +233,13 @@ export default function Composer({ onSave }: Props) {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={submitting}
+              disabled={submitting || stagedImages.length >= MAX_COMPOSER_IMAGES}
               aria-label={t("composer.attachPhoto")}
+              title={
+                stagedImages.length >= MAX_COMPOSER_IMAGES
+                  ? t("composer.maxImages", { n: MAX_COMPOSER_IMAGES })
+                  : t("composer.attachPhoto")
+              }
               className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink disabled:opacity-40 transition-colors"
             >
               <Paperclip aria-hidden size={18} />
@@ -228,6 +249,7 @@ export default function Composer({ onSave }: Props) {
               type="file"
               accept="image/*"
               capture="environment"
+              multiple
               className="hidden"
               onChange={handleFilePick}
             />
@@ -249,7 +271,7 @@ export default function Composer({ onSave }: Props) {
             className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover active:bg-accent-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-fast"
           >
             {submitting
-              ? imageFile
+              ? stagedImages.length > 0
                 ? t("composer.uploading")
                 : t("composer.saving")
               : t("composer.save")}
@@ -275,15 +297,7 @@ export default function Composer({ onSave }: Props) {
   );
 }
 
-function TypePill({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
+function TypePill({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       type="button"

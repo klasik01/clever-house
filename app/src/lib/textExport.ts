@@ -31,12 +31,18 @@ export function tasksToPlainText(
     lines.push("");
     const body = task.body.trim() || task.title.trim() || "(bez textu)";
     for (const row of body.split("\n")) lines.push(`   ${row}`);
-    if (task.attachmentLinkUrl) {
-      lines.push(`   Odkaz: ${task.attachmentLinkUrl}`);
-    }
-    if (task.attachmentImageUrl) {
-      lines.push(`   Obrázek: ${task.attachmentImageUrl}`);
-    }
+    const links = task.attachmentLinks?.length
+      ? task.attachmentLinks
+      : task.attachmentLinkUrl
+      ? [task.attachmentLinkUrl]
+      : [];
+    for (const url of links) lines.push(`   Odkaz: ${url}`);
+    const images = task.attachmentImages?.length
+      ? task.attachmentImages.map((i) => i.url)
+      : task.attachmentImageUrl
+      ? [task.attachmentImageUrl]
+      : [];
+    for (const url of images) lines.push(`   Obrázek: ${url}`);
     if (task.projektantAnswer) {
       lines.push("");
       lines.push(`   Odpověď Projektanta:`);

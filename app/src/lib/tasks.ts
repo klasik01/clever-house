@@ -67,8 +67,10 @@ export async function createTask(
     linkedTaskId: null,
     projektantAnswer: null,
     projektantAnswerAt: null,
+    attachmentImages: [],
     attachmentImageUrl: null,
     attachmentImagePath: null,
+    attachmentLinks: [],
     attachmentLinkUrl: null,
     createdBy: uid,
     createdAt: serverTimestamp(),
@@ -79,7 +81,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -116,8 +118,10 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     linkedTaskId: data.linkedTaskId ?? null,
     projektantAnswer: data.projektantAnswer ?? null,
     projektantAnswerAt: toIsoOrNull(data.projektantAnswerAt),
+    attachmentImages: bridgeImages(data),
     attachmentImageUrl: data.attachmentImageUrl ?? null,
     attachmentImagePath: data.attachmentImagePath ?? null,
+    attachmentLinks: bridgeLinks(data),
     attachmentLinkUrl: data.attachmentLinkUrl ?? null,
     createdBy: data.createdBy ?? "",
     createdAt: toIso(data.createdAt),
@@ -206,4 +210,32 @@ export async function convertNapadToOtazka(
 
   await batch.commit();
   return newRef.id;
+}
+
+
+/** Bridge legacy single-image fields to the S24 array shape. Returns an array. */
+function bridgeImages(data: Record<string, unknown>): import("@/types").ImageAttachment[] {
+  const arr = (data.attachmentImages as import("@/types").ImageAttachment[] | undefined) ?? [];
+  if (Array.isArray(arr) && arr.length > 0) return arr;
+  if (typeof data.attachmentImageUrl === "string" && data.attachmentImageUrl) {
+    return [
+      {
+        id: "legacy-0",
+        url: data.attachmentImageUrl,
+        path: (data.attachmentImagePath as string) ?? "",
+      },
+    ];
+  }
+  return [];
+}
+
+
+/** Bridge legacy single link field to the S25 array shape. */
+function bridgeLinks(data: Record<string, unknown>): string[] {
+  const arr = data.attachmentLinks as string[] | undefined;
+  if (Array.isArray(arr) && arr.length > 0) return arr.filter((x) => typeof x === "string");
+  if (typeof data.attachmentLinkUrl === "string" && data.attachmentLinkUrl) {
+    return [data.attachmentLinkUrl];
+  }
+  return [];
 }

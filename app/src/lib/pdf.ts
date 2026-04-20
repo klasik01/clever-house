@@ -119,8 +119,13 @@ function renderTaskBlock(
     { text: meta.join(" · "), style: "tag" },
   ];
 
-  if (task.attachmentImageUrl) {
-    const dataUri = imageCache[task.attachmentImageUrl];
+  const allImages = task.attachmentImages?.length
+    ? task.attachmentImages.map((i) => i.url)
+    : task.attachmentImageUrl
+    ? [task.attachmentImageUrl]
+    : [];
+  for (const imgUrl of allImages) {
+    const dataUri = imageCache[imgUrl];
     if (dataUri) {
       blocks.push({
         image: dataUri,
@@ -129,17 +134,22 @@ function renderTaskBlock(
       } as PdfContent);
     } else {
       blocks.push({
-        text: `Obrázek (nelze embeddovat): ${task.attachmentImageUrl}`,
+        text: `Obrázek (nelze embeddovat): ${imgUrl}`,
         style: "meta",
         margin: [0, 4, 0, 2],
       });
     }
   }
 
-  if (task.attachmentLinkUrl) {
+  const allLinks = task.attachmentLinks?.length
+    ? task.attachmentLinks
+    : task.attachmentLinkUrl
+    ? [task.attachmentLinkUrl]
+    : [];
+  for (const link of allLinks) {
     blocks.push({
-      text: `Odkaz: ${task.attachmentLinkUrl}`,
-      link: task.attachmentLinkUrl,
+      text: `Odkaz: ${link}`,
+      link,
       style: "meta",
       color: pdfColors.accent,
       decoration: "underline",

@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
+import { newId } from "@/lib/id";
 import { createTask, updateTask } from "@/lib/tasks";
 import { uploadTaskImage } from "@/lib/attachments";
 import type { TaskType } from "@/types";
@@ -56,7 +57,7 @@ export default function Home() {
   }
 
   const onSave = useCallback(
-    async (text: string, type: TaskType, imageFile?: File | null, linkUrl?: string | null) => {
+    async (text: string, type: TaskType, imageFiles: File[], linkUrls: string[]) => {
       if (!user) return;
       
       try {
@@ -78,29 +79,31 @@ export default function Home() {
           user.uid
         );
 
-        // 2. If image attached, upload + patch the task. Best-effort — if upload
-        // fails, the task text still saved, user sees a warning but not data loss.
-        if (imageFile) {
-          try {
-            const { url, path } = await uploadTaskImage({
-              file: imageFile,
-              uid: user.uid,
-              taskId,
-            });
-            await updateTask(taskId, {
-              attachmentImageUrl: url,
-              attachmentImagePath: path,
-            });
-          } catch (e) {
-            console.error("image upload failed", e);
-            showToast(t("composer.uploadFailed"), "error");
-            // Don't throw — task is already saved. User can add image from detail.
+        // 2. If images attached, upload sequentially + patch task with array.
+        // Partial failures logged; task still saved.
+        if (imageFiles.length > 0) {
+          const uploaded: import("@/types").ImageAttachment[] = [];
+          for (const file of imageFiles) {
+            try {
+              const { url, path } = await uploadTaskImage({
+                file,
+                uid: user.uid,
+                taskId,
+              });
+              uploaded.push({ id: newId(), url, path });
+            } catch (e) {
+              console.error("image upload failed", e);
+              showToast(t("composer.uploadFailed"), "error");
+            }
+          }
+          if (uploaded.length > 0) {
+            await updateTask(taskId, { attachmentImages: uploaded });
           }
         }
 
-        // 3. If link attached, patch the task (trivial — URL is already validated).
-        if (linkUrl) {
-          await updateTask(taskId, { attachmentLinkUrl: linkUrl });
+        // 3. If links attached, patch the task (URLs already validated).
+        if (linkUrls.length > 0) {
+          await updateTask(taskId, { attachmentLinks: linkUrls });
         }
       } catch (e) {
         console.error(e);

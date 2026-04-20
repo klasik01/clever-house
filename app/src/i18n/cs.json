@@ -29,7 +29,8 @@
     "uploading": "Nahrávám obrázek…",
     "linkPromptTitle": "Vlož odkaz (URL)",
     "linkInvalid": "Neplatná URL. Zkus to znovu.",
-    "linkAttached": "Odkaz připojen"
+    "linkAttached": "Odkaz připojen",
+    "maxImages": "Maximálně {n} obrázků"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",

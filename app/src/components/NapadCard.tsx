@@ -25,8 +25,8 @@ export default function NapadCard({ task, categories }: Props) {
     task.body?.split("\n")[0]?.trim().slice(0, 80) ||
     t("detail.noTitle");
 
-  const hasImage = Boolean(task.attachmentImageUrl);
-  const hasLink = Boolean(task.attachmentLinkUrl);
+  const hasImage = (task.attachmentImages?.length ?? 0) > 0 || Boolean(task.attachmentImageUrl);
+  const hasLink = (task.attachmentLinks?.length ?? 0) > 0 || Boolean(task.attachmentLinkUrl);
 
   return (
     <Link

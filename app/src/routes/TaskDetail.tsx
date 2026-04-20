@@ -4,6 +4,7 @@ import { ArrowLeft, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { answerAsProjektant, convertNapadToOtazka, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
+import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
@@ -11,7 +12,7 @@ import LocationPicker from "@/components/LocationPicker";
 import StatusBadge from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
-import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Sparkles, X as XIcon } from "lucide-react";
+import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Sparkles, X as XIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,7 +37,7 @@ export default function TaskDetail() {
   const initializedRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
-  const [lightbox, setLightbox] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -138,86 +139,103 @@ export default function TaskDetail() {
   }
 
   async function handleAttachPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file || state.status !== "ready" || !user) return;
-    if (!isSupportedImage(file)) {
-      setAttachError(t("detail.attachmentUnsupported"));
-      return;
+    if (files.length === 0 || state.status !== "ready" || !user) return;
+    for (const f of files) {
+      if (!isSupportedImage(f)) {
+        setAttachError(t("detail.attachmentUnsupported"));
+        return;
+      }
     }
     setAttachError(null);
     setUploadingImage(true);
     try {
-      // If replacing, delete old object first (best-effort)
-      if (state.task.attachmentImagePath) {
-        await deleteTaskImage(state.task.attachmentImagePath);
+      const existing = state.task.attachmentImages ?? [];
+      const uploaded: import("@/types").ImageAttachment[] = [];
+      for (const file of files) {
+        try {
+          const { url, path } = await uploadTaskImage({
+            file,
+            uid: user.uid,
+            taskId: state.task.id,
+          });
+          uploaded.push({ id: newId(), url, path });
+        } catch (err) {
+          console.error("single image upload failed", err);
+        }
       }
-      const { url, path } = await uploadTaskImage({
-        file,
-        uid: user.uid,
-        taskId: state.task.id,
-      });
-      await updateTask(state.task.id, {
-        attachmentImageUrl: url,
-        attachmentImagePath: path,
-      });
-      flashSaved();
-    } catch (e) {
-      console.error("attachment upload failed", e);
-      setAttachError(t("composer.uploadFailed"));
+      if (uploaded.length > 0) {
+        await updateTask(state.task.id, {
+          attachmentImages: [...existing, ...uploaded],
+        });
+        flashSaved();
+      } else {
+        setAttachError(t("composer.uploadFailed"));
+      }
     } finally {
       setUploadingImage(false);
     }
   }
 
-  async function handleRemoveAttachment() {
+  async function handleRemoveImage(img: import("@/types").ImageAttachment) {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.confirmRemovePhoto"))) return;
-    const path = state.task.attachmentImagePath;
     setUploadingImage(true);
     try {
-      if (path) await deleteTaskImage(path);
-      await updateTask(state.task.id, {
-        attachmentImageUrl: null,
-        attachmentImagePath: null,
-      });
+      if (img.path) await deleteTaskImage(img.path);
+      const existing = state.task.attachmentImages ?? [];
+      const filtered = existing.filter((x) => x.id !== img.id);
+      await updateTask(state.task.id, { attachmentImages: filtered });
       flashSaved();
     } finally {
       setUploadingImage(false);
     }
   }
 
-  async function handleLinkEdit() {
+  async function handleLinkEdit(index: number) {
     if (state.status !== "ready") return;
-    const current = state.task.attachmentLinkUrl ?? "https://";
-    const input = window.prompt(t("composer.linkPromptTitle"), current);
+    const current = index >= 0 ? (state.task.attachmentLinks?.[index] ?? "") : "https://";
+    const input = window.prompt(t("composer.linkPromptTitle"), current || "https://");
     if (input === null) return;
-    if (!input.trim()) {
-      await updateTask(state.task.id, { attachmentLinkUrl: null });
-      flashSaved();
-      return;
-    }
-    const normalized = normalizeUrl(input);
-    if (!normalized) {
+    const normalized = input.trim() ? normalizeUrl(input) : null;
+    if (input.trim() && !normalized) {
       setAttachError(t("composer.linkInvalid"));
       return;
     }
     setAttachError(null);
     setSaving(true);
     try {
-      await updateTask(state.task.id, { attachmentLinkUrl: normalized });
+      const existing = state.task.attachmentLinks ?? [];
+      let next: string[];
+      if (index >= 0) {
+        // Edit existing
+        if (!normalized) {
+          // Empty input → remove
+          next = existing.filter((_, i) => i !== index);
+        } else {
+          next = existing.map((u, i) => (i === index ? normalized : u));
+        }
+      } else {
+        // Add new
+        if (!normalized) return;
+        next = [...existing, normalized];
+      }
+      await updateTask(state.task.id, { attachmentLinks: next });
       flashSaved();
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleLinkRemove() {
+  async function handleLinkRemove(index: number) {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.linkConfirmRemove"))) return;
     setSaving(true);
     try {
-      await updateTask(state.task.id, { attachmentLinkUrl: null });
+      const existing = state.task.attachmentLinks ?? [];
+      const next = existing.filter((_, i) => i !== index);
+      await updateTask(state.task.id, { attachmentLinks: next });
       flashSaved();
     } finally {
       setSaving(false);
@@ -331,33 +349,45 @@ export default function TaskDetail() {
 
         <div className="mt-4 rounded-md bg-surface ring-1 ring-line p-4">
           <p className="whitespace-pre-wrap break-words text-ink">{task.body || task.title}</p>
-          {task.attachmentImageUrl && (
-            <button
-              type="button"
-              onClick={() => setLightbox(true)}
-              className="mt-3 block overflow-hidden rounded-md ring-1 ring-line"
-            >
-              <img
-                src={task.attachmentImageUrl}
-                alt=""
-                width={640}
-                height={256}
-                loading="lazy"
-                decoding="async"
-                className="max-h-64 w-auto object-cover"
-              />
-            </button>
+          {(task.attachmentImages?.length ?? 0) > 0 && (
+            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {task.attachmentImages!.map((img, idx) => (
+                <li key={img.id ?? idx}>
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(img.url)}
+                    className="block w-full overflow-hidden rounded-md ring-1 ring-line"
+                  >
+                    <img
+                      src={img.url}
+                      alt=""
+                      width={200}
+                      height={200}
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-square w-full object-cover"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-          {task.attachmentLinkUrl && (
-            <a
-              href={task.attachmentLinkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
-            >
-              <LinkIconLc size={14} />
-              {task.attachmentLinkUrl}
-            </a>
+          {(task.attachmentLinks?.length ?? 0) > 0 && (
+            <ul className="mt-3 flex flex-col gap-2">
+              {task.attachmentLinks!.map((url, i) => (
+                <li key={i}>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
+                  >
+                    <LinkIconLc size={14} />
+                    <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
@@ -396,8 +426,8 @@ export default function TaskDetail() {
           </p>
         </section>
 
-        {lightbox && task.attachmentImageUrl && (
-          <Lightbox src={task.attachmentImageUrl} onClose={() => setLightbox(false)} />
+        {lightbox && (
+          <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
         )}
       </article>
     );
@@ -491,60 +521,54 @@ export default function TaskDetail() {
         <h2 id="att-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("detail.attachmentLabel")}
         </h2>
-        {task.attachmentImageUrl ? (
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setLightbox(true)}
-              className="block overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-              aria-label={t("aria.openImagePreview")}
-            >
-              <img
-                src={task.attachmentImageUrl}
-                alt=""
-                width={128}
-                height={128}
-                loading="lazy"
-                decoding="async"
-                className="h-32 w-32 object-cover"
-              />
-            </button>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage}
-                className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-              >
-                {uploadingImage ? t("detail.uploading") : t("detail.replacePhoto")}
-              </button>
-              <button
-                type="button"
-                onClick={handleRemoveAttachment}
-                disabled={uploadingImage}
-                className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-              >
-                <XIcon aria-hidden size={16} />
-                {t("detail.removePhoto")}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
-            className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-3 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-          >
-            <ImageIcon aria-hidden size={18} />
-            {uploadingImage ? t("detail.uploading") : t("detail.addPhoto")}
-          </button>
+        {(task.attachmentImages?.length ?? 0) > 0 && (
+          <ul className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {task.attachmentImages!.map((img, idx) => (
+              <li key={img.id ?? idx} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setLightbox(img.url)}
+                  className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
+                  aria-label={t("aria.openImagePreview")}
+                >
+                  <img
+                    src={img.url}
+                    alt=""
+                    width={200}
+                    height={200}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-square w-full object-cover"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(img)}
+                  disabled={uploadingImage}
+                  aria-label={t("detail.removePhoto")}
+                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-pill bg-black/75 text-white shadow hover:bg-black disabled:opacity-40"
+                >
+                  <XIcon aria-hidden size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingImage}
+          className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+        >
+          <ImageIcon aria-hidden size={18} />
+          {uploadingImage ? t("detail.uploading") : t("detail.addPhoto")}
+        </button>
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           capture="environment"
+          multiple
           className="hidden"
           onChange={handleAttachPick}
         />
@@ -555,58 +579,60 @@ export default function TaskDetail() {
         )}
       </section>
 
-      {lightbox && task.attachmentImageUrl && (
-        <Lightbox src={task.attachmentImageUrl} onClose={() => setLightbox(false)} />
+      {lightbox && (
+        <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
       )}
 
       <section className="mt-4" aria-labelledby="link-heading">
         <h2 id="link-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("detail.linkLabel")}
         </h2>
-        {task.attachmentLinkUrl ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={task.attachmentLinkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={t("detail.linkOpen")}
-              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors"
-            >
-              <LinkIconLc aria-hidden size={16} className="text-accent-visual" />
-              <span className="truncate max-w-[16rem]">
-                {parseDomain(task.attachmentLinkUrl) ?? task.attachmentLinkUrl}
-              </span>
-              <ExternalLink aria-hidden size={14} className="text-ink-subtle" />
-            </a>
-            <button
-              type="button"
-              onClick={handleLinkEdit}
-              disabled={saving}
-              className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-            >
-              {t("detail.linkEdit")}
-            </button>
-            <button
-              type="button"
-              onClick={handleLinkRemove}
-              disabled={saving}
-              className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle disabled:opacity-40 transition-colors inline-flex items-center gap-1"
-            >
-              <XIcon aria-hidden size={14} />
-              {t("detail.linkRemove")}
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={handleLinkEdit}
-            disabled={saving}
-            className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-3 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-          >
-            <LinkIconLc aria-hidden size={18} />
-            {t("detail.linkAdd")}
-          </button>
+        {(task.attachmentLinks?.length ?? 0) > 0 && (
+          <ul className="mb-2 flex flex-col gap-2">
+            {task.attachmentLinks!.map((url, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("detail.linkOpen")}
+                  className="inline-flex items-center gap-2 flex-1 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors truncate"
+                >
+                  <LinkIconLc aria-hidden size={16} className="text-accent-visual shrink-0" />
+                  <span className="truncate">{parseDomain(url) ?? url}</span>
+                  <ExternalLink aria-hidden size={14} className="text-ink-subtle shrink-0" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleLinkEdit(i)}
+                  disabled={saving}
+                  aria-label={t("detail.linkEdit")}
+                  className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink disabled:opacity-40"
+                >
+                  <Pencil aria-hidden size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLinkRemove(i)}
+                  disabled={saving}
+                  aria-label={t("detail.linkRemove")}
+                  className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40"
+                >
+                  <XIcon aria-hidden size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+        <button
+          type="button"
+          onClick={() => handleLinkEdit(-1)}
+          disabled={saving}
+          className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+        >
+          <LinkIconLc aria-hidden size={18} />
+          {t("detail.linkAdd")}
+        </button>
       </section>
 
       {task.type === "otazka" && (task.projektantAnswer || task.status === "Čekám") && (
