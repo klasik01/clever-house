@@ -24,19 +24,25 @@ export default function NapadCard({ task, categories }: Props) {
   return (
     <Link
       to={`/t/${task.id}`}
-      className="block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong"
+      aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${task.body.slice(0, 80) || task.title || ""}`}
+      className="block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus"
     >
       <article>
         <div className="flex items-start gap-3">
-          <TypeIcon
-            aria-hidden
-            size={18}
-            className={
-              task.type === "otazka"
-                ? "text-accent-visual mt-0.5 shrink-0"
-                : "text-ink-subtle mt-0.5 shrink-0"
-            }
-          />
+          <span className="shrink-0 mt-0.5">
+            <span className="sr-only">
+              {task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")}
+            </span>
+            <TypeIcon
+              aria-hidden
+              size={18}
+              className={
+                task.type === "otazka"
+                  ? "text-accent-visual"
+                  : "text-ink-subtle"
+              }
+            />
+          </span>
           <div className="min-w-0 flex-1">
             <p className="text-base leading-snug text-ink whitespace-pre-wrap break-words">
               {task.body || task.title || t("detail.titlePlaceholder")}

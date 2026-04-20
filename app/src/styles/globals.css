@@ -12,7 +12,6 @@
 
 @layer base {
   html {
-    /* prevent iOS Safari bounce text zoom */
     -webkit-text-size-adjust: 100%;
   }
 
@@ -31,15 +30,33 @@
     background: var(--color-bg-default);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    overscroll-behavior-y: none; /* prevent iOS pull-to-refresh over whole page */
+    overscroll-behavior-y: none;
   }
 
-  /* Focus ring on any :focus-visible element */
-  :where(a, button, [role="button"], [tabindex]):focus-visible,
+  /* --- Focus rings — WCAG 2.4.7 ---
+   * :focus-visible is used to avoid showing ring on mouse click.
+   * High-contrast forced colors mode gets the system focus highlight via
+   * the Highlight CanvasText color by default (browser handles it). */
+  :where(
+    a,
+    button,
+    [role="button"],
+    [role="menuitem"],
+    [role="radio"],
+    [role="tab"],
+    [tabindex]
+  ):focus-visible,
   :where(input, textarea, select):focus-visible {
     outline: var(--ring-width) solid var(--ring-color);
     outline-offset: var(--ring-offset);
     border-radius: var(--radius-sm);
+  }
+
+  /* Windows High Contrast / forced-colors ensure visible button affordance */
+  @media (forced-colors: active) {
+    :where(a, button, [role="button"]):focus-visible {
+      outline: 3px solid CanvasText;
+    }
   }
 
   /* Remove default tap highlight on touch devices */
@@ -52,22 +69,42 @@
     resize: none;
   }
 
-  /* Respect reduced motion across the app */
+  /* Respect reduced motion */
   @media (prefers-reduced-motion: reduce) {
-    * {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms \!important;
+      animation-iteration-count: 1 \!important;
+      transition-duration: 0.01ms \!important;
+      scroll-behavior: auto \!important;
     }
+  }
+
+  /* Visible focus ring around the main region when reached via skip link */
+  main:focus-visible {
+    outline: none; /* visual focus is on ring of other elements when navigating further */
   }
 }
 
 @layer utilities {
-  /* Safe-area utilities for iOS notches and bottom home indicator */
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--space-2));
   }
   .pt-safe {
     padding-top: max(env(safe-area-inset-top, 0px), var(--space-2));
+  }
+
+  /* Accessible "visually hidden until focused" pattern for skip links etc. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }

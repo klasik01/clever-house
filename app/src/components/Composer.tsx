@@ -136,7 +136,7 @@ export default function Composer({ onSave }: Props) {
   const linkDomain = linkUrl ? parseDomain(linkUrl) : null;
 
   return (
-    <section aria-label="Rychlý záznam" className="mx-auto max-w-xl px-4 pt-3 pb-2">
+    <section aria-label={t("aria.quickCapture")} className="mx-auto max-w-xl px-4 pt-3 pb-2">
       <div className="rounded-lg bg-surface shadow-sm ring-1 ring-line focus-within:ring-line-focus transition-colors">
         <div
           role="group"

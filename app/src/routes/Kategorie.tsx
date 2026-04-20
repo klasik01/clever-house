@@ -147,7 +147,7 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
             type="button"
             onClick={commit}
             disabled={saving}
-            aria-label="Uložit"
+            aria-label={t("common.save")}
             className="grid min-h-tap min-w-tap place-items-center rounded-md text-accent hover:bg-bg-subtle"
           >
             <Check aria-hidden size={18} />
@@ -155,7 +155,7 @@ function CategoryRow({ category, onDelete }: { category: Category; onDelete: () 
           <button
             type="button"
             onClick={cancel}
-            aria-label="Zrušit"
+            aria-label={t("common.cancel")}
             className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:bg-bg-subtle"
           >
             <X aria-hidden size={18} />

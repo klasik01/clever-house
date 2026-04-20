@@ -126,7 +126,7 @@ export default function Home() {
         </p>
       )}
 
-      <section aria-label="Seznam nápadů" className="mx-auto max-w-xl px-4 pt-2 pb-4">
+      <section aria-label={t("aria.napadyList")} className="mx-auto max-w-xl px-4 pt-2 pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips value={filter} onChange={changeFilter} counts={counts} />
           <CategoryFilterChip
@@ -145,7 +145,7 @@ export default function Home() {
             error={error}
             emptyTitle={t("list.emptyTitle")}
             emptyBody={t("list.emptyBody")}
-            ariaLabel="Seznam nápadů"
+            ariaLabel={t("aria.napadyList")}
           />
         </div>
       </section>

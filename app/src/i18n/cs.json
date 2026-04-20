@@ -218,5 +218,25 @@
     "title": "Nová verze",
     "body": "Je dostupná aktualizace aplikace.",
     "reload": "Obnovit"
+  },
+  "common": {
+    "save": "Uložit",
+    "cancel": "Zrušit",
+    "close": "Zavřít",
+    "delete": "Smazat",
+    "edit": "Upravit"
+  },
+  "aria": {
+    "mainNav": "Hlavní navigace",
+    "quickCapture": "Rychlý záznam",
+    "napadyList": "Seznam nápadů",
+    "otazkyList": "Seznam otázek",
+    "imagePreview": "Náhled obrázku",
+    "openImagePreview": "Otevřít náhled",
+    "skipToContent": "Přeskočit na obsah",
+    "typeNapad": "Typ: Nápad",
+    "typeOtazka": "Typ: Otázka",
+    "hasImage": "Obsahuje obrázek",
+    "hasLink": "Obsahuje odkaz"
   }
 }

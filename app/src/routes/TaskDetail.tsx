@@ -488,7 +488,7 @@ export default function TaskDetail() {
               type="button"
               onClick={() => setLightbox(true)}
               className="block overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-              aria-label="Otevřít náhled"
+              aria-label={t("aria.openImagePreview")}
             >
               <img
                 src={task.attachmentImageUrl}

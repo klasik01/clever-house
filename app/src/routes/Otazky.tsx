@@ -86,7 +86,7 @@ export default function Otazky() {
           error={error}
           emptyTitle={t("otazky.emptyTitle")}
           emptyBody={t("otazky.emptyBody")}
-          ariaLabel="Seznam otázek"
+          ariaLabel={t("aria.otazkyList")}
         />
       </div>
     </section>
