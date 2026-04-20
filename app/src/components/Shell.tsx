@@ -53,21 +53,21 @@ function BottomTabs({ role }: { role: UserRole }) {
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
         {!isPm && (
-          <Tab to="/" end icon={<Notebook aria-hidden size={20} />} label={t("tabs.capture")} />
+          <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.locations")} />
+        )}
+        {!isPm && (
+          <Tab
+            to="/napady"
+            icon={<Notebook aria-hidden size={20} />}
+            label={t("tabs.napady")}
+          />
         )}
         <Tab
-          to={isPm ? "/otazky" : "/otazky"}
+          to="/otazky"
           end={isPm}
           icon={<HelpCircle aria-hidden size={20} />}
           label={t("tabs.questions")}
         />
-        {!isPm && (
-          <Tab
-            to="/lokace"
-            icon={<MapPin aria-hidden size={20} />}
-            label={t("tabs.locations")}
-          />
-        )}
         <Tab
           to="/nastaveni"
           icon={<Ellipsis aria-hidden size={20} />}

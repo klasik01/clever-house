@@ -10,9 +10,7 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
-import { newId } from "@/lib/id";
-import { createTask, updateTask } from "@/lib/tasks";
-import { uploadTaskImage } from "@/lib/attachments";
+import { createTaskFromComposerInput } from "@/lib/createTaskFromComposerInput";
 import type { TaskType } from "@/types";
 import {
   applyCategory,
@@ -59,52 +57,15 @@ export default function Home() {
   const onSave = useCallback(
     async (text: string, type: TaskType, imageFiles: File[], linkUrls: string[]) => {
       if (!user) return;
-      
       try {
-        // 1. Create task first so we have its ID for the storage path
-        // Split first line as title, rest as body (Notion-style capture)
-        const lines = text.split("\n");
-        const firstLine = lines[0].trim();
-        const rest = lines.slice(1).join("\n").trim();
-        const parsedTitle = firstLine.slice(0, 120);
-        const parsedBody = rest || (firstLine.length > 120 ? firstLine : "");
-
-        const taskId = await createTask(
-          {
-            type,
-            title: parsedTitle,
-            body: parsedBody,
-            status: type === "otazka" ? "Otázka" : "Nápad",
-          },
-          user.uid
-        );
-
-        // 2. If images attached, upload sequentially + patch task with array.
-        // Partial failures logged; task still saved.
-        if (imageFiles.length > 0) {
-          const uploaded: import("@/types").ImageAttachment[] = [];
-          for (const file of imageFiles) {
-            try {
-              const { url, path } = await uploadTaskImage({
-                file,
-                uid: user.uid,
-                taskId,
-              });
-              uploaded.push({ id: newId(), url, path });
-            } catch (e) {
-              console.error("image upload failed", e);
-              showToast(t("composer.uploadFailed"), "error");
-            }
-          }
-          if (uploaded.length > 0) {
-            await updateTask(taskId, { attachmentImages: uploaded });
-          }
-        }
-
-        // 3. If links attached, patch the task (URLs already validated).
-        if (linkUrls.length > 0) {
-          await updateTask(taskId, { attachmentLinks: linkUrls });
-        }
+        await createTaskFromComposerInput({
+          text,
+          type,
+          imageFiles,
+          linkUrls,
+          uid: user.uid,
+          onImageUploadError: () => showToast(t("composer.uploadFailed"), "error"),
+        });
       } catch (e) {
         console.error(e);
         showToast(t("composer.saveFailed"), "error");

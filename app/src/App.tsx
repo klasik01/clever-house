@@ -30,14 +30,15 @@ export default function App() {
         <Route path="/auth/prihlaseni" element={<Login />} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<HomeForOwner />} />
+          <Route path="/" element={<LokaceForOwner />} />
+          <Route path="/napady" element={<HomeForOwner />} />
           <Route path="/otazky" element={<Otazky />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
-          <Route path="/lokace" element={<LokaceForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/export" element={<ExportForOwner />} />
+          <Route path="/lokace" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
