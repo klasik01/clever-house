@@ -9,6 +9,7 @@ import {
 import { useAuth } from "./hooks/useAuth";
 import Shell from "./components/Shell";
 import Home from "./routes/Home";
+import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
 import Login from "./routes/Auth/Login";
 import { useT } from "./i18n/useT";
@@ -21,6 +22,7 @@ export default function App() {
 
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<Home />} />
+          <Route path="/otazky" element={<Otazky />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -29,7 +31,6 @@ export default function App() {
   );
 }
 
-/** Wraps protected routes with Shell + auth gate. */
 function ProtectedLayout() {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -49,11 +50,7 @@ function ProtectedLayout() {
 
   if (!user) {
     return (
-      <Navigate
-        to="/auth/prihlaseni"
-        replace
-        state={{ from: location.pathname }}
-      />
+      <Navigate to="/auth/prihlaseni" replace state={{ from: location.pathname }} />
     );
   }
 

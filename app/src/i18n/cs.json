@@ -18,7 +18,11 @@
     "draftRestored": "Obnoven rozepsaný text",
     "saved": "Uloženo",
     "saveFailed": "Uložení selhalo. Zkus to znovu.",
-    "saving": "Ukládám…"
+    "saving": "Ukládám…",
+    "typeToggleLabel": "Typ záznamu",
+    "typeNapad": "Nápad",
+    "typeOtazka": "Otázka",
+    "placeholderOtazka": "Na co se chceš zeptat Projektanta?"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
@@ -58,5 +62,10 @@
     "themeLight": "Světlé",
     "themeDark": "Tmavé",
     "comingSoon": "Brzy"
+  },
+  "otazky": {
+    "pageTitle": "Otázky pro Projektanta",
+    "emptyTitle": "Žádné otázky zatím nemáš.",
+    "emptyBody": "Nápad jde kdykoliv převést na otázku z jeho detailu (přijde v dalším kroku), nebo ho zapiš rovnou jako otázku z hlavní obrazovky."
   }
 }

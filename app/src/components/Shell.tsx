@@ -49,23 +49,9 @@ function BottomTabs() {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        <Tab
-          to="/"
-          end
-          icon={<Notebook aria-hidden size={20} />}
-          label={t("tabs.capture")}
-        />
-        <Tab
-          to="/otazky"
-          icon={<HelpCircle aria-hidden size={20} />}
-          label={t("tabs.questions")}
-          disabled
-        />
-        <Tab
-          to="/nastaveni"
-          icon={<Ellipsis aria-hidden size={20} />}
-          label={t("tabs.more")}
-        />
+        <Tab to="/" end icon={<Notebook aria-hidden size={20} />} label={t("tabs.capture")} />
+        <Tab to="/otazky" icon={<HelpCircle aria-hidden size={20} />} label={t("tabs.questions")} />
+        <Tab to="/nastaveni" icon={<Ellipsis aria-hidden size={20} />} label={t("tabs.more")} />
       </ul>
     </nav>
   );
@@ -76,29 +62,12 @@ function Tab({
   end,
   icon,
   label,
-  disabled,
 }: {
   to: string;
   end?: boolean;
   icon: ReactNode;
   label: string;
-  disabled?: boolean;
 }) {
-  if (disabled) {
-    return (
-      <li className="flex-1">
-        <button
-          type="button"
-          disabled
-          aria-label={`${label} (nedostupné)`}
-          className="flex w-full min-h-tap flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium text-ink-subtle opacity-40 cursor-not-allowed"
-        >
-          <span aria-hidden>{icon}</span>
-          <span>{label}</span>
-        </button>
-      </li>
-    );
-  }
   return (
     <li className="flex-1">
       <NavLink
