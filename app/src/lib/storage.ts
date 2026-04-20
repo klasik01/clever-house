@@ -1,29 +1,7 @@
-// localStorage-backed persistence for S01. Replaced by Firestore in S02.
-import type { Task } from "@/types";
+// localStorage for client-only state (draft, theme preference).
+// Tasks moved to Firestore in S02 (see src/lib/tasks.ts).
 
-const TASKS_KEY = "chytry-dum:tasks";
 const DRAFT_KEY = "chytry-dum:capture-draft";
-
-export function loadTasks(): Task[] {
-  try {
-    const raw = localStorage.getItem(TASKS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Task[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-export function saveTasks(tasks: Task[]): void {
-  try {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
-  } catch (e) {
-    // QuotaExceeded? Signal via console for now; S14 adds telemetry.
-    console.error("saveTasks failed", e);
-  }
-}
 
 export function loadDraft(): string {
   try {

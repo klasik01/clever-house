@@ -18,7 +18,7 @@ Ověřit, že:
 2. Share button → "Přidat na plochu" → potvrď.
 3. Ikona se objeví na home-screen s názvem *"Chytrý dům"*.
 4. Tap → otevře se **bez address baru** (fullscreen standalone).
-5. Obrazovka zobrazuje *"PWA install test — works\!"* s timestampem.
+5. Obrazovka zobrazuje *"PWA install test — works!"* s timestampem.
 
 **Známý iOS limit:** iOS Safari **neukáže automatický install prompt** jako Android. Uživatel musí manuálně tapnout Share → Add to Home Screen. Na to v MVP mysli (onboarding instrukce).
 

@@ -1,4 +1,4 @@
-// Test: pdfmake — má vestavěné Unicode fonty (Roboto built-in\!)
+// Test: pdfmake — má vestavěné Unicode fonty (Roboto built-in!)
 // Pro CZ diakritiku by měl fungovat out-of-the-box.
 
 import fs from "node:fs";

@@ -305,7 +305,7 @@ Tento flow nemá vlastní obrazovku — používá filtrový query string. Měř
 
 - [ ] **Self-serve signup vs. manuální účty.** MVP plán: Stanislav ručně vytváří 3 účty ve Firebase console, žádný signup UI. Pokud V2 sdílený link pro řemeslníky, signup bude nutný. **Rozhodnuto pro MVP: žádný signup.**
 - [ ] **Role switching / demo mode.** Nepotřeba — každý uživatel má fixní roli v Firestore `users` doc.
-- [ ] **Pre-seeded welcome task** (*"Vítej\! Toto je tvůj první nápad…"*) nebo čistý start? Doporučuji **čistý start** + inline empty state copy, žádný dummy content.
+- [ ] **Pre-seeded welcome task** (*"Vítej! Toto je tvůj první nápad…"*) nebo čistý start? Doporučuji **čistý start** + inline empty state copy, žádný dummy content.
 - [ ] **Detail `/t/:id` jako plnostránková route vs. bottom sheet modal.** Pro mobile UX jednodušší plnostránka (jednoznačný back + URL share). Modal jen pro quick peek? **Rozhodnuto: plnostránka `/t/:id`** (viz Flow A–C).
 - [ ] **Vyhledávání fulltext.** Mimo MVP scope. Pokud bude potřeba před první schůzkou s 50+ tasky, přidáme v průběhu.
 - [ ] **OG preview pro linky.** Scrape title/image z URL = síťová závislost. MVP: jen uložit URL, zobrazit domain. V2: fetch OG meta přes Cloud Function. **MVP: jen URL.**

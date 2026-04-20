@@ -1,19 +1,23 @@
 {
   "name": "chytry-dum-na-vsi",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "rules:deploy": "firebase deploy --only firestore:rules",
+    "emulators": "firebase emulators:start --only firestore,auth"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",
+    "firebase": "^10.12.5",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.24.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Chytrý dům na vsi",
-    "subtitle": "Clever house"
+    "subtitle": "Clever house",
+    "loading": "Načítám…"
   },
   "tabs": {
     "capture": "Zachyt",
@@ -15,11 +16,15 @@
     "attachLink": "Přidat odkaz",
     "attachmentsComingSoon": "Přílohy přijdou v dalším kroku",
     "draftRestored": "Obnoven rozepsaný text",
-    "saved": "Uloženo"
+    "saved": "Uloženo",
+    "saveFailed": "Uložení selhalo. Zkus to znovu.",
+    "saving": "Ukládám…"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
-    "emptyBody": "Začni psát nahoře — ukládá se do tohoto zařízení."
+    "emptyBody": "Začni psát nahoře — ukládá se rovnou na cloud a sdílí s tvým workspace.",
+    "loadFailed": "Načítání selhalo.",
+    "retry": "Zkusit znovu"
   },
   "card": {
     "justNow": "právě teď",
@@ -28,5 +33,30 @@
     "daysAgo": "před {n} d",
     "delete": "Smazat",
     "confirmDelete": "Smazat tento nápad?"
+  },
+  "auth": {
+    "title": "Přihlášení",
+    "subtitle": "Přihlas se, abys viděl své nápady.",
+    "email": "E-mail",
+    "password": "Heslo",
+    "signIn": "Přihlásit",
+    "signInGoogle": "Přihlásit přes Google",
+    "or": "nebo",
+    "signingIn": "Přihlašuji…",
+    "invalidCredentials": "Špatný e-mail nebo heslo.",
+    "genericError": "Něco se nepovedlo. Zkus to znovu.",
+    "noAccount": "Účty vytváří správce ručně. Požádej Stanislava."
+  },
+  "settings": {
+    "title": "Nastavení",
+    "account": "Účet",
+    "email": "E-mail",
+    "signOut": "Odhlásit",
+    "version": "Verze",
+    "themeLabel": "Téma",
+    "themeSystem": "Systém",
+    "themeLight": "Světlé",
+    "themeDark": "Tmavé",
+    "comingSoon": "Brzy"
   }
 }
