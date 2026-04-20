@@ -1,3 +1,4 @@
+import { HelpCircle } from "lucide-react";
 import { useState } from "react";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
@@ -86,6 +87,7 @@ export default function Otazky() {
           error={error}
           emptyTitle={t("otazky.emptyTitle")}
           emptyBody={t("otazky.emptyBody")}
+          emptyIcon={<HelpCircle size={22} aria-hidden />}
           ariaLabel={t("aria.otazkyList")}
         />
       </div>

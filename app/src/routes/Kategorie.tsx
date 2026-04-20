@@ -9,12 +9,14 @@ import {
   seedCategoriesIfEmpty,
 } from "@/lib/categories";
 import { useT } from "@/i18n/useT";
+import { useToast } from "@/components/Toast";
 import type { Category } from "@/types";
 
 export default function Kategorie() {
   const t = useT();
   const { user } = useAuth();
   const { categories, loading, error } = useCategories(Boolean(user));
+  const { show: showToast } = useToast();
   const [newLabel, setNewLabel] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +32,10 @@ export default function Kategorie() {
     try {
       await createCategory(newLabel, user.uid);
       setNewLabel("");
+      showToast(t("toast.saved"), "success");
+    } catch (e) {
+      console.error(e);
+      showToast(t("toast.genericError"), "error");
     } finally {
       setBusy(false);
     }

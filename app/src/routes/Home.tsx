@@ -1,10 +1,12 @@
 import { useCallback, useState } from "react";
+import { Lightbulb } from "lucide-react";
 import Composer from "@/components/Composer";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
+import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
@@ -31,7 +33,7 @@ export default function Home() {
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const { show: showToast } = useToast();
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() =>
     loadCategoryFilter(KEY)
@@ -56,7 +58,7 @@ export default function Home() {
   const onSave = useCallback(
     async (text: string, type: TaskType, imageFile?: File | null, linkUrl?: string | null) => {
       if (!user) return;
-      setSaveError(null);
+      
       try {
         // 1. Create task first so we have its ID for the storage path
         const taskId = await createTask(
@@ -84,7 +86,7 @@ export default function Home() {
             });
           } catch (e) {
             console.error("image upload failed", e);
-            setSaveError(t("composer.uploadFailed"));
+            showToast(t("composer.uploadFailed"), "error");
             // Don't throw — task is already saved. User can add image from detail.
           }
         }
@@ -95,11 +97,11 @@ export default function Home() {
         }
       } catch (e) {
         console.error(e);
-        setSaveError(t("composer.saveFailed"));
+        showToast(t("composer.saveFailed"), "error");
         throw e;
       }
     },
-    [user, t]
+    [user, t, showToast]
   );
 
   const napady = tasks.filter((tk) => tk.type === "napad");
@@ -116,15 +118,6 @@ export default function Home() {
   return (
     <>
       <Composer onSave={onSave} />
-
-      {saveError && (
-        <p
-          role="alert"
-          className="mx-auto max-w-xl px-4 pb-2 text-center text-xs text-[color:var(--color-status-danger-fg)]"
-        >
-          {saveError}
-        </p>
-      )}
 
       <section aria-label={t("aria.napadyList")} className="mx-auto max-w-xl px-4 pt-2 pb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -145,6 +138,7 @@ export default function Home() {
             error={error}
             emptyTitle={t("list.emptyTitle")}
             emptyBody={t("list.emptyBody")}
+            emptyIcon={<Lightbulb size={22} aria-hidden />}
             ariaLabel={t("aria.napadyList")}
           />
         </div>

@@ -237,6 +237,14 @@
     "typeNapad": "Typ: Nápad",
     "typeOtazka": "Typ: Otázka",
     "hasImage": "Obsahuje obrázek",
-    "hasLink": "Obsahuje odkaz"
+    "hasLink": "Obsahuje odkaz",
+    "toastRegion": "Oznámení"
+  },
+  "toast": {
+    "saved": "Uloženo",
+    "statusUpdated": "Stav aktualizován",
+    "categoryUpdated": "Kategorie aktualizována",
+    "linkSaved": "Odkaz uložen",
+    "genericError": "Něco se nepovedlo. Zkus to znovu."
   }
 }

@@ -9,6 +9,7 @@ interface Props {
   error: Error | null;
   emptyTitle: string;
   emptyBody: string;
+  emptyIcon?: React.ReactNode;
   ariaLabel: string;
 }
 
@@ -19,6 +20,7 @@ export default function TaskList({
   error,
   emptyTitle,
   emptyBody,
+  emptyIcon,
   ariaLabel,
 }: Props) {
   const t = useT();
@@ -32,7 +34,7 @@ export default function TaskList({
         retry={() => location.reload()}
       />
     );
-  if (tasks.length === 0) return <EmptyState title={emptyTitle} body={emptyBody} />;
+  if (tasks.length === 0) return <EmptyState title={emptyTitle} body={emptyBody} icon={emptyIcon} />;
 
   return (
     <ul aria-label={ariaLabel} className="flex flex-col gap-2">
@@ -45,9 +47,22 @@ export default function TaskList({
   );
 }
 
-function EmptyState({ title, body }: { title: string; body: string }) {
+function EmptyState({
+  title,
+  body,
+  icon,
+}: {
+  title: string;
+  body: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <div className="mt-6 rounded-lg border border-dashed border-line px-6 py-10 text-center">
+      {icon && (
+        <div className="mx-auto mb-3 grid size-12 place-items-center rounded-pill bg-bg-subtle text-ink-subtle">
+          {icon}
+        </div>
+      )}
       <p className="text-base font-medium text-ink">{title}</p>
       <p className="mt-2 text-sm text-ink-muted">{body}</p>
     </div>
