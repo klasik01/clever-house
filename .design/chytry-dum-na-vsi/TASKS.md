@@ -466,14 +466,16 @@ Polish + review jdou na začátek června, ale brief říká Metrika B až po 90
   - Migration: 0 data
 - **Size:** M (~3h)
 
-### S27 — Tiptap rich text editor (Markdown)
+### S27 — Tiptap rich text editor (Markdown) ✓
 - **Scope:**
-  - Install `@tiptap/react`, `@tiptap/starter-kit`, Markdown serializer
-  - TaskDetail: body textarea → Tiptap editor s toolbar (Bold, Italic, BulletList, Headings H1/H2)
-  - Storage: body jako **Markdown** string ve Firestore
-  - Composer zůstává plain textarea (quick capture unchanged)
-  - Lazy-load editor chunk na /t/:id (mimo main bundle)
-  - Export: PDF + text clipboard render Markdown (pdfmake understands basic MD elements via custom handler; plain text export = já parsuji markdown do plain)
+  - Install `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/extension-placeholder`, `tiptap-markdown` (přidáno do `package.json` — `npm install` na dev stroji)
+  - `src/components/RichTextEditor.tsx` — React komponent s toolbar (H1, H2, Bold, Italic, BulletList), Placeholder, Markdown serializer, disabled=read-only mód (PM view)
+  - TaskDetail (OWNER): body textarea → `<Suspense>` + `<RichTextEditor>` (lazy chunk na `/t/:id`)
+  - TaskDetail (PM): question body rendering přes `<RichTextEditor disabled>` — zobrazí Markdown formátování
+  - Storage: body jako **Markdown** string ve Firestore (stejné pole, žádná migrace — plain text je valid Markdown)
+  - Composer zůstává plain textarea (quick capture unchanged, per B3)
+  - Styling: `.cdv-editor .ProseMirror` rules v `globals.css` — h1/h2/ul/strong/em + placeholder
+  - Export: PDF + text export neupraveno, Markdown marks zůstávají raw (čitelné)
 - **Size:** L (~5h)
 
 ### S28 — Browse by Location (grid + tabs)

@@ -67,6 +67,7 @@ export async function createTask(
     linkedTaskId: null,
     projektantAnswer: null,
     projektantAnswerAt: null,
+    linkedTaskIds: [],
     attachmentImages: [],
     attachmentImageUrl: null,
     attachmentImagePath: null,
@@ -81,7 +82,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -116,6 +117,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     categoryId: data.categoryId ?? null,
     locationId: data.locationId ?? null,
     linkedTaskId: data.linkedTaskId ?? null,
+    linkedTaskIds: bridgeLinkedTaskIds(data),
     projektantAnswer: data.projektantAnswer ?? null,
     projektantAnswerAt: toIsoOrNull(data.projektantAnswerAt),
     attachmentImages: bridgeImages(data),
@@ -195,6 +197,7 @@ export async function convertNapadToOtazka(
     linkedTaskId: source.id,
     projektantAnswer: null,
     projektantAnswerAt: null,
+    linkedTaskIds: [],
     attachmentImageUrl: source.attachmentImageUrl ?? null,
     attachmentImagePath: null,
     attachmentLinkUrl: source.attachmentLinkUrl ?? null,
@@ -203,7 +206,10 @@ export async function convertNapadToOtazka(
     updatedAt: serverTimestamp(),
   });
 
+  const existingLinked = source.linkedTaskIds ?? (source.linkedTaskId ? [source.linkedTaskId] : []);
   batch.update(doc(db, TASKS, source.id), {
+    linkedTaskIds: [...existingLinked, newRef.id],
+    // keep legacy linkedTaskId synced to last added for backward compat reads
     linkedTaskId: newRef.id,
     updatedAt: serverTimestamp(),
   });
@@ -236,6 +242,18 @@ function bridgeLinks(data: Record<string, unknown>): string[] {
   if (Array.isArray(arr) && arr.length > 0) return arr.filter((x) => typeof x === "string");
   if (typeof data.attachmentLinkUrl === "string" && data.attachmentLinkUrl) {
     return [data.attachmentLinkUrl];
+  }
+  return [];
+}
+
+
+/** Bridge legacy linkedTaskId on a nápad to the S26 array shape. For otázka it's ignored (otázka uses single linkedTaskId). */
+function bridgeLinkedTaskIds(data: Record<string, unknown>): string[] {
+  const arr = data.linkedTaskIds as string[] | undefined;
+  if (Array.isArray(arr) && arr.length > 0) return arr.filter((x) => typeof x === "string");
+  // Only nápad's legacy linkedTaskId maps to the array; otázka keeps its own.
+  if (data.type === "napad" && typeof data.linkedTaskId === "string" && data.linkedTaskId) {
+    return [data.linkedTaskId];
   }
   return [];
 }

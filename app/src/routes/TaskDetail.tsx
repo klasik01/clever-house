@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
@@ -17,6 +17,8 @@ import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
+
+const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
 
@@ -96,7 +98,7 @@ export default function TaskDetail() {
 
   async function handleConvert() {
     if (state.status !== "ready" || !user) return;
-    if (state.task.type !== "napad" || state.task.linkedTaskId) return;
+    if (state.task.type !== "napad") return;
     if (!window.confirm(t("detail.convertConfirm"))) return;
     setConverting(true);
     try {
@@ -348,7 +350,22 @@ export default function TaskDetail() {
         <h1 id="pm-heading" className="sr-only">{t("detail.typeOtazka")}</h1>
 
         <div className="mt-4 rounded-md bg-surface ring-1 ring-line p-4">
-          <p className="whitespace-pre-wrap break-words text-ink">{task.body || task.title}</p>
+          {task.body ? (
+            <Suspense
+              fallback={
+                <p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>
+              }
+            >
+              <RichTextEditor
+                value={task.body}
+                onChange={() => {}}
+                disabled
+                ariaLabel={t("detail.bodyLabel")}
+              />
+            </Suspense>
+          ) : (
+            <p className="whitespace-pre-wrap break-words text-ink">{task.title}</p>
+          )}
           {(task.attachmentImages?.length ?? 0) > 0 && (
             <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {task.attachmentImages!.map((img, idx) => (
@@ -470,18 +487,30 @@ export default function TaskDetail() {
         className="mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-lg font-semibold text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
       />
 
-      <label htmlFor="detail-body" className="sr-only">
-        {t("detail.bodyLabel")}
-      </label>
-      <textarea
-        id="detail-body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        onBlur={flushOnBlur}
-        placeholder={t("detail.bodyPlaceholder")}
-        rows={6}
-        className="mt-3 block w-full resize-y rounded-md bg-transparent px-1 py-2 text-base leading-relaxed text-ink placeholder:text-ink-subtle focus:outline-none focus:bg-bg-subtle/60 min-h-[10rem]"
-      />
+      <div className="mt-3">
+        <span id="detail-body-label" className="sr-only">
+          {t("detail.bodyLabel")}
+        </span>
+        <Suspense
+          fallback={
+            <div
+              className="min-h-[13rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
+              aria-busy="true"
+              role="status"
+            >
+              {t("detail.editorLoading")}
+            </div>
+          }
+        >
+          <RichTextEditor
+            value={body}
+            onChange={setBody}
+            onBlur={flushOnBlur}
+            placeholder={t("detail.bodyPlaceholder")}
+            ariaLabel={t("detail.bodyLabel")}
+          />
+        </Suspense>
+      </div>
 
       <section className="mt-6" aria-labelledby="status-heading">
         <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
@@ -682,7 +711,7 @@ export default function TaskDetail() {
         </Link>
       )}
 
-      {task.type === "napad" && !task.linkedTaskId && (
+      {task.type === "napad" && (
         <div className="mt-6">
           <button
             type="button"
@@ -691,7 +720,11 @@ export default function TaskDetail() {
             className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
           >
             <Sparkles aria-hidden size={16} className="text-accent-visual" />
-            {converting ? t("detail.converting") : t("detail.convertToOtazka")}
+            {converting
+              ? t("detail.converting")
+              : (task.linkedTaskIds?.length ?? 0) > 0
+              ? t("detail.convertToOtazkaAgain")
+              : t("detail.convertToOtazka")}
           </button>
         </div>
       )}

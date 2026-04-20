@@ -24,6 +24,9 @@ export interface Task {
   status: TaskStatus;
   categoryId?: string | null;
   locationId?: string | null;
+  // S26 — array of linked otázka IDs (nápad parent → otázka children)
+  linkedTaskIds?: string[];
+  // Single parent link (otázka child → nápad parent, also legacy on nápady pre-S26)
   linkedTaskId?: string | null;
   projektantAnswer?: string | null;
   projektantAnswerAt?: string | null;   // S10 — ISO timestamp of PM reply

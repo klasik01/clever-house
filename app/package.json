@@ -1,7 +1,7 @@
 {
   "name": "chytry-dum-na-vsi",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,13 +16,18 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",
+    "@tiptap/extension-placeholder": "^2.4.0",
+    "@tiptap/pm": "^2.4.0",
+    "@tiptap/react": "^2.4.0",
+    "@tiptap/starter-kit": "^2.4.0",
+    "browser-image-compression": "^2.0.2",
     "firebase": "^10.12.5",
     "lucide-react": "^0.383.0",
+    "pdfmake": "^0.2.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.0",
-    "browser-image-compression": "^2.0.2",
-    "pdfmake": "^0.2.10"
+    "tiptap-markdown": "^0.8.10"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",
