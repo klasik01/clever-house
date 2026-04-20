@@ -16,12 +16,14 @@ import Kategorie from "./routes/Kategorie";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
+import UpdateBanner from "./components/UpdateBanner";
 import { signOut } from "./lib/auth";
 import { useT } from "./i18n/useT";
 
 export default function App() {
   return (
     <BrowserRouter>
+      <UpdateBanner />
       <Routes>
         <Route path="/auth/prihlaseni" element={<Login />} />
 

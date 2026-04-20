@@ -70,7 +70,8 @@
     "themeDark": "Tmavé",
     "comingSoon": "Brzy",
     "categories": "Kategorie",
-    "export": "Export do PDF"
+    "export": "Export do PDF",
+    "install": "Instalace"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -203,5 +204,19 @@
       "location": "Lokace",
       "link": "Odkaz"
     }
+  },
+  "install": {
+    "title": "Přidat na plochu",
+    "statusInstalled": "Instalováno — appka běží ve vlastním okně.",
+    "statusBrowser": "Běží v prohlížeči. Přidej na plochu pro rychlý přístup a méně otvírání webu.",
+    "iosInstructions": "Na iPhone: Safari → tlačítko Sdílet (ikona šipka nahoru) → Přidat na plochu.",
+    "androidInstructions": "Na Androidu: Chrome → menu (3 tečky) → Instalovat aplikaci.",
+    "desktopInstructions": "Na desktopu: ikona instalace vpravo v adresním řádku prohlížeče.",
+    "installNow": "Instalovat teď"
+  },
+  "update": {
+    "title": "Nová verze",
+    "body": "Je dostupná aktualizace aplikace.",
+    "reload": "Obnovit"
   }
 }

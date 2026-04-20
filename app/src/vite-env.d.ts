@@ -16,3 +16,14 @@ interface ImportMeta {
 // pdfmake ships CommonJS builds without types for the sub-paths we import.
 declare module "pdfmake/build/pdfmake";
 declare module "pdfmake/build/vfs_fonts";
+
+// vite-plugin-pwa virtual module for runtime SW registration
+declare module "virtual:pwa-register" {
+  export function registerSW(options?: {
+    immediate?: boolean;
+    onNeedRefresh?: () => void;
+    onOfflineReady?: () => void;
+    onRegisteredSW?: (swUrl: string, registration?: ServiceWorkerRegistration) => void;
+    onRegisterError?: (error: unknown) => void;
+  }): (reloadPage?: boolean) => Promise<void>;
+}

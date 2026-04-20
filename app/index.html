@@ -3,10 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#5E5D3F" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <title>Chytrý dům na vsi</title>
+    <meta name="theme-color" content="#5E5D3F" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1A1914" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Záznamník nápadů, otázek a rozhodnutí pro stavbu domu." />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Chytrý dům" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+
+    <!-- Favicons + PWA manifest (manifest auto-injected by vite-plugin-pwa) -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <title>Chytrý dům na vsi</title>
+
     <!-- FOUC prevention: apply stored theme before paint -->
     <script>
       (function () {

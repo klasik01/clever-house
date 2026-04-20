@@ -2,6 +2,7 @@ import { ChevronRight, FileDown, LogOut, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
+import InstallHelper from "@/components/InstallHelper";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 
@@ -35,6 +36,12 @@ export default function Settings() {
         </div>
       </SettingsGroup>
 
+      <SettingsGroup title={t("settings.install")}>
+        <div className="px-4 py-3">
+          <InstallHelper />
+        </div>
+      </SettingsGroup>
+
       <div className="mt-6">
         <button
           type="button"
@@ -47,7 +54,7 @@ export default function Settings() {
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-subtle">
-        {t("settings.version")}: 0.13.0 (S13)
+        {t("settings.version")}: 0.14.0 (S14)
       </p>
     </section>
   );
