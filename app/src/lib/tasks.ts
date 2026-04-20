@@ -74,7 +74,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,

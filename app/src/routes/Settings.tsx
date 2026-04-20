@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import { ChevronRight, LogOut, Tag } from "lucide-react";
+import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
@@ -9,7 +10,6 @@ export default function Settings() {
 
   async function handleSignOut() {
     await signOut();
-    // Redirect handled by auth state listener via ProtectedRoute.
   }
 
   return (
@@ -21,6 +21,10 @@ export default function Settings() {
 
       <SettingsGroup title={t("settings.account")}>
         <Row label={t("settings.email")} value={user?.email ?? "—"} />
+      </SettingsGroup>
+
+      <SettingsGroup title="Data">
+        <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.themeLabel")}>
@@ -39,7 +43,7 @@ export default function Settings() {
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-subtle">
-        {t("settings.version")}: 0.2.0 (S02)
+        {t("settings.version")}: 0.6.0 (S06)
       </p>
     </section>
   );
@@ -70,5 +74,28 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-ink">{label}</span>
       <span className="truncate text-sm text-ink-muted">{value}</span>
     </div>
+  );
+}
+
+function LinkRow({
+  to,
+  icon,
+  label,
+}: {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center justify-between gap-4 px-4 py-3 min-h-tap text-sm text-ink hover:bg-bg-subtle transition-colors"
+    >
+      <span className="flex items-center gap-3">
+        <span aria-hidden className="text-ink-subtle">{icon}</span>
+        {label}
+      </span>
+      <ChevronRight aria-hidden size={16} className="text-ink-subtle" />
+    </Link>
   );
 }

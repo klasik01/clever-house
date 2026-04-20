@@ -1,9 +1,10 @@
-import type { Task } from "@/types";
+import type { Category, Task } from "@/types";
 import NapadCard from "./NapadCard";
 import { useT } from "@/i18n/useT";
 
 interface Props {
   tasks: Task[];
+  categories?: Category[];
   loading: boolean;
   error: Error | null;
   emptyTitle: string;
@@ -13,6 +14,7 @@ interface Props {
 
 export default function TaskList({
   tasks,
+  categories,
   loading,
   error,
   emptyTitle,
@@ -36,7 +38,7 @@ export default function TaskList({
     <ul aria-label={ariaLabel} className="flex flex-col gap-2">
       {tasks.map((task) => (
         <li key={task.id}>
-          <NapadCard task={task} />
+          <NapadCard task={task} categories={categories} />
         </li>
       ))}
     </ul>

@@ -5,6 +5,9 @@ import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { deleteTask, updateTask } from "@/lib/tasks";
 import StatusSelect from "@/components/StatusSelect";
+import CategoryPicker from "@/components/CategoryPicker";
+import { useCategories } from "@/hooks/useCategories";
+import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
@@ -14,6 +17,8 @@ export default function TaskDetail() {
   const navigate = useNavigate();
   const t = useT();
   const state = useTask(id);
+  const { user } = useAuth();
+  const { categories } = useCategories(Boolean(user));
 
   // Editable local state. Initialized once from Firestore task; not re-synced on subsequent
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
@@ -70,6 +75,19 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleCategoryChange(nextId: string | null) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { categoryId: nextId });
+      flashSaved();
+    } catch (e) {
+      console.error("category update failed", e);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleStatusChange(next: TaskStatus) {
@@ -180,7 +198,19 @@ export default function TaskDetail() {
         />
       </section>
 
-      {/* Placeholder region for S06-S11 — category, location, attachments, PM answer. */}
+      <section className="mt-4" aria-labelledby="cat-heading">
+        <h2 id="cat-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("detail.categoryLabel")}
+        </h2>
+        <CategoryPicker
+          value={task.categoryId ?? null}
+          categories={categories}
+          onChange={handleCategoryChange}
+          disabled={saving}
+        />
+      </section>
+
+      {/* Placeholder region for S07-S11 — location, attachments, PM answer. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

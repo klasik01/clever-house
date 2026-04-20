@@ -1,17 +1,21 @@
 import { Link } from "react-router-dom";
-import { HelpCircle, Notebook } from "lucide-react";
-import type { Task } from "@/types";
+import { HelpCircle, Notebook, Tag } from "lucide-react";
+import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
 
 interface Props {
   task: Task;
+  categories?: Category[];
 }
 
-export default function NapadCard({ task }: Props) {
+export default function NapadCard({ task, categories }: Props) {
   const t = useT();
   const created = new Date(task.createdAt);
   const TypeIcon = task.type === "otazka" ? HelpCircle : Notebook;
+  const category = task.categoryId
+    ? categories?.find((c) => c.id === task.categoryId)
+    : undefined;
 
   return (
     <Link
@@ -33,8 +37,14 @@ export default function NapadCard({ task }: Props) {
             <p className="text-base leading-snug text-ink whitespace-pre-wrap break-words">
               {task.body || task.title || t("detail.titlePlaceholder")}
             </p>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge status={task.status} />
+              {category && (
+                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <Tag aria-hidden size={11} />
+                  {category.label}
+                </span>
+              )}
               <span className="text-xs text-ink-subtle">
                 {formatRelative(t, created)}
               </span>

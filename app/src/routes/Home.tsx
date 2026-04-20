@@ -2,23 +2,43 @@ import { useCallback, useState } from "react";
 import Composer from "@/components/Composer";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
+import CategoryFilterChip from "@/components/CategoryFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
+import { useCategories } from "@/hooks/useCategories";
 import { createTask } from "@/lib/tasks";
 import type { TaskType } from "@/types";
-import { applyOpenClosed, loadFilter, saveFilter, type OpenClosedFilter } from "@/lib/filters";
+import {
+  applyCategory,
+  applyOpenClosed,
+  loadCategoryFilter,
+  loadFilter,
+  saveCategoryFilter,
+  saveFilter,
+  type OpenClosedFilter,
+} from "@/lib/filters";
+
+const KEY = "napady";
 
 export default function Home() {
   const t = useT();
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
+  const { categories } = useCategories(Boolean(user));
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter("napady"));
+  const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
+  const [categoryId, setCategoryId] = useState<string | null>(() =>
+    loadCategoryFilter(KEY)
+  );
 
   function changeFilter(next: OpenClosedFilter) {
     setFilter(next);
-    saveFilter("napady", next);
+    saveFilter(KEY, next);
+  }
+  function changeCategory(next: string | null) {
+    setCategoryId(next);
+    saveCategoryFilter(KEY, next);
   }
 
   const onSave = useCallback(
@@ -50,7 +70,7 @@ export default function Home() {
     open: napady.filter((x) => x.status !== "Hotovo").length,
     done: napady.filter((x) => x.status === "Hotovo").length,
   };
-  const visible = applyOpenClosed(napady, filter);
+  const visible = applyCategory(applyOpenClosed(napady, filter), categoryId);
 
   return (
     <>
@@ -66,11 +86,19 @@ export default function Home() {
       )}
 
       <section aria-label="Seznam nápadů" className="mx-auto max-w-xl px-4 pt-2 pb-4">
-        <FilterChips value={filter} onChange={changeFilter} counts={counts} />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterChips value={filter} onChange={changeFilter} counts={counts} />
+          <CategoryFilterChip
+            value={categoryId}
+            categories={categories}
+            onChange={changeCategory}
+          />
+        </div>
 
         <div className="mt-3">
           <TaskList
             tasks={visible}
+            categories={categories}
             loading={loading}
             error={error}
             emptyTitle={t("list.emptyTitle")}

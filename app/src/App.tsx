@@ -11,6 +11,7 @@ import Shell from "./components/Shell";
 import Home from "./routes/Home";
 import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
+import Kategorie from "./routes/Kategorie";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
 import { useT } from "./i18n/useT";
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/otazky" element={<Otazky />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
+          <Route path="/kategorie" element={<Kategorie />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -61,7 +61,8 @@
     "themeSystem": "Systém",
     "themeLight": "Světlé",
     "themeDark": "Tmavé",
-    "comingSoon": "Brzy"
+    "comingSoon": "Brzy",
+    "categories": "Kategorie"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -87,7 +88,10 @@
     "author": "Autor",
     "typeLabel": "Typ",
     "typeNapad": "Nápad",
-    "typeOtazka": "Otázka"
+    "typeOtazka": "Otázka",
+    "categoryLabel": "Kategorie",
+    "categoryNone": "Bez kategorie",
+    "categoryPick": "Vyber kategorii"
   },
   "status": {
     "label": "Stav",
@@ -102,6 +106,20 @@
     "all": "Vše",
     "open": "Otevřené",
     "done": "Hotové",
-    "ariaLabel": "Filtr podle stavu"
+    "ariaLabel": "Filtr podle stavu",
+    "categoryAll": "Všechny kategorie",
+    "categoryAriaLabel": "Filtr podle kategorie"
+  },
+  "kategorie": {
+    "pageTitle": "Kategorie",
+    "addPlaceholder": "Nová kategorie…",
+    "addButton": "Přidat",
+    "rename": "Přejmenovat",
+    "delete": "Smazat",
+    "confirmDelete": "Smazat kategorii \"{name}\"? Tasky se odznačí, ale nezmizí.",
+    "saveHint": "Uloženo",
+    "empty": "Zatím žádné kategorie. Přidej první nahoře.",
+    "hint": "Kategorie pomáhají rychle filtrovat seznamy. Výchozí sada se zaseje při prvním spuštění.",
+    "loadFailed": "Nepodařilo se načíst kategorie."
   }
 }
