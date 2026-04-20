@@ -54,7 +54,7 @@ export default function Home() {
   }
 
   const onSave = useCallback(
-    async (text: string, type: TaskType, imageFile?: File | null) => {
+    async (text: string, type: TaskType, imageFile?: File | null, linkUrl?: string | null) => {
       if (!user) return;
       setSaveError(null);
       try {
@@ -87,6 +87,11 @@ export default function Home() {
             setSaveError(t("composer.uploadFailed"));
             // Don't throw — task is already saved. User can add image from detail.
           }
+        }
+
+        // 3. If link attached, patch the task (trivial — URL is already validated).
+        if (linkUrl) {
+          await updateTask(taskId, { attachmentLinkUrl: linkUrl });
         }
       } catch (e) {
         console.error(e);

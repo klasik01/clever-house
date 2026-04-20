@@ -3,11 +3,16 @@ import { Paperclip, Link as LinkIcon, X as XIcon } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { loadDraft, saveDraft } from "@/lib/storage";
 import { isSupportedImage } from "@/lib/attachments";
+import { normalizeUrl, parseDomain } from "@/lib/links";
 import type { TaskType } from "@/types";
 
 interface Props {
-  /** onSave(text, type, imageFile?) — parent handles create + optional upload. */
-  onSave: (text: string, type: TaskType, imageFile?: File | null) => Promise<void> | void;
+  onSave: (
+    text: string,
+    type: TaskType,
+    imageFile?: File | null,
+    linkUrl?: string | null
+  ) => Promise<void> | void;
 }
 
 export default function Composer({ onSave }: Props) {
@@ -18,10 +23,11 @@ export default function Composer({ onSave }: Props) {
   const [type, setType] = useState<TaskType>("napad");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [lastReturnAt, setLastReturnAt] = useState<number>(0);
   const [justSaved, setJustSaved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -34,7 +40,6 @@ export default function Composer({ onSave }: Props) {
     el.style.height = Math.min(el.scrollHeight, 280) + "px";
   }, [value]);
 
-  // Release blob URLs when preview changes or component unmounts
   useEffect(() => {
     return () => {
       if (imagePreview) URL.revokeObjectURL(imagePreview);
@@ -43,22 +48,42 @@ export default function Composer({ onSave }: Props) {
 
   function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    e.target.value = ""; // allow picking same file again later
+    e.target.value = "";
     if (!file) return;
     if (!isSupportedImage(file)) {
-      setFileError(t("detail.attachmentUnsupported"));
+      setError(t("detail.attachmentUnsupported"));
       return;
     }
-    setFileError(null);
+    setError(null);
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
   }
 
-  function clearAttachment() {
+  function clearImage() {
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImageFile(null);
     setImagePreview(null);
+  }
+
+  function promptForLink() {
+    const input = window.prompt(t("composer.linkPromptTitle"), linkUrl ?? "https://");
+    if (input === null) return; // cancelled
+    if (!input.trim()) {
+      setLinkUrl(null);
+      return;
+    }
+    const normalized = normalizeUrl(input);
+    if (!normalized) {
+      setError(t("composer.linkInvalid"));
+      return;
+    }
+    setError(null);
+    setLinkUrl(normalized);
+  }
+
+  function clearLink() {
+    setLinkUrl(null);
   }
 
   async function commit() {
@@ -66,16 +91,17 @@ export default function Composer({ onSave }: Props) {
     if (!trimmed || submitting) return;
     setSubmitting(true);
     try {
-      await onSave(trimmed, type, imageFile);
+      await onSave(trimmed, type, imageFile, linkUrl);
       setValue("");
       saveDraft("");
       setType("napad");
-      clearAttachment();
+      clearImage();
+      clearLink();
       setJustSaved(true);
       textareaRef.current?.focus();
       window.setTimeout(() => setJustSaved(false), 1800);
     } catch {
-      // Parent surfaces error via toast; keep state so user can retry.
+      // Parent handles errors via toast.
     } finally {
       setSubmitting(false);
     }
@@ -107,6 +133,7 @@ export default function Composer({ onSave }: Props) {
 
   const placeholder =
     type === "napad" ? t("composer.placeholder") : t("composer.placeholderOtazka");
+  const linkDomain = linkUrl ? parseDomain(linkUrl) : null;
 
   return (
     <section aria-label="Rychlý záznam" className="mx-auto max-w-xl px-4 pt-3 pb-2">
@@ -146,21 +173,39 @@ export default function Composer({ onSave }: Props) {
           className="block w-full resize-none rounded-b-none bg-transparent px-4 py-3 text-base leading-relaxed placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
         />
 
-        {imagePreview && (
-          <div className="relative mx-2 mb-1 inline-block">
-            <img
-              src={imagePreview}
-              alt={t("composer.attachPreview")}
-              className="h-20 w-20 rounded-md object-cover ring-1 ring-line"
-            />
-            <button
-              type="button"
-              onClick={clearAttachment}
-              aria-label={t("composer.removeAttachment")}
-              className="absolute -right-1 -top-1 grid size-6 place-items-center rounded-pill bg-black/75 text-white shadow"
-            >
-              <XIcon aria-hidden size={14} />
-            </button>
+        {(imagePreview || linkDomain) && (
+          <div className="mx-2 mb-1 flex flex-wrap items-center gap-2">
+            {imagePreview && (
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt={t("composer.attachPreview")}
+                  className="h-20 w-20 rounded-md object-cover ring-1 ring-line"
+                />
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  aria-label={t("composer.removeAttachment")}
+                  className="absolute -right-1 -top-1 grid size-6 place-items-center rounded-pill bg-black/75 text-white shadow"
+                >
+                  <XIcon aria-hidden size={14} />
+                </button>
+              </div>
+            )}
+            {linkDomain && (
+              <span className="inline-flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-sm text-ink-muted">
+                <LinkIcon aria-hidden size={14} />
+                {linkDomain}
+                <button
+                  type="button"
+                  onClick={clearLink}
+                  aria-label={t("composer.removeAttachment")}
+                  className="ml-1 grid size-5 place-items-center rounded-pill hover:bg-black/10"
+                >
+                  <XIcon aria-hidden size={12} />
+                </button>
+              </span>
+            )}
           </div>
         )}
 
@@ -185,10 +230,10 @@ export default function Composer({ onSave }: Props) {
             />
             <button
               type="button"
+              onClick={promptForLink}
+              disabled={submitting}
               aria-label={t("composer.attachLink")}
-              title={t("composer.attachmentsComingSoon")}
-              disabled
-              className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle opacity-40"
+              className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink disabled:opacity-40 transition-colors"
             >
               <LinkIcon aria-hidden size={18} />
             </button>
@@ -209,9 +254,9 @@ export default function Composer({ onSave }: Props) {
         </div>
       </div>
 
-      {fileError && (
+      {error && (
         <p role="alert" className="mt-2 text-center text-xs text-[color:var(--color-status-danger-fg)]">
-          {fileError}
+          {error}
         </p>
       )}
 

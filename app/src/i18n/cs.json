@@ -26,7 +26,10 @@
     "attachPreview": "Náhled připojeného obrázku",
     "removeAttachment": "Odebrat přílohu",
     "uploadFailed": "Nahrávání obrázku selhalo. Task je uložen bez přílohy.",
-    "uploading": "Nahrávám obrázek…"
+    "uploading": "Nahrávám obrázek…",
+    "linkPromptTitle": "Vlož odkaz (URL)",
+    "linkInvalid": "Neplatná URL. Zkus to znovu.",
+    "linkAttached": "Odkaz připojen"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
@@ -105,7 +108,13 @@
     "removePhoto": "Odebrat fotku",
     "confirmRemovePhoto": "Odebrat přílohu obrázku?",
     "uploading": "Nahrávám…",
-    "attachmentUnsupported": "Tento typ souboru není podporován."
+    "attachmentUnsupported": "Tento typ souboru není podporován.",
+    "linkLabel": "Odkaz",
+    "linkAdd": "Přidat odkaz",
+    "linkEdit": "Upravit odkaz",
+    "linkRemove": "Odebrat odkaz",
+    "linkConfirmRemove": "Odebrat připojený odkaz?",
+    "linkOpen": "Otevřít odkaz v novém okně"
   },
   "status": {
     "label": "Stav",

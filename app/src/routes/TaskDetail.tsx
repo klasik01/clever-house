@@ -9,7 +9,8 @@ import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
-import { Image as ImageIcon, X as XIcon } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, Link as LinkIconLc, X as XIcon } from "lucide-react";
+import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
@@ -132,6 +133,43 @@ export default function TaskDetail() {
       flashSaved();
     } finally {
       setUploadingImage(false);
+    }
+  }
+
+  async function handleLinkEdit() {
+    if (state.status !== "ready") return;
+    const current = state.task.attachmentLinkUrl ?? "https://";
+    const input = window.prompt(t("composer.linkPromptTitle"), current);
+    if (input === null) return;
+    if (!input.trim()) {
+      await updateTask(state.task.id, { attachmentLinkUrl: null });
+      flashSaved();
+      return;
+    }
+    const normalized = normalizeUrl(input);
+    if (!normalized) {
+      setAttachError(t("composer.linkInvalid"));
+      return;
+    }
+    setAttachError(null);
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { attachmentLinkUrl: normalized });
+      flashSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleLinkRemove() {
+    if (state.status !== "ready") return;
+    if (!window.confirm(t("detail.linkConfirmRemove"))) return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { attachmentLinkUrl: null });
+      flashSaved();
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -360,7 +398,57 @@ export default function TaskDetail() {
         <Lightbox src={task.attachmentImageUrl} onClose={() => setLightbox(false)} />
       )}
 
-      {/* Placeholder region for S09-S11 — link attachment, PM answer. */}
+      <section className="mt-4" aria-labelledby="link-heading">
+        <h2 id="link-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("detail.linkLabel")}
+        </h2>
+        {task.attachmentLinkUrl ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={task.attachmentLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t("detail.linkOpen")}
+              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors"
+            >
+              <LinkIconLc aria-hidden size={16} className="text-accent-visual" />
+              <span className="truncate max-w-[16rem]">
+                {parseDomain(task.attachmentLinkUrl) ?? task.attachmentLinkUrl}
+              </span>
+              <ExternalLink aria-hidden size={14} className="text-ink-subtle" />
+            </a>
+            <button
+              type="button"
+              onClick={handleLinkEdit}
+              disabled={saving}
+              className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              {t("detail.linkEdit")}
+            </button>
+            <button
+              type="button"
+              onClick={handleLinkRemove}
+              disabled={saving}
+              className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle disabled:opacity-40 transition-colors inline-flex items-center gap-1"
+            >
+              <XIcon aria-hidden size={14} />
+              {t("detail.linkRemove")}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleLinkEdit}
+            disabled={saving}
+            className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-3 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+          >
+            <LinkIconLc aria-hidden size={18} />
+            {t("detail.linkAdd")}
+          </button>
+        )}
+      </section>
+
+      {/* Placeholder region for S10-S11 — PM answer, nápad→otázka converter. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

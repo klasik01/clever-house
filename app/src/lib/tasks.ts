@@ -67,6 +67,7 @@ export async function createTask(
     projektantAnswer: null,
     attachmentImageUrl: null,
     attachmentImagePath: null,
+    attachmentLinkUrl: null,
     createdBy: uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -76,7 +77,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -114,6 +115,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     projektantAnswer: data.projektantAnswer ?? null,
     attachmentImageUrl: data.attachmentImageUrl ?? null,
     attachmentImagePath: data.attachmentImagePath ?? null,
+    attachmentLinkUrl: data.attachmentLinkUrl ?? null,
     createdBy: data.createdBy ?? "",
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),

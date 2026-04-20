@@ -21,6 +21,7 @@ export interface Task {
   // S08 — single image attachment per task (MVP)
   attachmentImageUrl?: string | null;
   attachmentImagePath?: string | null;  // storage path for delete
+  attachmentLinkUrl?: string | null;     // S09 — single external link per task (MVP)
   createdAt: string;
   updatedAt: string;
   createdBy: string;
