@@ -1,6 +1,7 @@
 import { ChevronRight, FileDown, LogOut, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 
@@ -29,7 +30,9 @@ export default function Settings() {
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.themeLabel")}>
-        <Row label={t("settings.themeSystem")} value={t("settings.comingSoon")} />
+        <div className="px-4 py-3">
+          <ThemeToggle />
+        </div>
       </SettingsGroup>
 
       <div className="mt-6">
@@ -44,7 +47,7 @@ export default function Settings() {
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-subtle">
-        {t("settings.version")}: 0.12.0 (S12)
+        {t("settings.version")}: 0.13.0 (S13)
       </p>
     </section>
   );
