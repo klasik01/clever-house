@@ -12,3 +12,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// pdfmake ships CommonJS builds without types for the sub-paths we import.
+declare module "pdfmake/build/pdfmake";
+declare module "pdfmake/build/vfs_fonts";

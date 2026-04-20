@@ -69,7 +69,8 @@
     "themeLight": "Světlé",
     "themeDark": "Tmavé",
     "comingSoon": "Brzy",
-    "categories": "Kategorie"
+    "categories": "Kategorie",
+    "export": "Export do PDF"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -171,5 +172,36 @@
     "missingTitle": "Účet není plně nastaven",
     "missingBody": "Tvůj účet nemá přiřazenou roli. Kontaktuj správce, aby tě přidal do workspace.",
     "signOut": "Odhlásit"
+  },
+  "export": {
+    "pageTitle": "Export pro Projektanta",
+    "pageHint": "Vygeneruj PDF se seznamem otázek pro sdílení s Projektantem.",
+    "presetLabel": "Rozsah",
+    "presetOpen": "Otevřené otázky",
+    "presetOpenHint": "Stav: Otázka nebo Čekám",
+    "presetAllOpen": "Všechny kromě Hotovo",
+    "presetAllOpenHint": "Stav ≠ Hotovo",
+    "presetCustom": "Vlastní výběr",
+    "presetCustomHint": "Filtruj podle kategorie a lokace",
+    "count": "{n} záznamů k exportu",
+    "previewLabel": "Náhled (prvních 5)",
+    "generate": "Vygenerovat PDF",
+    "generating": "Generuji…",
+    "copyAsText": "Zkopírovat jako text",
+    "copied": "Zkopírováno do schránky",
+    "pdfTitle": "Otevřené otázky pro Projektanta",
+    "pdfSubtitle": "Chytrý dům na vsi",
+    "pdfGeneratedAt": "Vygenerováno: {when}",
+    "pdfEmpty": "Žádné otázky k exportu.",
+    "pdfFilename": "chytry-dum-otazky-{date}.pdf",
+    "pdfError": "PDF se nepodařilo vygenerovat. Zkus kopírovat jako text.",
+    "noTasks": "Žádné záznamy nevyhovují aktuálnímu výběru.",
+    "linkLabel": "Odkaz",
+    "pdfLabel": {
+      "status": "Stav",
+      "category": "Kategorie",
+      "location": "Lokace",
+      "link": "Odkaz"
+    }
   }
 }

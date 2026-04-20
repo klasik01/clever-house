@@ -1,4 +1,4 @@
-import { ChevronRight, LogOut, Tag } from "lucide-react";
+import { ChevronRight, FileDown, LogOut, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,7 @@ export default function Settings() {
 
       <SettingsGroup title="Data">
         <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
+        <LinkRow to="/export" icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.themeLabel")}>
@@ -43,7 +44,7 @@ export default function Settings() {
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-subtle">
-        {t("settings.version")}: 0.6.0 (S06)
+        {t("settings.version")}: 0.12.0 (S12)
       </p>
     </section>
   );
