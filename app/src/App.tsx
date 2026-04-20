@@ -13,6 +13,8 @@ import Home from "./routes/Home";
 import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
+import Lokace from "./routes/Lokace";
+import LokaceDetail from "./routes/LokaceDetail";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
+          <Route path="/lokace" element={<LokaceForOwner />} />
+          <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/export" element={<ExportForOwner />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -99,6 +103,26 @@ function KategorieForOwner() {
     return <Navigate to="/otazky" replace />;
   }
   return <Kategorie />;
+}
+
+/** PM redirects away from `/lokace`. */
+function LokaceForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <Lokace />;
+}
+
+/** PM redirects away from `/lokace/:id`. */
+function LokaceDetailForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <LokaceDetail />;
 }
 
 function Splash({ message }: { message: string }) {

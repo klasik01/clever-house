@@ -478,13 +478,14 @@ Polish + review jdou na začátek června, ale brief říká Metrika B až po 90
   - Export: PDF + text export neupraveno, Markdown marks zůstávají raw (čitelné)
 - **Size:** L (~5h)
 
-### S28 — Browse by Location (grid + tabs)
+### S28 — Browse by Location (grid + tabs) ✓
 - **Scope:**
-  - New route `/lokace` — 2-col grid cards, seskupené podle LOCATION_GROUPS
-  - Card = Location name + badge "X otevřených", tap → `/lokace/:id`
-  - New route `/lokace/:id` — tabs **Nápady** / **Otázky**, každý tab list filter na daný `locationId`
-  - Žádné další chips (status/category) per C.2 rozhodnutí
-  - Tab bar u Shell přidá 4. tab "Lokace" (OWNER only), PM nadále jen Otázky + Více
+  - `src/routes/Lokace.tsx` — 2-col grid cards seskupené podle `LOCATION_GROUPS`, každá karta: MapPin + label + badge "X otevřených" (počet tasks s `locationId = id && status ≠ "Hotovo"`, napříč oběma typy)
+  - `src/routes/LokaceDetail.tsx` — route `/lokace/:id`, role=tablist s dvěma taby (Nápady / Otázky); každý tab ukazuje `TaskList` filtrovaný na `locationId + type + status ≠ "Hotovo"`
+  - Žádné status/category filter chips (per C.2)
+  - Shell bottom nav: přidán 4. tab "Lokace" s MapPin ikonou, pouze pro OWNER (PM má stále Otázky + Více)
+  - `App.tsx`: `/lokace` a `/lokace/:id` routes + `LokaceForOwner` / `LokaceDetailForOwner` PM redirecty do `/otazky`
+  - i18n: `tabs.locations`, `locations.pageTitle/pageHint/openCount/empty/emptyAll/tabNapady/tabOtazky/notFoundTitle/notFoundBody`, `aria.lokaceGrid/lokaceTabs/lokaceNapadyList/lokaceOtazkyList`
 - **Size:** M (~4h)
 
 ---

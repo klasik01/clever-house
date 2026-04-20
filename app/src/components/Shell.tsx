@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Notebook, HelpCircle, Ellipsis } from "lucide-react";
+import { Notebook, HelpCircle, Ellipsis, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -61,6 +61,13 @@ function BottomTabs({ role }: { role: UserRole }) {
           icon={<HelpCircle aria-hidden size={20} />}
           label={t("tabs.questions")}
         />
+        {!isPm && (
+          <Tab
+            to="/lokace"
+            icon={<MapPin aria-hidden size={20} />}
+            label={t("tabs.locations")}
+          />
+        )}
         <Tab
           to="/nastaveni"
           icon={<Ellipsis aria-hidden size={20} />}

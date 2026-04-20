@@ -7,7 +7,8 @@
   "tabs": {
     "capture": "Zachyt",
     "questions": "Otázky",
-    "more": "Více"
+    "more": "Více",
+    "locations": "Lokace"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -182,7 +183,17 @@
     "groupOutdoor": "Venkovní",
     "groupGeneral": "Dům obecně",
     "groupLiving": "Obytné prostory",
-    "groupHygiene": "Hygiena + wellness"
+    "groupHygiene": "Hygiena + wellness",
+    "pageTitle": "Lokace",
+    "pageHint": "Procházej nápady a otázky podle místa v domě.",
+    "openCount": "{n} otevřených",
+    "empty": "Zde zatím není nic otevřeného.",
+    "emptyAll": "Všechno je hotovo nebo přidej první nápad na Zachyt.",
+    "noLocationLabel": "Bez lokace",
+    "tabNapady": "Nápady",
+    "tabOtazky": "Otázky",
+    "notFoundTitle": "Tato lokace neexistuje",
+    "notFoundBody": "Zkontroluj odkaz nebo se vrať zpátky na přehled."
   },
   "role": {
     "missingTitle": "Účet není plně nastaven",
@@ -252,7 +263,11 @@
     "typeOtazka": "Typ: Otázka",
     "hasImage": "Obsahuje obrázek",
     "hasLink": "Obsahuje odkaz",
-    "toastRegion": "Oznámení"
+    "toastRegion": "Oznámení",
+    "lokaceGrid": "Mřížka lokací",
+    "lokaceNapadyList": "Seznam nápadů v této lokaci",
+    "lokaceOtazkyList": "Seznam otázek v této lokaci",
+    "lokaceTabs": "Přepínač typů"
   },
   "toast": {
     "saved": "Uloženo",
