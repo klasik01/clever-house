@@ -130,7 +130,10 @@
     "linkedOtazkaTitle": "Vytvořená otázka",
     "linkedNapadTitle": "Vzniklo z nápadu",
     "linkedOpen": "Otevřít",
-    "converting": "Vytvářím otázku…"
+    "converting": "Vytvářím otázku…",
+    "titlePrimary": "Název",
+    "titlePlaceholderV2": "Krátký název…",
+    "noTitle": "(bez názvu)"
   },
   "status": {
     "label": "Stav",

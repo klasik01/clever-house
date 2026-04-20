@@ -61,11 +61,18 @@ export default function Home() {
       
       try {
         // 1. Create task first so we have its ID for the storage path
+        // Split first line as title, rest as body (Notion-style capture)
+        const lines = text.split("\n");
+        const firstLine = lines[0].trim();
+        const rest = lines.slice(1).join("\n").trim();
+        const parsedTitle = firstLine.slice(0, 120);
+        const parsedBody = rest || (firstLine.length > 120 ? firstLine : "");
+
         const taskId = await createTask(
           {
             type,
-            title: text.slice(0, 80),
-            body: text,
+            title: parsedTitle,
+            body: parsedBody,
             status: type === "otazka" ? "Otázka" : "Nápad",
           },
           user.uid

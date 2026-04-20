@@ -426,8 +426,8 @@ export default function TaskDetail() {
         )}
       </div>
 
-      <label htmlFor="detail-title" className="sr-only">
-        {t("detail.titleLabel")}
+      <label htmlFor="detail-title" className="mt-2 block text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+        {t("detail.titlePrimary")}
       </label>
       <input
         id="detail-title"
@@ -435,8 +435,9 @@ export default function TaskDetail() {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onBlur={flushOnBlur}
-        placeholder={t("detail.titlePlaceholder")}
-        className="mt-1 block w-full rounded-md bg-transparent px-1 py-2 text-xl font-semibold text-ink placeholder:text-ink-subtle focus:outline-none focus:bg-bg-subtle/60"
+        placeholder={t("detail.titlePlaceholderV2")}
+        autoCapitalize="sentences"
+        className="mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-lg font-semibold text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
       />
 
       <label htmlFor="detail-body" className="sr-only">

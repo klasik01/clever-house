@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import { HelpCircle, Link as LinkIcon, MapPin, Notebook, Tag } from "lucide-react";
+import { HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Paperclip, Tag } from "lucide-react";
 import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
 import { getLocation } from "@/lib/locations";
-import { parseDomain } from "@/lib/links";
 
 interface Props {
   task: Task;
@@ -19,17 +18,25 @@ export default function NapadCard({ task, categories }: Props) {
     ? categories?.find((c) => c.id === task.categoryId)
     : undefined;
   const location = getLocation(task.locationId);
-  const linkDomain = task.attachmentLinkUrl ? parseDomain(task.attachmentLinkUrl) : null;
+
+  // Title prominent; fallback to body first line, then placeholder
+  const titleDisplay =
+    task.title?.trim() ||
+    task.body?.split("\n")[0]?.trim().slice(0, 80) ||
+    t("detail.noTitle");
+
+  const hasImage = Boolean(task.attachmentImageUrl);
+  const hasLink = Boolean(task.attachmentLinkUrl);
 
   return (
     <Link
       to={`/t/${task.id}`}
-      aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${task.body.slice(0, 80) || task.title || ""}`}
+      aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${titleDisplay}`}
       className="block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus"
     >
       <article>
         <div className="flex items-start gap-3">
-          <span className="shrink-0 mt-0.5">
+          <span className="shrink-0 mt-1">
             <span className="sr-only">
               {task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")}
             </span>
@@ -44,8 +51,8 @@ export default function NapadCard({ task, categories }: Props) {
             />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-base leading-snug text-ink whitespace-pre-wrap break-words">
-              {task.body || task.title || t("detail.titlePlaceholder")}
+            <p className="text-base font-medium leading-snug text-ink truncate">
+              {titleDisplay}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge status={task.status} />
@@ -61,10 +68,23 @@ export default function NapadCard({ task, categories }: Props) {
                   {location.label}
                 </span>
               )}
-              {linkDomain && (
-                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted truncate max-w-[10rem]">
-                  <LinkIcon aria-hidden size={11} />
-                  {linkDomain}
+              {/* Binary attachment indicators — presence only, no count */}
+              {hasImage && (
+                <span
+                  className="inline-flex items-center rounded-pill bg-bg-subtle px-1.5 py-0.5 text-ink-subtle"
+                  aria-label={t("aria.hasImage")}
+                  title={t("aria.hasImage")}
+                >
+                  <ImageIcon aria-hidden size={12} />
+                </span>
+              )}
+              {hasLink && (
+                <span
+                  className="inline-flex items-center rounded-pill bg-bg-subtle px-1.5 py-0.5 text-ink-subtle"
+                  aria-label={t("aria.hasLink")}
+                  title={t("aria.hasLink")}
+                >
+                  <LinkIcon aria-hidden size={12} />
                 </span>
               )}
               <span className="text-xs text-ink-subtle">
@@ -72,16 +92,9 @@ export default function NapadCard({ task, categories }: Props) {
               </span>
             </div>
           </div>
-          {task.attachmentImageUrl && (
-            <img
-              src={task.attachmentImageUrl}
-              alt=""
-              width={64}
-              height={64}
-              loading="lazy"
-              decoding="async"
-              className="h-16 w-16 shrink-0 rounded-md object-cover ring-1 ring-line"
-            />
+          {/* Attachments hint via paperclip when one or both present */}
+          {(hasImage || hasLink) && (
+            <Paperclip aria-hidden size={14} className="mt-1 shrink-0 text-ink-subtle" />
           )}
         </div>
       </article>

@@ -421,3 +421,70 @@ Polish + review jdou na začátek června, ale brief říká Metrika B až po 90
 *Brief: [DESIGN_BRIEF.md](./DESIGN_BRIEF.md)*
 *IA: [INFORMATION_ARCHITECTURE.md](./INFORMATION_ARCHITECTURE.md)*
 *Tokens: [DESIGN_TOKENS.md](./DESIGN_TOKENS.md)*
+
+---
+
+# V2 — Phase 6: Feature expansion
+
+**Generated from:** V2_DISCOVERY.md (2026-04-20)
+**Estimate:** ~22h
+**Status:** Approved, implementing.
+
+### S23 — Title first-class field + list rewrite
+- **Goal:** `task.title` je editable first-class pole; NapadCard v listu zobrazuje Title prominent + binární ikony pro image/link místo thumbnailu.
+- **Scope:**
+  - `Task.title` zůstává (už v schema), ale stane se prvním viditelným elementem v listu
+  - TaskDetail: title input nad body textareou (plain text, dedikovaný)
+  - Composer on save: first line → title, rest → body (unchanged)
+  - NapadCard: title prominent (font-md font-medium), pak meta chips (Status, Category, Location), bez thumbnailu, **binární Image/Link indikátor** ikonami
+- **Size:** S (~4h)
+
+### S24 — Multi-images (array + gallery)
+- **Scope:**
+  - `Task.attachmentImages: { url, path }[]` nahradí single `attachmentImageUrl`/`attachmentImagePath`
+  - Composer a detail: upload button přijímá multiple files (`<input multiple>`), iteruje přes sequence
+  - TaskDetail: grid gallery 3-col (mobile 2-col), per-image delete X button, lightbox na click
+  - Delete jediného obrázku smaže ze Storage + updatuje array
+  - Breaking schema change — žádné production data, OK
+- **Size:** M (~4h)
+
+### S25 — Multi-links (array + chip list)
+- **Scope:**
+  - `Task.attachmentLinks: string[]` nahradí single `attachmentLinkUrl`
+  - Composer link prompt může být volán opakovaně, každý call přidá URL
+  - TaskDetail: vertical chip list s per-link edit + delete
+  - NapadCard binární indikátor (má/nemá)
+- **Size:** S (~2h)
+
+### S26 — Multi-otázky from nápad
+- **Scope:**
+  - `Task.linkedTaskIds: string[]` nahradí single `linkedTaskId` — ale **obousměrná asymetrie**:
+    - Nápad má `linkedTaskIds[]` (array otázek, které z něj vznikly)
+    - Otázka má `linkedTaskId` (single string = nápad původce)
+  - Convert flow: po konverzi nepreventuje další → button "Převést na další otázku" stále viditelný
+  - TaskDetail na nápadu: stack "Vytvořené otázky" jako list linked karet
+  - Migration: 0 data
+- **Size:** M (~3h)
+
+### S27 — Tiptap rich text editor (Markdown)
+- **Scope:**
+  - Install `@tiptap/react`, `@tiptap/starter-kit`, Markdown serializer
+  - TaskDetail: body textarea → Tiptap editor s toolbar (Bold, Italic, BulletList, Headings H1/H2)
+  - Storage: body jako **Markdown** string ve Firestore
+  - Composer zůstává plain textarea (quick capture unchanged)
+  - Lazy-load editor chunk na /t/:id (mimo main bundle)
+  - Export: PDF + text clipboard render Markdown (pdfmake understands basic MD elements via custom handler; plain text export = já parsuji markdown do plain)
+- **Size:** L (~5h)
+
+### S28 — Browse by Location (grid + tabs)
+- **Scope:**
+  - New route `/lokace` — 2-col grid cards, seskupené podle LOCATION_GROUPS
+  - Card = Location name + badge "X otevřených", tap → `/lokace/:id`
+  - New route `/lokace/:id` — tabs **Nápady** / **Otázky**, každý tab list filter na daný `locationId`
+  - Žádné další chips (status/category) per C.2 rozhodnutí
+  - Tab bar u Shell přidá 4. tab "Lokace" (OWNER only), PM nadále jen Otázky + Více
+- **Size:** M (~4h)
+
+---
+
+**Note:** Tyto slices staví na kompletním MVP (S01-S22). Každý je shipable standalone, ale S24/S25 mohou být paralel (pokud ne, ordering podle hodnoty/hodinu: S23 first pro list UX baseline).
