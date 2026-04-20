@@ -29,3 +29,11 @@ export interface Category {
   createdBy: string;
   createdAt: string;
 }
+
+export type LocationGroup = "outdoor" | "general" | "living" | "hygiene";
+
+export interface Location {
+  id: string;
+  label: string;
+  group: LocationGroup;
+}

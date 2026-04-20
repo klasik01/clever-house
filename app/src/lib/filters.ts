@@ -4,7 +4,7 @@ export type OpenClosedFilter = "all" | "open" | "done";
 
 const PREFIX = "filter:";
 
-// ---------- Open/Closed filter ----------
+// ---------- Open/Closed ----------
 
 export function loadFilter(key: string): OpenClosedFilter {
   try {
@@ -30,7 +30,7 @@ export function applyOpenClosed(tasks: Task[], f: OpenClosedFilter): Task[] {
   return tasks.filter((t) => t.status !== "Hotovo");
 }
 
-// ---------- Category filter ----------
+// ---------- Category ----------
 
 export function loadCategoryFilter(key: string): string | null {
   try {
@@ -53,4 +53,29 @@ export function saveCategoryFilter(key: string, value: string | null): void {
 export function applyCategory(tasks: Task[], categoryId: string | null): Task[] {
   if (!categoryId) return tasks;
   return tasks.filter((t) => t.categoryId === categoryId);
+}
+
+// ---------- Location ----------
+
+export function loadLocationFilter(key: string): string | null {
+  try {
+    const v = sessionStorage.getItem(PREFIX + key + ":location");
+    return v && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocationFilter(key: string, value: string | null): void {
+  try {
+    if (value) sessionStorage.setItem(PREFIX + key + ":location", value);
+    else sessionStorage.removeItem(PREFIX + key + ":location");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function applyLocation(tasks: Task[], locationId: string | null): Task[] {
+  if (!locationId) return tasks;
+  return tasks.filter((t) => t.locationId === locationId);
 }

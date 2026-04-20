@@ -2,17 +2,21 @@ import { useState } from "react";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
+import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
 import {
   applyCategory,
+  applyLocation,
   applyOpenClosed,
   loadCategoryFilter,
   loadFilter,
+  loadLocationFilter,
   saveCategoryFilter,
   saveFilter,
+  saveLocationFilter,
   type OpenClosedFilter,
 } from "@/lib/filters";
 
@@ -27,6 +31,9 @@ export default function Otazky() {
   const [categoryId, setCategoryId] = useState<string | null>(() =>
     loadCategoryFilter(KEY)
   );
+  const [locationId, setLocationId] = useState<string | null>(() =>
+    loadLocationFilter(KEY)
+  );
 
   const otazky = tasks.filter((tk) => tk.type === "otazka");
   const counts = {
@@ -34,7 +41,10 @@ export default function Otazky() {
     open: otazky.filter((x) => x.status !== "Hotovo").length,
     done: otazky.filter((x) => x.status === "Hotovo").length,
   };
-  const visible = applyCategory(applyOpenClosed(otazky, filter), categoryId);
+  const visible = applyLocation(
+    applyCategory(applyOpenClosed(otazky, filter), categoryId),
+    locationId
+  );
 
   return (
     <section aria-labelledby="otazky-heading" className="mx-auto max-w-xl px-4 pt-4 pb-4">
@@ -57,6 +67,13 @@ export default function Otazky() {
           onChange={(v) => {
             setCategoryId(v);
             saveCategoryFilter(KEY, v);
+          }}
+        />
+        <LocationFilterChip
+          value={locationId}
+          onChange={(v) => {
+            setLocationId(v);
+            saveLocationFilter(KEY, v);
           }}
         />
       </div>

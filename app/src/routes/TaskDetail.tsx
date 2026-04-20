@@ -6,6 +6,7 @@ import { useTask } from "@/hooks/useTask";
 import { deleteTask, updateTask } from "@/lib/tasks";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
+import LocationPicker from "@/components/LocationPicker";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
@@ -75,6 +76,19 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleLocationChange(nextId: string | null) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { locationId: nextId });
+      flashSaved();
+    } catch (e) {
+      console.error("location update failed", e);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleCategoryChange(nextId: string | null) {
@@ -210,7 +224,18 @@ export default function TaskDetail() {
         />
       </section>
 
-      {/* Placeholder region for S07-S11 — location, attachments, PM answer. */}
+      <section className="mt-4" aria-labelledby="loc-heading">
+        <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("detail.locationLabel")}
+        </h2>
+        <LocationPicker
+          value={task.locationId ?? null}
+          onChange={handleLocationChange}
+          disabled={saving}
+        />
+      </section>
+
+      {/* Placeholder region for S08-S11 — attachments, PM answer. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { HelpCircle, Notebook, Tag } from "lucide-react";
+import { HelpCircle, MapPin, Notebook, Tag } from "lucide-react";
 import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
+import { getLocation } from "@/lib/locations";
 
 interface Props {
   task: Task;
@@ -16,6 +17,7 @@ export default function NapadCard({ task, categories }: Props) {
   const category = task.categoryId
     ? categories?.find((c) => c.id === task.categoryId)
     : undefined;
+  const location = getLocation(task.locationId);
 
   return (
     <Link
@@ -43,6 +45,12 @@ export default function NapadCard({ task, categories }: Props) {
                 <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
                   <Tag aria-hidden size={11} />
                   {category.label}
+                </span>
+              )}
+              {location && (
+                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <MapPin aria-hidden size={11} />
+                  {location.label}
                 </span>
               )}
               <span className="text-xs text-ink-subtle">

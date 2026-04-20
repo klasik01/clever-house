@@ -91,7 +91,10 @@
     "typeOtazka": "Otázka",
     "categoryLabel": "Kategorie",
     "categoryNone": "Bez kategorie",
-    "categoryPick": "Vyber kategorii"
+    "categoryPick": "Vyber kategorii",
+    "locationLabel": "Lokace",
+    "locationNone": "Bez lokace",
+    "locationPick": "Vyber lokaci"
   },
   "status": {
     "label": "Stav",
@@ -108,7 +111,9 @@
     "done": "Hotové",
     "ariaLabel": "Filtr podle stavu",
     "categoryAll": "Všechny kategorie",
-    "categoryAriaLabel": "Filtr podle kategorie"
+    "categoryAriaLabel": "Filtr podle kategorie",
+    "locationAll": "Všechny lokace",
+    "locationAriaLabel": "Filtr podle lokace"
   },
   "kategorie": {
     "pageTitle": "Kategorie",
@@ -121,5 +126,11 @@
     "empty": "Zatím žádné kategorie. Přidej první nahoře.",
     "hint": "Kategorie pomáhají rychle filtrovat seznamy. Výchozí sada se zaseje při prvním spuštění.",
     "loadFailed": "Nepodařilo se načíst kategorie."
+  },
+  "locations": {
+    "groupOutdoor": "Venkovní",
+    "groupGeneral": "Dům obecně",
+    "groupLiving": "Obytné prostory",
+    "groupHygiene": "Hygiena + wellness"
   }
 }

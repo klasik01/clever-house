@@ -3,6 +3,7 @@ import Composer from "@/components/Composer";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
+import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
@@ -11,11 +12,14 @@ import { createTask } from "@/lib/tasks";
 import type { TaskType } from "@/types";
 import {
   applyCategory,
+  applyLocation,
   applyOpenClosed,
   loadCategoryFilter,
   loadFilter,
+  loadLocationFilter,
   saveCategoryFilter,
   saveFilter,
+  saveLocationFilter,
   type OpenClosedFilter,
 } from "@/lib/filters";
 
@@ -31,6 +35,9 @@ export default function Home() {
   const [categoryId, setCategoryId] = useState<string | null>(() =>
     loadCategoryFilter(KEY)
   );
+  const [locationId, setLocationId] = useState<string | null>(() =>
+    loadLocationFilter(KEY)
+  );
 
   function changeFilter(next: OpenClosedFilter) {
     setFilter(next);
@@ -39,6 +46,10 @@ export default function Home() {
   function changeCategory(next: string | null) {
     setCategoryId(next);
     saveCategoryFilter(KEY, next);
+  }
+  function changeLocation(next: string | null) {
+    setLocationId(next);
+    saveLocationFilter(KEY, next);
   }
 
   const onSave = useCallback(
@@ -70,7 +81,10 @@ export default function Home() {
     open: napady.filter((x) => x.status !== "Hotovo").length,
     done: napady.filter((x) => x.status === "Hotovo").length,
   };
-  const visible = applyCategory(applyOpenClosed(napady, filter), categoryId);
+  const visible = applyLocation(
+    applyCategory(applyOpenClosed(napady, filter), categoryId),
+    locationId
+  );
 
   return (
     <>
@@ -93,6 +107,7 @@ export default function Home() {
             categories={categories}
             onChange={changeCategory}
           />
+          <LocationFilterChip value={locationId} onChange={changeLocation} />
         </div>
 
         <div className="mt-3">
