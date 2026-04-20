@@ -180,6 +180,9 @@ export default function Composer({ onSave }: Props) {
                 <img
                   src={imagePreview}
                   alt={t("composer.attachPreview")}
+                  width={80}
+                  height={80}
+                  decoding="async"
                   className="h-20 w-20 rounded-md object-cover ring-1 ring-line"
                 />
                 <button

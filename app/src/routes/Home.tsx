@@ -117,6 +117,7 @@ export default function Home() {
 
   return (
     <>
+      <h2 id="capture-heading" className="sr-only">{t("tabs.capture")}</h2>
       <Composer onSave={onSave} />
 
       <section aria-label={t("aria.napadyList")} className="mx-auto max-w-xl px-4 pt-2 pb-4">

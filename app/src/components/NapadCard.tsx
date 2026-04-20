@@ -76,7 +76,10 @@ export default function NapadCard({ task, categories }: Props) {
             <img
               src={task.attachmentImageUrl}
               alt=""
+              width={64}
+              height={64}
               loading="lazy"
+              decoding="async"
               className="h-16 w-16 shrink-0 rounded-md object-cover ring-1 ring-line"
             />
           )}

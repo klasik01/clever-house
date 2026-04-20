@@ -9,8 +9,10 @@ interface Props {
 }
 
 /**
- * Segmented control for status. Horizontally scrollable on narrow viewports.
- * `role="radiogroup"` + `aria-checked` per option for screen readers.
+ * Segmented control for status. Responsive:
+ * - < 420px viewport: 2-row flex wrap (no horizontal scroll on iPhone SE).
+ * - ≥ 420px: single-row scroll snap if overflow (desktop rarely hits this).
+ * role="radiogroup" + aria-checked per option.
  */
 export default function StatusSelect({ value, onChange, disabled }: Props) {
   const t = useT();
@@ -18,7 +20,7 @@ export default function StatusSelect({ value, onChange, disabled }: Props) {
     <div
       role="radiogroup"
       aria-label={t("status.label")}
-      className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1 scroll-smooth snap-x"
+      className="flex flex-wrap gap-1.5 sm:flex-nowrap sm:overflow-x-auto sm:-mx-1 sm:px-1 sm:pb-1 sm:snap-x"
       style={{ scrollbarWidth: "none" }}
     >
       {ALL_STATUSES.map((s) => {
@@ -33,7 +35,7 @@ export default function StatusSelect({ value, onChange, disabled }: Props) {
             disabled={disabled}
             onClick={() => onChange(s)}
             className={[
-              "snap-start shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors",
+              "sm:snap-start shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors",
               "border",
               active ? "" : "hover:bg-bg-subtle",
               disabled ? "opacity-40 cursor-not-allowed" : "",

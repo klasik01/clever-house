@@ -337,7 +337,15 @@ export default function TaskDetail() {
               onClick={() => setLightbox(true)}
               className="mt-3 block overflow-hidden rounded-md ring-1 ring-line"
             >
-              <img src={task.attachmentImageUrl} alt="" className="max-h-64 object-cover" />
+              <img
+                src={task.attachmentImageUrl}
+                alt=""
+                width={640}
+                height={256}
+                loading="lazy"
+                decoding="async"
+                className="max-h-64 w-auto object-cover"
+              />
             </button>
           )}
           {task.attachmentLinkUrl && (
@@ -493,6 +501,10 @@ export default function TaskDetail() {
               <img
                 src={task.attachmentImageUrl}
                 alt=""
+                width={128}
+                height={128}
+                loading="lazy"
+                decoding="async"
                 className="h-32 w-32 object-cover"
               />
             </button>

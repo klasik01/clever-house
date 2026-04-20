@@ -42,6 +42,8 @@ export default function Lightbox({ src, alt, onClose }: Props) {
       <img
         src={src}
         alt={alt ?? ""}
+        loading="eager"
+        decoding="async"
         onClick={(e) => e.stopPropagation()}
         className="max-h-full max-w-full rounded-md object-contain"
       />

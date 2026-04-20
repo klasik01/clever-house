@@ -1,4 +1,5 @@
 import type { Category, Task } from "@/types";
+import { pdfColors, pdfLayout, pdfTypography } from "./pdfTokens";
 import { getLocation } from "./locations";
 
 /**
@@ -45,9 +46,9 @@ export async function generateTasksPdfBlob(params: {
   }
 
   const docDefinition: PdfDocDefinition = {
-    pageSize: "A4",
-    pageMargins: [40, 60, 40, 60],
-    defaultStyle: { font: "Roboto", fontSize: 10, lineHeight: 1.35 },
+    pageSize: pdfLayout.pageSize,
+    pageMargins: pdfLayout.pageMargins,
+    defaultStyle: { font: "Roboto", fontSize: pdfTypography.fontBody, lineHeight: pdfTypography.lineHeight },
     content: [
       { text: title, style: "title" },
       { text: subtitle, style: "subtitle" },
@@ -62,10 +63,10 @@ export async function generateTasksPdfBlob(params: {
             type: "line",
             x1: 0,
             y1: 0,
-            x2: 515,
+            x2: pdfLayout.contentWidth,
             y2: 0,
             lineWidth: 0.5,
-            lineColor: "#cfcbbf",
+            lineColor: pdfColors.ruleLine,
           },
         ],
         margin: [0, 0, 0, 14],
@@ -76,13 +77,13 @@ export async function generateTasksPdfBlob(params: {
         : null,
     ].filter(Boolean) as PdfContent[],
     styles: {
-      title: { fontSize: 18, bold: true, margin: [0, 0, 0, 2] },
-      subtitle: { fontSize: 11, color: "#666258" },
-      meta: { fontSize: 9, color: "#85806e" },
-      taskHeader: { fontSize: 11, bold: true, margin: [0, 8, 0, 2] },
-      taskBody: { fontSize: 10, margin: [0, 2, 0, 4] },
-      tag: { fontSize: 9, color: "#4b483f" },
-      answer: { fontSize: 10, italics: true, color: "#255b35", margin: [12, 4, 0, 0] },
+      title: { fontSize: pdfTypography.fontTitle, bold: true, margin: [0, 0, 0, 2] },
+      subtitle: { fontSize: pdfTypography.fontSubtitle, color: pdfColors.textSubtle },
+      meta: { fontSize: pdfTypography.fontMeta, color: pdfColors.textSubtle },
+      taskHeader: { fontSize: pdfTypography.fontSubtitle, bold: true, margin: [0, 8, 0, 2] },
+      taskBody: { fontSize: pdfTypography.fontBody, margin: [0, 2, 0, 4] },
+      tag: { fontSize: pdfTypography.fontTag, color: pdfColors.tag },
+      answer: { fontSize: pdfTypography.fontBody, italics: true, color: pdfColors.successFg, margin: [12, 4, 0, 0] },
     },
   };
 
@@ -140,7 +141,7 @@ function renderTaskBlock(
       text: `Odkaz: ${task.attachmentLinkUrl}`,
       link: task.attachmentLinkUrl,
       style: "meta",
-      color: "#5e5d3f",
+      color: pdfColors.accent,
       decoration: "underline",
       margin: [0, 2, 0, 2],
     } as PdfContent);
@@ -159,10 +160,10 @@ function renderTaskBlock(
         type: "line",
         x1: 0,
         y1: 0,
-        x2: 515,
+        x2: pdfLayout.contentWidth,
         y2: 0,
         lineWidth: 0.25,
-        lineColor: "#e2ded3",
+        lineColor: pdfColors.ruleLineThin,
       },
     ],
     margin: [0, 10, 0, 0],
