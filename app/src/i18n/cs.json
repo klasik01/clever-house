@@ -1,0 +1,32 @@
+{
+  "app": {
+    "title": "Chytrý dům na vsi",
+    "subtitle": "Clever house"
+  },
+  "tabs": {
+    "capture": "Zachyt",
+    "questions": "Otázky",
+    "more": "Více"
+  },
+  "composer": {
+    "placeholder": "Co tě napadlo? Zapiš si to sem…",
+    "save": "Uložit",
+    "attachPhoto": "Přidat foto",
+    "attachLink": "Přidat odkaz",
+    "attachmentsComingSoon": "Přílohy přijdou v dalším kroku",
+    "draftRestored": "Obnoven rozepsaný text",
+    "saved": "Uloženo"
+  },
+  "list": {
+    "emptyTitle": "Tady začne tvůj seznam nápadů.",
+    "emptyBody": "Začni psát nahoře — ukládá se do tohoto zařízení."
+  },
+  "card": {
+    "justNow": "právě teď",
+    "minutesAgo": "před {n} min",
+    "hoursAgo": "před {n} h",
+    "daysAgo": "před {n} d",
+    "delete": "Smazat",
+    "confirmDelete": "Smazat tento nápad?"
+  }
+}

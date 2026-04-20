@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------ Helpers ------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isOwner() {
+      return isSignedIn() && userRole() == 'OWNER';
+    }
+
+    function isProjectManager() {
+      return isSignedIn() && userRole() == 'PROJECT_MANAGER';
+    }
+
+    // Check that only allowed fields changed on update.
+    // PM update on tasks may only change: projektantAnswer, projektantAnswerAt, status, updatedAt.
+    function pmAllowedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['projektantAnswer', 'projektantAnswerAt', 'status', 'updatedAt']);
+    }
+
+    // ------ Users ------
+    // Each user can read own doc. Only admin (Stanislav via console) writes role.
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      // Write via Firebase Admin SDK (manual setup), not from client.
+      allow write: if false;
+    }
+
+    // ------ Tasks ------
+    match /tasks/{taskId} {
+      // READ
+      allow read: if isOwner()
+                  || (isProjectManager() && resource.data.type == 'otazka');
+
+      // CREATE — only OWNER, must set createdBy to self
+      allow create: if isOwner()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.type in ['napad', 'otazka']
+                    && request.resource.data.status is string;
+
+      // UPDATE
+      allow update: if isOwner()
+                    || (isProjectManager()
+                        && resource.data.type == 'otazka'
+                        && pmAllowedFields());
+
+      // DELETE — only OWNER
+      allow delete: if isOwner();
+    }
+
+    // ------ Categories ------
+    match /categories/{categoryId} {
+      allow read: if isSignedIn();     // both roles can read list
+      allow write: if isOwner();       // only OWNER can mutate
+    }
+
+    // ------ Attachments (metadata; binary in Firebase Storage) ------
+    match /attachments/{attachmentId} {
+      allow read: if isOwner() || isProjectManager();
+      allow create, update: if isOwner()
+                            && request.resource.data.taskId is string;
+      allow delete: if isOwner();
+    }
+
+    // Default deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

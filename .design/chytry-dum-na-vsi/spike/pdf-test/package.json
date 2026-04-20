@@ -1,0 +1,15 @@
+{
+  "name": "clever-house-pdf-spike",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test-jspdf.mjs && node test-pdfmake.mjs",
+    "test:jspdf": "node test-jspdf.mjs",
+    "test:pdfmake": "node test-pdfmake.mjs"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.1",
+    "pdfmake": "^0.2.10"
+  }
+}

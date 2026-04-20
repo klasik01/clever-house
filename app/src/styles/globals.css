@@ -1,0 +1,73 @@
+/* Load Inter (self-hosted via @fontsource) */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* prevent iOS Safari bounce text zoom */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--color-text-default);
+    background: var(--color-bg-default);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none; /* prevent iOS pull-to-refresh over whole page */
+  }
+
+  /* Focus ring on any :focus-visible element */
+  :where(a, button, [role="button"], [tabindex]):focus-visible,
+  :where(input, textarea, select):focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Remove default tap highlight on touch devices */
+  a,
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  textarea {
+    resize: none;
+  }
+
+  /* Respect reduced motion across the app */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Safe-area utilities for iOS notches and bottom home indicator */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--space-2));
+  }
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top, 0px), var(--space-2));
+  }
+}

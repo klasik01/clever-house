@@ -1,0 +1,25 @@
+{
+  "title": "Otevřené otázky pro Projektanta",
+  "subtitle": "Chytrý dům na vsi — testovací export",
+  "generatedAt": "2026-04-20",
+  "questions": [
+    {
+      "text": "Kabelová příprava pro LED osvětlení v pracovně — chci mít možnost napojení na stěně za pracovní plochou. Potřebuji zásuvkové okruhy?",
+      "category": "Elektro",
+      "location": "Pracovna",
+      "status": "Čekám"
+    },
+    {
+      "text": "Zahradní zásuvka na hadici (viděno na IG) — dá se napojit na retenční nádrž přes čerpadlo? Jaké parametry čerpadla budu potřebovat?",
+      "category": "Zahrada / zavlažování",
+      "location": "Zahradní domek",
+      "status": "Otázka"
+    },
+    {
+      "text": "Rekuperační jednotka — hluk v ložnici? Už jsme řešili, ale chci si to potvrdit: je zaručeno <25 dB v noci při plném výkonu?",
+      "category": "Topení / rekuperace",
+      "location": "Ložnice",
+      "status": "Čekám"
+    }
+  ]
+}
