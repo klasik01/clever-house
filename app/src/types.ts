@@ -8,6 +8,8 @@ export type TaskStatus =
   | "Ve stavbě"
   | "Hotovo";
 
+export type UserRole = "OWNER" | "PROJECT_MANAGER";
+
 export interface Task {
   id: string;
   type: TaskType;
@@ -18,10 +20,10 @@ export interface Task {
   locationId?: string | null;
   linkedTaskId?: string | null;
   projektantAnswer?: string | null;
-  // S08 — single image attachment per task (MVP)
+  projektantAnswerAt?: string | null;   // S10 — ISO timestamp of PM reply
   attachmentImageUrl?: string | null;
-  attachmentImagePath?: string | null;  // storage path for delete
-  attachmentLinkUrl?: string | null;     // S09 — single external link per task (MVP)
+  attachmentImagePath?: string | null;
+  attachmentLinkUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -40,4 +42,11 @@ export interface Location {
   id: string;
   label: string;
   group: LocationGroup;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  role: UserRole;
+  displayName?: string | null;
 }

@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import { Notebook, HelpCircle, Ellipsis } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
+import type { UserRole } from "@/types";
 
 interface Props {
   children: ReactNode;
+  role: UserRole;
 }
 
-export default function Shell({ children }: Props) {
+export default function Shell({ children, role }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <Header />
@@ -17,7 +19,7 @@ export default function Shell({ children }: Props) {
       >
         {children}
       </main>
-      <BottomTabs />
+      <BottomTabs role={role} />
     </div>
   );
 }
@@ -41,17 +43,29 @@ function Header() {
   );
 }
 
-function BottomTabs() {
+function BottomTabs({ role }: { role: UserRole }) {
   const t = useT();
+  const isPm = role === "PROJECT_MANAGER";
   return (
     <nav
       aria-label="Hlavní navigace"
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        <Tab to="/" end icon={<Notebook aria-hidden size={20} />} label={t("tabs.capture")} />
-        <Tab to="/otazky" icon={<HelpCircle aria-hidden size={20} />} label={t("tabs.questions")} />
-        <Tab to="/nastaveni" icon={<Ellipsis aria-hidden size={20} />} label={t("tabs.more")} />
+        {!isPm && (
+          <Tab to="/" end icon={<Notebook aria-hidden size={20} />} label={t("tabs.capture")} />
+        )}
+        <Tab
+          to={isPm ? "/otazky" : "/otazky"}
+          end={isPm}
+          icon={<HelpCircle aria-hidden size={20} />}
+          label={t("tabs.questions")}
+        />
+        <Tab
+          to="/nastaveni"
+          icon={<Ellipsis aria-hidden size={20} />}
+          label={t("tabs.more")}
+        />
       </ul>
     </nav>
   );

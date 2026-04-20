@@ -65,6 +65,7 @@ export async function createTask(
     locationId: null,
     linkedTaskId: null,
     projektantAnswer: null,
+    projektantAnswerAt: null,
     attachmentImageUrl: null,
     attachmentImagePath: null,
     attachmentLinkUrl: null,
@@ -113,6 +114,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     locationId: data.locationId ?? null,
     linkedTaskId: data.linkedTaskId ?? null,
     projektantAnswer: data.projektantAnswer ?? null,
+    projektantAnswerAt: toIsoOrNull(data.projektantAnswerAt),
     attachmentImageUrl: data.attachmentImageUrl ?? null,
     attachmentImagePath: data.attachmentImagePath ?? null,
     attachmentLinkUrl: data.attachmentLinkUrl ?? null,
@@ -122,8 +124,38 @@ function fromDocSnap(d: DocumentSnapshot): Task {
   };
 }
 
+function toIsoOrNull(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  return toIso(v);
+}
+
 function toIso(v: unknown): string {
   if (v instanceof Timestamp) return v.toDate().toISOString();
   if (typeof v === "string") return v;
   return new Date().toISOString();
+}
+
+
+// ---------- S10: PM-specific actions ----------
+
+import type { TaskStatus } from "@/types";
+
+/** PM submits an answer and closes the task (status → Rozhodnuto). */
+export async function answerAsProjektant(id: string, answer: string): Promise<void> {
+  await updateDoc(doc(db, TASKS, id), {
+    projektantAnswer: answer.trim(),
+    projektantAnswerAt: serverTimestamp(),
+    status: "Rozhodnuto" as TaskStatus,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** PM saves an answer but keeps the task open (needs OWNER to clarify). */
+export async function needMoreInfoAsProjektant(id: string, answer: string): Promise<void> {
+  await updateDoc(doc(db, TASKS, id), {
+    projektantAnswer: answer.trim(),
+    projektantAnswerAt: serverTimestamp(),
+    status: "Čekám" as TaskStatus,
+    updatedAt: serverTimestamp(),
+  });
 }

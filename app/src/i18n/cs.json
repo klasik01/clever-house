@@ -114,7 +114,15 @@
     "linkEdit": "Upravit odkaz",
     "linkRemove": "Odebrat odkaz",
     "linkConfirmRemove": "Odebrat připojený odkaz?",
-    "linkOpen": "Otevřít odkaz v novém okně"
+    "linkOpen": "Otevřít odkaz v novém okně",
+    "projektantAnswer": "Odpověď Projektanta",
+    "projektantAnswerPlaceholder": "Napiš odpověď nebo co potřebuješ doplnit…",
+    "projektantAnswerNone": "Zatím bez odpovědi.",
+    "projektantAnswerAt": "Odpovězeno {when}",
+    "answerAndClose": "Odpovídám — uzavřít",
+    "needMoreInfo": "Potřebuji doplnit",
+    "needMoreInfoBanner": "Projektant čeká na doplnění — uprav otázku a pošli znovu.",
+    "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi."
   },
   "status": {
     "label": "Stav",
@@ -152,5 +160,10 @@
     "groupGeneral": "Dům obecně",
     "groupLiving": "Obytné prostory",
     "groupHygiene": "Hygiena + wellness"
+  },
+  "role": {
+    "missingTitle": "Účet není plně nastaven",
+    "missingBody": "Tvůj účet nemá přiřazenou roli. Kontaktuj správce, aby tě přidal do workspace.",
+    "signOut": "Odhlásit"
   }
 }

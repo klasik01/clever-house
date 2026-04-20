@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MoreHorizontal, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
-import { deleteTask, updateTask } from "@/lib/tasks";
+import { answerAsProjektant, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
+import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
+import StatusBadge from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
 import { ExternalLink, Image as ImageIcon, Link as LinkIconLc, X as XIcon } from "lucide-react";
@@ -23,7 +25,9 @@ export default function TaskDetail() {
   const t = useT();
   const state = useTask(id);
   const { user } = useAuth();
-  const { categories } = useCategories(Boolean(user));
+  const roleState = useUserRole(user?.uid);
+  const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
+  const { categories } = useCategories(Boolean(user) && !isPm);
 
   // Editable local state. Initialized once from Firestore task; not re-synced on subsequent
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
@@ -36,6 +40,8 @@ export default function TaskDetail() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [answerDraft, setAnswerDraft] = useState("");
+  const [answering, setAnswering] = useState(false);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -84,6 +90,36 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleAnswerAndClose() {
+    if (state.status !== "ready") return;
+    const answer = answerDraft.trim();
+    if (!answer) return;
+    setAnswering(true);
+    try {
+      await answerAsProjektant(state.task.id, answer);
+      flashSaved();
+    } catch (e) {
+      console.error("answer failed", e);
+    } finally {
+      setAnswering(false);
+    }
+  }
+
+  async function handleNeedMoreInfo() {
+    if (state.status !== "ready") return;
+    const answer = answerDraft.trim();
+    if (!answer) return;
+    setAnswering(true);
+    try {
+      await needMoreInfoAsProjektant(state.task.id, answer);
+      flashSaved();
+    } catch (e) {
+      console.error("need-more-info failed", e);
+    } finally {
+      setAnswering(false);
+    }
   }
 
   async function handleAttachPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -247,6 +283,103 @@ export default function TaskDetail() {
 
   const task = state.task;
   const TypeIcon = task.type === "otazka" ? HelpCircle : Notebook;
+
+  // ---------- PM view: read-only question + answer form ----------
+  if (isPm) {
+    if (task.type !== "otazka") {
+      // PM should never see nápady — Firestore rules also enforce; this is client safety net.
+      return (
+        <NotFound
+          title={t("detail.notFoundTitle")}
+          body={t("detail.notFoundBody")}
+          backLabel={t("detail.back")}
+          onBack={() => navigate("/otazky")}
+        />
+      );
+    }
+    return (
+      <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-heading">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label={t("detail.back")}
+            className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
+          >
+            <ArrowLeft aria-hidden size={20} />
+          </button>
+          <StatusBadge status={task.status} size="md" />
+          <span className="w-10" aria-hidden />
+        </div>
+
+        <h1 id="pm-heading" className="sr-only">{t("detail.typeOtazka")}</h1>
+
+        <div className="mt-4 rounded-md bg-surface ring-1 ring-line p-4">
+          <p className="whitespace-pre-wrap break-words text-ink">{task.body || task.title}</p>
+          {task.attachmentImageUrl && (
+            <button
+              type="button"
+              onClick={() => setLightbox(true)}
+              className="mt-3 block overflow-hidden rounded-md ring-1 ring-line"
+            >
+              <img src={task.attachmentImageUrl} alt="" className="max-h-64 object-cover" />
+            </button>
+          )}
+          {task.attachmentLinkUrl && (
+            <a
+              href={task.attachmentLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
+            >
+              <LinkIconLc size={14} />
+              {task.attachmentLinkUrl}
+            </a>
+          )}
+        </div>
+
+        <section className="mt-6" aria-labelledby="answer-heading">
+          <h2 id="answer-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("detail.projektantAnswer")}
+          </h2>
+          <textarea
+            value={answerDraft}
+            onChange={(e) => setAnswerDraft(e.target.value)}
+            placeholder={t("detail.projektantAnswerPlaceholder")}
+            rows={6}
+            disabled={answering}
+            className="block w-full min-h-[10rem] resize-y rounded-md border border-line bg-surface px-3 py-2 text-base leading-relaxed text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none disabled:opacity-60"
+          />
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={handleNeedMoreInfo}
+              disabled={!answerDraft.trim() || answering}
+              className="min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              {t("detail.needMoreInfo")}
+            </button>
+            <button
+              type="button"
+              onClick={handleAnswerAndClose}
+              disabled={!answerDraft.trim() || answering}
+              className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+            >
+              {t("detail.answerAndClose")}
+            </button>
+          </div>
+          <p aria-live="polite" className={`mt-2 text-center text-xs text-ink-subtle transition-opacity ${savedVisible ? "opacity-100" : "opacity-0"}`}>
+            {savedVisible ? t("detail.autoSavedHint") : ""}
+          </p>
+        </section>
+
+        {lightbox && task.attachmentImageUrl && (
+          <Lightbox src={task.attachmentImageUrl} onClose={() => setLightbox(false)} />
+        )}
+      </article>
+    );
+  }
+
   const typeLabel = task.type === "otazka" ? t("detail.typeOtazka") : t("detail.typeNapad");
   const created = new Date(task.createdAt);
   const updated = new Date(task.updatedAt);
@@ -448,7 +581,32 @@ export default function TaskDetail() {
         )}
       </section>
 
-      {/* Placeholder region for S10-S11 — PM answer, nápad→otázka converter. */}
+      {task.type === "otazka" && (task.projektantAnswer || task.status === "Čekám") && (
+        <section className="mt-4" aria-labelledby="pm-answer-heading">
+          <h2 id="pm-answer-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("detail.projektantAnswer")}
+          </h2>
+          {task.projektantAnswer ? (
+            <div className="rounded-md bg-surface ring-1 ring-line p-3">
+              <p className="whitespace-pre-wrap break-words text-ink">{task.projektantAnswer}</p>
+              {task.projektantAnswerAt && (
+                <p className="mt-2 text-xs text-ink-subtle">
+                  {t("detail.projektantAnswerAt", { when: formatRelative(t, new Date(task.projektantAnswerAt)) })}
+                </p>
+              )}
+              {task.status === "Čekám" && (
+                <p className="mt-3 rounded-md bg-[color:var(--color-status-warning-bg)] px-3 py-2 text-xs text-[color:var(--color-status-warning-fg)]">
+                  {t("detail.needMoreInfoBanner")}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-ink-subtle">{t("detail.projektantAnswerNone")}</p>
+          )}
+        </section>
+      )}
+
+      {/* Placeholder region for S11 — nápad→otázka converter. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

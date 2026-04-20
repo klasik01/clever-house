@@ -7,6 +7,7 @@ import {
   Outlet,
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Home from "./routes/Home";
 import Otazky from "./routes/Otazky";
@@ -14,6 +15,7 @@ import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
+import { signOut } from "./lib/auth";
 import { useT } from "./i18n/useT";
 
 export default function App() {
@@ -23,11 +25,11 @@ export default function App() {
         <Route path="/auth/prihlaseni" element={<Login />} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<HomeForOwner />} />
           <Route path="/otazky" element={<Otazky />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
-          <Route path="/kategorie" element={<Kategorie />} />
+          <Route path="/kategorie" element={<KategorieForOwner />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -40,25 +42,78 @@ function ProtectedLayout() {
   const location = useLocation();
   const t = useT();
 
-  if (loading) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="grid min-h-dvh place-items-center bg-bg text-ink-subtle"
-      >
-        <span className="text-sm">{t("app.loading")}</span>
-      </div>
-    );
+  const roleState = useUserRole(user?.uid);
+
+  if (loading || (user && roleState.status === "loading")) {
+    return <Splash message={t("app.loading")} />;
   }
 
   if (!user) {
     return <Navigate to="/auth/prihlaseni" replace state={{ from: location.pathname }} />;
   }
 
+  if (roleState.status === "missing" || roleState.status === "error") {
+    return <MissingRoleScreen />;
+  }
+
+  if (roleState.status !== "ready") {
+    return <Splash message={t("app.loading")} />;
+  }
+
   return (
-    <Shell>
+    <Shell role={roleState.profile.role}>
       <Outlet />
     </Shell>
+  );
+}
+
+/** PM redirects away from `/` (Home has composer — PM shouldn't create). */
+function HomeForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <Home />;
+}
+
+/** PM redirects away from `/kategorie`. */
+function KategorieForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <Kategorie />;
+}
+
+function Splash({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="grid min-h-dvh place-items-center bg-bg text-ink-subtle"
+    >
+      <span className="text-sm">{message}</span>
+    </div>
+  );
+}
+
+function MissingRoleScreen() {
+  const t = useT();
+  return (
+    <main className="grid min-h-dvh place-items-center bg-bg px-6 pt-safe pb-safe">
+      <div className="max-w-sm text-center">
+        <h1 className="text-xl font-semibold text-ink">{t("role.missingTitle")}</h1>
+        <p className="mt-2 text-sm text-ink-muted">{t("role.missingBody")}</p>
+        <button
+          type="button"
+          onClick={() => signOut()}
+          className="mt-6 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover"
+        >
+          {t("role.signOut")}
+        </button>
+      </div>
+    </main>
   );
 }
