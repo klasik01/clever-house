@@ -10,7 +10,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // PWA plugin must know the deploy base so service worker scope + start_url
+      // resolve correctly on sub-path hosts (GitHub Pages /clever-house/).
+      base: process.env.VITE_BASE_PATH || "/",
       workbox: {
+        // Navigate fallback must be scoped to the base path or SPA deep links 404.
+        navigateFallback: (process.env.VITE_BASE_PATH || "/") + "index.html",
         globPatterns: ["**/*.{js,css,html,svg,woff2,woff,ttf,png}"],
         // Never precache Firebase Storage / Firestore — always fresh from network
         navigateFallbackDenylist: [
@@ -49,8 +54,8 @@ export default defineConfig({
         short_name: "Chytrý dům",
         description:
           "Záznamník nápadů, otázek a rozhodnutí pro stavbu domu.",
-        start_url: "/",
-        scope: "/",
+        start_url: ".",
+        scope: "./",
         display: "standalone",
         orientation: "portrait",
         theme_color: "#5E5D3F",       // olive-700 (accent-default)
@@ -60,19 +65,19 @@ export default defineConfig({
         categories: ["productivity", "utilities"],
         icons: [
           {
-            src: "/icon-192.svg",
+            src: "icon-192.svg",
             sizes: "192x192",
             type: "image/svg+xml",
             purpose: "any",
           },
           {
-            src: "/icon-512.svg",
+            src: "icon-512.svg",
             sizes: "512x512",
             type: "image/svg+xml",
             purpose: "any",
           },
           {
-            src: "/icon-maskable-512.svg",
+            src: "icon-maskable-512.svg",
             sizes: "512x512",
             type: "image/svg+xml",
             purpose: "maskable",
