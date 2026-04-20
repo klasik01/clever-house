@@ -4,7 +4,7 @@ import TaskList from "@/components/TaskList";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
-import { createTask, deleteTask } from "@/lib/tasks";
+import { createTask } from "@/lib/tasks";
 import type { TaskType } from "@/types";
 
 export default function Home() {
@@ -23,7 +23,6 @@ export default function Home() {
             type,
             title: text.slice(0, 80),
             body: text,
-            // Initial status by type. Fine-grained in S05.
             status: type === "otazka" ? "Otázka" : "Nápad",
           },
           user.uid
@@ -31,17 +30,12 @@ export default function Home() {
       } catch (e) {
         console.error(e);
         setSaveError(t("composer.saveFailed"));
-        throw e; // keep Composer from clearing
+        throw e;
       }
     },
     [user, t]
   );
 
-  const onDelete = useCallback(async (id: string) => {
-    await deleteTask(id);
-  }, []);
-
-  // Home shows only nápady; otázky live on /otazky.
   const napady = tasks.filter((tk) => tk.type === "napad");
 
   return (
@@ -57,15 +51,11 @@ export default function Home() {
         </p>
       )}
 
-      <section
-        aria-label="Seznam nápadů"
-        className="mx-auto max-w-xl px-4 pt-2 pb-4"
-      >
+      <section aria-label="Seznam nápadů" className="mx-auto max-w-xl px-4 pt-2 pb-4">
         <TaskList
           tasks={napady}
           loading={loading}
           error={error}
-          onDelete={onDelete}
           emptyTitle={t("list.emptyTitle")}
           emptyBody={t("list.emptyBody")}
           ariaLabel="Seznam nápadů"

@@ -67,5 +67,26 @@
     "pageTitle": "Otázky pro Projektanta",
     "emptyTitle": "Žádné otázky zatím nemáš.",
     "emptyBody": "Nápad jde kdykoliv převést na otázku z jeho detailu (přijde v dalším kroku), nebo ho zapiš rovnou jako otázku z hlavní obrazovky."
+  },
+  "detail": {
+    "back": "Zpět",
+    "notFoundTitle": "Záznam nenalezen",
+    "notFoundBody": "Tento záznam byl smazán nebo k němu nemáš přístup.",
+    "overflowMenu": "Další akce",
+    "delete": "Smazat",
+    "confirmDelete": "Opravdu smazat tento záznam? Akce je nevratná.",
+    "titleLabel": "Titulek",
+    "titlePlaceholder": "Stručný popis…",
+    "bodyLabel": "Obsah",
+    "bodyPlaceholder": "Přidej více detailů, kontextu, co chceš…",
+    "autoSavingHint": "Ukládám…",
+    "autoSavedHint": "Uloženo",
+    "metadata": "Detaily",
+    "created": "Vytvořeno",
+    "updated": "Upraveno",
+    "author": "Autor",
+    "typeLabel": "Typ",
+    "typeNapad": "Nápad",
+    "typeOtazka": "Otázka"
   }
 }

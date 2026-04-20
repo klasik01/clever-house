@@ -6,18 +6,15 @@ interface Props {
   tasks: Task[];
   loading: boolean;
   error: Error | null;
-  onDelete: (id: string) => Promise<void> | void;
   emptyTitle: string;
   emptyBody: string;
   ariaLabel: string;
 }
 
-/** Shared list shell: handles loading/error/empty/rendered states. */
 export default function TaskList({
   tasks,
   loading,
   error,
-  onDelete,
   emptyTitle,
   emptyBody,
   ariaLabel,
@@ -39,7 +36,7 @@ export default function TaskList({
     <ul aria-label={ariaLabel} className="flex flex-col gap-2">
       {tasks.map((task) => (
         <li key={task.id}>
-          <NapadCard task={task} onDelete={onDelete} />
+          <NapadCard task={task} />
         </li>
       ))}
     </ul>
@@ -59,10 +56,7 @@ function Skeleton() {
   return (
     <ul className="flex flex-col gap-2" aria-busy="true" aria-live="polite">
       {[0, 1, 2].map((i) => (
-        <li
-          key={i}
-          className="h-20 rounded-md bg-surface ring-1 ring-line animate-pulse"
-        />
+        <li key={i} className="h-20 rounded-md bg-surface ring-1 ring-line animate-pulse" />
       ))}
     </ul>
   );
@@ -78,10 +72,7 @@ function ErrorBlock({
   retryLabel: string;
 }) {
   return (
-    <div
-      role="alert"
-      className="mt-6 rounded-lg border border-line bg-surface px-6 py-6 text-center"
-    >
+    <div role="alert" className="mt-6 rounded-lg border border-line bg-surface px-6 py-6 text-center">
       <p className="text-sm text-ink">{message}</p>
       <button
         type="button"
