@@ -1,4 +1,5 @@
 import {
+  writeBatch,
   collection,
   query,
   orderBy,
@@ -158,4 +159,51 @@ export async function needMoreInfoAsProjektant(id: string, answer: string): Prom
     status: "Čekám" as TaskStatus,
     updatedAt: serverTimestamp(),
   });
+}
+
+
+/**
+ * S11: Convert a nápad into an otázka for the Projektant.
+ * Creates a new task (type=otazka) pre-filled with the nápad's content and
+ * attachments, then links both documents via `linkedTaskId`. Single batch
+ * write = atomic; either both docs update or neither does.
+ *
+ * Attachment handling:
+ * - `attachmentImageUrl` and `attachmentLinkUrl` are COPIED (display-only).
+ * - `attachmentImagePath` is NOT copied — the original nápad owns deletion.
+ *   Cost: if OWNER later deletes the image on the nápad, the otázka shows a
+ *   broken thumbnail. Acceptable MVP edge case; documented in S11 deviations.
+ */
+export async function convertNapadToOtazka(
+  source: import("@/types").Task,
+  uid: string
+): Promise<string> {
+  const newRef = doc(collection(db, TASKS));
+  const batch = writeBatch(db);
+
+  batch.set(newRef, {
+    type: "otazka",
+    title: source.title,
+    body: source.body,
+    status: "Otázka",
+    categoryId: source.categoryId ?? null,
+    locationId: source.locationId ?? null,
+    linkedTaskId: source.id,
+    projektantAnswer: null,
+    projektantAnswerAt: null,
+    attachmentImageUrl: source.attachmentImageUrl ?? null,
+    attachmentImagePath: null,
+    attachmentLinkUrl: source.attachmentLinkUrl ?? null,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  batch.update(doc(db, TASKS, source.id), {
+    linkedTaskId: newRef.id,
+    updatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+  return newRef.id;
 }

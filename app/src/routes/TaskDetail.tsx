@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MoreHorizontal, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
-import { answerAsProjektant, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
+import { answerAsProjektant, convertNapadToOtazka, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
 import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
@@ -11,7 +11,7 @@ import LocationPicker from "@/components/LocationPicker";
 import StatusBadge from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
-import { ExternalLink, Image as ImageIcon, Link as LinkIconLc, X as XIcon } from "lucide-react";
+import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Sparkles, X as XIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,7 @@ export default function TaskDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [answerDraft, setAnswerDraft] = useState("");
   const [answering, setAnswering] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -90,6 +91,20 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleConvert() {
+    if (state.status !== "ready" || !user) return;
+    if (state.task.type !== "napad" || state.task.linkedTaskId) return;
+    if (!window.confirm(t("detail.convertConfirm"))) return;
+    setConverting(true);
+    try {
+      const newId = await convertNapadToOtazka(state.task, user.uid);
+      navigate(`/t/${newId}`);
+    } catch (e) {
+      console.error("convert failed", e);
+      setConverting(false);
+    }
   }
 
   async function handleAnswerAndClose() {
@@ -606,7 +621,41 @@ export default function TaskDetail() {
         </section>
       )}
 
-      {/* Placeholder region for S11 — nápad→otázka converter. */}
+      {task.linkedTaskId && (
+        <Link
+          to={`/t/${task.linkedTaskId}`}
+          className="mt-4 flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            {task.type === "napad" ? (
+              <HelpCircleIcon aria-hidden size={18} className="text-accent-visual" />
+            ) : (
+              <Lightbulb aria-hidden size={18} className="text-ink-subtle" />
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                {task.type === "napad" ? t("detail.linkedOtazkaTitle") : t("detail.linkedNapadTitle")}
+              </p>
+              <p className="text-sm text-ink truncate">{t("detail.linkedOpen")}</p>
+            </div>
+          </div>
+          <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+        </Link>
+      )}
+
+      {task.type === "napad" && !task.linkedTaskId && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={handleConvert}
+            disabled={converting || saving}
+            className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+          >
+            <Sparkles aria-hidden size={16} className="text-accent-visual" />
+            {converting ? t("detail.converting") : t("detail.convertToOtazka")}
+          </button>
+        </div>
+      )}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

@@ -122,7 +122,13 @@
     "answerAndClose": "Odpovídám — uzavřít",
     "needMoreInfo": "Potřebuji doplnit",
     "needMoreInfoBanner": "Projektant čeká na doplnění — uprav otázku a pošli znovu.",
-    "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi."
+    "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi.",
+    "convertToOtazka": "Převést na otázku pro Projektanta",
+    "convertConfirm": "Vytvořit otázku pro Projektanta s tímto obsahem? Původní nápad zůstane.",
+    "linkedOtazkaTitle": "Vytvořená otázka",
+    "linkedNapadTitle": "Vzniklo z nápadu",
+    "linkedOpen": "Otevřít",
+    "converting": "Vytvářím otázku…"
   },
   "status": {
     "label": "Stav",
