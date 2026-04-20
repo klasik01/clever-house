@@ -88,5 +88,20 @@
     "typeLabel": "Typ",
     "typeNapad": "Nápad",
     "typeOtazka": "Otázka"
+  },
+  "status": {
+    "label": "Stav",
+    "Nápad": "Nápad",
+    "Otázka": "Otázka",
+    "Čekám": "Čekám",
+    "Rozhodnuto": "Rozhodnuto",
+    "Ve stavbě": "Ve stavbě",
+    "Hotovo": "Hotovo"
+  },
+  "filter": {
+    "all": "Vše",
+    "open": "Otevřené",
+    "done": "Hotové",
+    "ariaLabel": "Filtr podle stavu"
   }
 }

@@ -4,6 +4,8 @@ import { ArrowLeft, MoreHorizontal, Trash2, HelpCircle, Notebook } from "lucide-
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { deleteTask, updateTask } from "@/lib/tasks";
+import StatusSelect from "@/components/StatusSelect";
+import type { TaskStatus } from "@/types";
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
 
@@ -68,6 +70,19 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleStatusChange(next: TaskStatus) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { status: next });
+      flashSaved();
+    } catch (e) {
+      console.error("status update failed", e);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
@@ -154,7 +169,18 @@ export default function TaskDetail() {
         className="mt-3 block w-full resize-y rounded-md bg-transparent px-1 py-2 text-base leading-relaxed text-ink placeholder:text-ink-subtle focus:outline-none focus:bg-bg-subtle/60 min-h-[10rem]"
       />
 
-      {/* Placeholder region for S05-S11 — status, category, location, attachments. */}
+      <section className="mt-6" aria-labelledby="status-heading">
+        <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("status.label")}
+        </h2>
+        <StatusSelect
+          value={task.status}
+          onChange={handleStatusChange}
+          disabled={saving}
+        />
+      </section>
+
+      {/* Placeholder region for S06-S11 — category, location, attachments, PM answer. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">
