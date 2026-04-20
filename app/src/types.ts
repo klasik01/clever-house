@@ -18,6 +18,9 @@ export interface Task {
   locationId?: string | null;
   linkedTaskId?: string | null;
   projektantAnswer?: string | null;
+  // S08 — single image attachment per task (MVP)
+  attachmentImageUrl?: string | null;
+  attachmentImagePath?: string | null;  // storage path for delete
   createdAt: string;
   updatedAt: string;
   createdBy: string;

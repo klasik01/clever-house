@@ -6,6 +6,7 @@ import {
   type Auth,
 } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -31,9 +32,8 @@ if (getApps().length) {
 
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
+export const storage: FirebaseStorage = getStorage(app);
 
-// Persistent login across reloads — no re-login on return visits.
-// Top-level await avoided for tsc compatibility; fire-and-forget.
 setPersistence(auth, browserLocalPersistence).catch((e) =>
   console.error("auth persistence failed", e)
 );

@@ -7,6 +7,9 @@ import { deleteTask, updateTask } from "@/lib/tasks";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
+import Lightbox from "@/components/Lightbox";
+import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
+import { Image as ImageIcon, X as XIcon } from "lucide-react";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
@@ -28,6 +31,10 @@ export default function TaskDetail() {
   const initializedRef = useRef(false);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -76,6 +83,56 @@ export default function TaskDetail() {
   function flashSaved() {
     setSavedVisible(true);
     window.setTimeout(() => setSavedVisible(false), 1500);
+  }
+
+  async function handleAttachPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || state.status !== "ready" || !user) return;
+    if (!isSupportedImage(file)) {
+      setAttachError(t("detail.attachmentUnsupported"));
+      return;
+    }
+    setAttachError(null);
+    setUploadingImage(true);
+    try {
+      // If replacing, delete old object first (best-effort)
+      if (state.task.attachmentImagePath) {
+        await deleteTaskImage(state.task.attachmentImagePath);
+      }
+      const { url, path } = await uploadTaskImage({
+        file,
+        uid: user.uid,
+        taskId: state.task.id,
+      });
+      await updateTask(state.task.id, {
+        attachmentImageUrl: url,
+        attachmentImagePath: path,
+      });
+      flashSaved();
+    } catch (e) {
+      console.error("attachment upload failed", e);
+      setAttachError(t("composer.uploadFailed"));
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function handleRemoveAttachment() {
+    if (state.status !== "ready") return;
+    if (!window.confirm(t("detail.confirmRemovePhoto"))) return;
+    const path = state.task.attachmentImagePath;
+    setUploadingImage(true);
+    try {
+      if (path) await deleteTaskImage(path);
+      await updateTask(state.task.id, {
+        attachmentImageUrl: null,
+        attachmentImagePath: null,
+      });
+      flashSaved();
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   async function handleLocationChange(nextId: string | null) {
@@ -235,7 +292,75 @@ export default function TaskDetail() {
         />
       </section>
 
-      {/* Placeholder region for S08-S11 — attachments, PM answer. */}
+      <section className="mt-4" aria-labelledby="att-heading">
+        <h2 id="att-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("detail.attachmentLabel")}
+        </h2>
+        {task.attachmentImageUrl ? (
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              onClick={() => setLightbox(true)}
+              className="block overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
+              aria-label="Otevřít náhled"
+            >
+              <img
+                src={task.attachmentImageUrl}
+                alt=""
+                className="h-32 w-32 object-cover"
+              />
+            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+              >
+                {uploadingImage ? t("detail.uploading") : t("detail.replacePhoto")}
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveAttachment}
+                disabled={uploadingImage}
+                className="min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+              >
+                <XIcon aria-hidden size={16} />
+                {t("detail.removePhoto")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-3 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+          >
+            <ImageIcon aria-hidden size={18} />
+            {uploadingImage ? t("detail.uploading") : t("detail.addPhoto")}
+          </button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleAttachPick}
+        />
+        {attachError && (
+          <p role="alert" className="mt-2 text-xs text-[color:var(--color-status-danger-fg)]">
+            {attachError}
+          </p>
+        )}
+      </section>
+
+      {lightbox && task.attachmentImageUrl && (
+        <Lightbox src={task.attachmentImageUrl} onClose={() => setLightbox(false)} />
+      )}
+
+      {/* Placeholder region for S09-S11 — link attachment, PM answer. */}
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

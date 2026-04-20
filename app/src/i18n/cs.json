@@ -22,7 +22,11 @@
     "typeToggleLabel": "Typ záznamu",
     "typeNapad": "Nápad",
     "typeOtazka": "Otázka",
-    "placeholderOtazka": "Na co se chceš zeptat Projektanta?"
+    "placeholderOtazka": "Na co se chceš zeptat Projektanta?",
+    "attachPreview": "Náhled připojeného obrázku",
+    "removeAttachment": "Odebrat přílohu",
+    "uploadFailed": "Nahrávání obrázku selhalo. Task je uložen bez přílohy.",
+    "uploading": "Nahrávám obrázek…"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
@@ -94,7 +98,14 @@
     "categoryPick": "Vyber kategorii",
     "locationLabel": "Lokace",
     "locationNone": "Bez lokace",
-    "locationPick": "Vyber lokaci"
+    "locationPick": "Vyber lokaci",
+    "attachmentLabel": "Příloha",
+    "addPhoto": "Přidat fotku",
+    "replacePhoto": "Vyměnit fotku",
+    "removePhoto": "Odebrat fotku",
+    "confirmRemovePhoto": "Odebrat přílohu obrázku?",
+    "uploading": "Nahrávám…",
+    "attachmentUnsupported": "Tento typ souboru není podporován."
   },
   "status": {
     "label": "Stav",

@@ -58,6 +58,14 @@ export default function NapadCard({ task, categories }: Props) {
               </span>
             </div>
           </div>
+          {task.attachmentImageUrl && (
+            <img
+              src={task.attachmentImageUrl}
+              alt=""
+              loading="lazy"
+              className="h-16 w-16 shrink-0 rounded-md object-cover ring-1 ring-line"
+            />
+          )}
         </div>
       </article>
     </Link>

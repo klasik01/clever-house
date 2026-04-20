@@ -8,7 +8,8 @@ import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
-import { createTask } from "@/lib/tasks";
+import { createTask, updateTask } from "@/lib/tasks";
+import { uploadTaskImage } from "@/lib/attachments";
 import type { TaskType } from "@/types";
 import {
   applyCategory,
@@ -53,11 +54,12 @@ export default function Home() {
   }
 
   const onSave = useCallback(
-    async (text: string, type: TaskType) => {
+    async (text: string, type: TaskType, imageFile?: File | null) => {
       if (!user) return;
       setSaveError(null);
       try {
-        await createTask(
+        // 1. Create task first so we have its ID for the storage path
+        const taskId = await createTask(
           {
             type,
             title: text.slice(0, 80),
@@ -66,6 +68,26 @@ export default function Home() {
           },
           user.uid
         );
+
+        // 2. If image attached, upload + patch the task. Best-effort — if upload
+        // fails, the task text still saved, user sees a warning but not data loss.
+        if (imageFile) {
+          try {
+            const { url, path } = await uploadTaskImage({
+              file: imageFile,
+              uid: user.uid,
+              taskId,
+            });
+            await updateTask(taskId, {
+              attachmentImageUrl: url,
+              attachmentImagePath: path,
+            });
+          } catch (e) {
+            console.error("image upload failed", e);
+            setSaveError(t("composer.uploadFailed"));
+            // Don't throw — task is already saved. User can add image from detail.
+          }
+        }
       } catch (e) {
         console.error(e);
         setSaveError(t("composer.saveFailed"));
