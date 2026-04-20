@@ -4,6 +4,8 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
 
 export default defineConfig({
+  // Base path for sub-directory hosting (GitHub Pages). Defaults to / for Netlify / local dev.
+  base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     react(),
     VitePWA({

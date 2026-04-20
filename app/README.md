@@ -52,7 +52,40 @@ npm run preview
 
 ## Deploy
 
+### Netlify (prod)
 Push na `main` → Netlify auto-deploy (viz `netlify.toml`). Env vars zadej v Netlify UI → Site settings → Environment.
+
+### GitHub Pages (dev)
+Auto-deploy na push do `main` přes GitHub Actions workflow `.github/workflows/deploy-pages.yml`.
+
+**URL:** https://klasik01.github.io/clever-house/
+
+**Setup (jednorázově):**
+
+1. Na GitHubu jdi na repo → **Settings → Pages**:
+   - Source: **GitHub Actions**
+2. **Settings → Secrets and variables → Actions → New repository secret**, vytvoř 6 secretů:
+   - `VITE_FIREBASE_API_KEY`
+   - `VITE_FIREBASE_AUTH_DOMAIN`
+   - `VITE_FIREBASE_PROJECT_ID`
+   - `VITE_FIREBASE_STORAGE_BUCKET`
+   - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+   - `VITE_FIREBASE_APP_ID`
+3. Ve Firebase Auth → **Settings → Authorized domains** přidej:
+   - `klasik01.github.io`
+4. Push na `main` — pipeline se spustí, za ~2 min je app na `https://klasik01.github.io/clever-house/`.
+
+**Lokální build pro GH Pages:**
+
+```bash
+npm run build:pages   # nastaví VITE_BASE_PATH=/clever-house/
+npm run preview       # ověř, že vše funguje pod sub-path
+```
+
+**Poznámky:**
+- Build vytváří `dist/404.html` jako kopii `dist/index.html` → SPA routing funguje na GH Pages (pro neexistující URL vrací shell, React Router pak rozehraje správnou route).
+- Kořenová route na GH Pages je `/clever-house/` (ne `/`) — `<BrowserRouter basename>` to handluje automaticky přes `import.meta.env.BASE_URL`.
+- Netlify dostává `VITE_BASE_PATH=""` (default), GH Pages dostává `/clever-house/` — stejný codebase beze změn.
 
 ## Stack (aktuální = S02)
 

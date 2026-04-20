@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  VITE_BASE_PATH = "/"
 
 # SPA fallback — all routes → index.html (router appears in S03+)
 [[redirects]]

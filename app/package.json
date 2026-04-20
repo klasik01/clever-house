@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "rules:deploy": "firebase deploy --only firestore:rules",
     "emulators": "firebase emulators:start --only firestore,auth",
-    "storage:deploy": "firebase deploy --only storage"
+    "storage:deploy": "firebase deploy --only storage",
+    "postbuild": "cp dist/index.html dist/404.html",
+    "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",

@@ -22,7 +22,7 @@ import { useT } from "./i18n/useT";
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <UpdateBanner />
       <Routes>
         <Route path="/auth/prihlaseni" element={<Login />} />
