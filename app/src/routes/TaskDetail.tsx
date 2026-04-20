@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MoreHorizontal, Trash2, HelpCircle, Notebook } from "lucide-react";
+import { ArrowLeft, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { answerAsProjektant, convertNapadToOtazka, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
@@ -725,72 +725,18 @@ function TopBar({
         <span>{typeLabel}</span>
       </div>
 
-      <OverflowMenu onDelete={onDelete} />
-    </div>
-  );
-}
-
-function OverflowMenu({ onDelete }: { onDelete: () => void }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent | TouchEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("touchstart", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("touchstart", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={t("detail.overflowMenu")}
-        className="-mr-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
+        onClick={onDelete}
+        aria-label={t("detail.delete")}
+        className="-mr-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
       >
-        <MoreHorizontal aria-hidden size={20} />
+        <Trash2 aria-hidden size={20} />
       </button>
-
-      {open && (
-        <ul
-          role="menu"
-          aria-label={t("detail.overflowMenu")}
-          className="absolute right-0 top-[calc(100%+4px)] z-20 min-w-44 overflow-hidden rounded-md bg-surface shadow-lg ring-1 ring-line"
-        >
-          <li role="none">
-            <button
-              role="menuitem"
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
-            >
-              <Trash2 aria-hidden size={16} />
-              {t("detail.delete")}
-            </button>
-          </li>
-        </ul>
-      )}
     </div>
   );
 }
+
 
 function SkeletonDetail() {
   return (

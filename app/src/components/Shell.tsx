@@ -3,7 +3,6 @@ import { Notebook, HelpCircle, Ellipsis } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
-import SkipLink from "./SkipLink";
 
 interface Props {
   children: ReactNode;
@@ -13,12 +12,10 @@ interface Props {
 export default function Shell({ children, role }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
-      <SkipLink />
       <Header />
       <main
         id="main"
-        tabIndex={-1}
-        className="flex-1 overflow-y-auto focus:outline-none pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
+        className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
       >
         {children}
       </main>
