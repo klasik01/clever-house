@@ -31,15 +31,15 @@ function commentRef(taskId: string, commentId: string) {
 }
 
 /**
- * Realtime subscription to all comments on a task, ordered by createdAt ASC
- * (oldest first, like a chat log).
+ * Realtime subscription to all comments on a task, ordered by createdAt DESC
+ * — newest first so the freshest activity sits at the top of the thread.
  */
 export function subscribeComments(
   taskId: string,
   onChange: (comments: Comment[]) => void,
   onError: (err: Error) => void
 ): () => void {
-  const q = query(commentsCol(taskId), orderBy("createdAt", "asc"));
+  const q = query(commentsCol(taskId), orderBy("createdAt", "desc"));
   return onSnapshot(
     q,
     (snap) => onChange(snap.docs.map(fromDocSnap)),

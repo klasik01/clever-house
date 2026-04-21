@@ -1,7 +1,6 @@
-import { AlertTriangle, HelpCircle, Notebook, RotateCcw } from "lucide-react";
+import { Notebook, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import TaskGroupedView, { type GroupBy } from "@/components/TaskGroupedView";
+import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
@@ -9,7 +8,6 @@ import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
-import { computePrehledGroups } from "@/lib/prehled";
 import {
   applyCategory,
   applyLocation,
@@ -23,67 +21,51 @@ import {
   saveLocationFilter,
   type OpenClosedFilter,
 } from "@/lib/filters";
-import type { TaskType } from "@/types";
+
+const KEY = "napady";
 
 /**
- * V3.1 /zaznamy — merged Nápady + Otázky list with internal type toggle.
- * URL state:
- *   ?type=napad|otazka   — which list we show (default napad)
- *   ?group=lokace|kategorie|flat  — group-by
- * Filter chips (status / category / location) persisted in sessionStorage
- * per-type (separate KEY for each to avoid cross-contamination).
+ * V6.1 /zaznamy — Nápady-only, flat list.
+ *
+ * Group-by (Plochý/Lokace/Kategorie) was removed in V6.1 — filters alone are
+ * sufficient and the toggle was noise. Visibility:
+ *   - OWNER sees own napady (all statuses; filters control what's shown).
+ *   - PM sees napady the owner explicitly shared (`sharedWithPm: true`).
  */
 export default function Zaznamy() {
   const t = useT();
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  const type: TaskType = (searchParams.get("type") as TaskType | null) ?? "napad";
-  const groupBy: GroupBy = (searchParams.get("group") as GroupBy | null) ?? "flat";
-
-  // Per-type filter storage keys so toggle between type doesn't leak state.
-  const KEY = type === "otazka" ? "otazky" : "napady";
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
 
-  function setType(next: TaskType) {
-    const np = new URLSearchParams(searchParams);
-    np.set("type", next);
-    setSearchParams(np, { replace: true });
-    // Reload persisted filters for new type
-    const nextKey = next === "otazka" ? "otazky" : "napady";
-    setFilter(loadFilter(nextKey));
-    setCategoryId(loadCategoryFilter(nextKey));
-    setLocationId(loadLocationFilter(nextKey));
-  }
-
-  function setGroupBy(next: GroupBy) {
-    const np = new URLSearchParams(searchParams);
-    if (next === "flat") np.delete("group");
-    else np.set("group", next);
-    setSearchParams(np, { replace: true });
-  }
-
-  // PM sees only napady that owner opted-in to share; otázky are fully multi-party.
-  const typed = tasks.filter((tk) => {
-    if (tk.type !== type) return false;
-    if (type === "napad" && tk.createdBy !== user?.uid && !tk.sharedWithPm) return false;
+  const napady = tasks.filter((tk) => {
+    if (tk.type !== "napad") return false;
+    // OWNER-created: always visible for OWNER; for PM only if shared.
+    // The backing useTasks hook already filters by Firestore rules, so this
+    // client-side check primarily guards OWNER-side against glimpsing a
+    // transiently-unshared record (belt + suspenders).
+    if (tk.createdBy !== user?.uid && !tk.sharedWithPm) return false;
     return true;
   });
+
   const counts = {
-    all: typed.length,
-    open: typed.filter((x) => x.status !== "Hotovo").length,
-    done: typed.filter((x) => x.status === "Hotovo").length,
+    all: napady.length,
+    open: napady.filter((x) => x.status !== "Hotovo").length,
+    done: napady.filter((x) => x.status === "Hotovo").length,
   };
+
   const visible = applyLocation(
-    applyCategory(applyOpenClosed(typed, filter), categoryId),
-    locationId
+    applyCategory(applyOpenClosed(napady, filter), categoryId),
+    locationId,
   );
 
-  const isFilterActive = filter !== "open" || categoryId !== null || locationId !== null;
+  const isFilterActive =
+    filter !== "open" || categoryId !== null || locationId !== null;
+
   function handleResetFilters() {
     setFilter("open");
     setCategoryId(null);
@@ -91,67 +73,19 @@ export default function Zaznamy() {
     clearAllFilters(KEY);
   }
 
-  // Uvízlé pill only meaningful for otázky.
-  const stuckCount =
-    type === "otazka" ? computePrehledGroups(tasks, user?.uid ?? "").stuck.length : 0;
-
-  const emptyCopy = type === "otazka"
-    ? { title: t("otazky.emptyTitle"), body: t("otazky.emptyBody"), icon: <HelpCircle size={22} aria-hidden /> }
-    : { title: t("list.emptyTitle"), body: t("list.emptyBody"), icon: <Notebook size={22} aria-hidden /> };
-
   return (
-    <section aria-labelledby="zaznamy-heading" className="mx-auto max-w-xl px-4 pt-4 pb-4">
-      <header className="mb-3 flex items-center justify-between gap-2">
-        <h2 id="zaznamy-heading" className="text-xl font-semibold tracking-tight text-ink">
+    <section
+      aria-labelledby="zaznamy-heading"
+      className="mx-auto max-w-xl px-4 pt-4 pb-4"
+    >
+      <header className="mb-3">
+        <h2
+          id="zaznamy-heading"
+          className="text-xl font-semibold tracking-tight text-ink"
+        >
           {t("zaznamy.pageTitle")}
         </h2>
-        {type === "otazka" && stuckCount > 0 && (
-          <Link
-            to="/prehled?filter=stuck"
-            aria-label={t("otazky.stuckPillAria", { n: stuckCount })}
-            className="inline-flex items-center gap-1.5 rounded-pill border px-2.5 py-1 text-xs font-medium transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
-            style={{
-              background: "var(--color-prehled-m2-bad-bg)",
-              color: "var(--color-prehled-m2-bad-fg)",
-              borderColor: "var(--color-deadline-overdue-border)",
-            }}
-          >
-            <AlertTriangle aria-hidden size={12} />
-            {t("otazky.stuckPill", { n: stuckCount })}
-          </Link>
-        )}
       </header>
-
-      {/* Type toggle — Nápady / Otázky */}
-      <div
-        role="tablist"
-        aria-label={t("zaznamy.typeToggleLabel")}
-        className="mb-3 flex items-center gap-1 rounded-md border border-line bg-bg-subtle p-1"
-      >
-        <TypeTab
-          active={type === "napad"}
-          onClick={() => setType("napad")}
-          icon={<Notebook aria-hidden size={16} />}
-          label={t("tabs.napady")}
-        />
-        <TypeTab
-          active={type === "otazka"}
-          onClick={() => setType("otazka")}
-          icon={<HelpCircle aria-hidden size={16} />}
-          label={t("tabs.questions")}
-        />
-      </div>
-
-      {/* Group-by tabs */}
-      <div
-        role="tablist"
-        aria-label={t("otazky.groupByLabel")}
-        className="mb-3 flex items-center gap-1 rounded-md border border-line bg-bg-subtle p-1"
-      >
-        <GroupTab active={groupBy === "flat"} onClick={() => setGroupBy("flat")} label={t("otazky.groupFlat")} />
-        <GroupTab active={groupBy === "lokace"} onClick={() => setGroupBy("lokace")} label={t("otazky.groupLokace")} />
-        <GroupTab active={groupBy === "kategorie"} onClick={() => setGroupBy("kategorie")} label={t("otazky.groupKategorie")} />
-      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterChips
@@ -191,67 +125,17 @@ export default function Zaznamy() {
       </div>
 
       <div className="mt-3">
-        <TaskGroupedView
+        <TaskList
           tasks={visible}
           categories={categories}
-          groupBy={groupBy}
           loading={loading}
           error={error}
-          ariaLabelBase={type === "otazka" ? t("aria.otazkyList") : t("aria.napadyList")}
-          emptyTitle={emptyCopy.title}
-          emptyBody={emptyCopy.body}
-          emptyIcon={emptyCopy.icon}
+          emptyTitle={t("list.emptyTitle")}
+          emptyBody={t("list.emptyBody")}
+          emptyIcon={<Notebook size={22} aria-hidden />}
+          ariaLabel={t("aria.napadyList")}
         />
       </div>
     </section>
-  );
-}
-
-function TypeTab({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={[
-        "inline-flex flex-1 items-center justify-center gap-2 min-h-tap rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
-        active
-          ? "bg-surface text-ink shadow-sm ring-1 ring-line"
-          : "text-ink-subtle hover:text-ink",
-      ].join(" ")}
-    >
-      <span aria-hidden>{icon}</span>
-      <span>{label}</span>
-    </button>
-  );
-}
-
-function GroupTab({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={[
-        "inline-flex flex-1 items-center justify-center gap-2 min-h-tap rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
-        active
-          ? "bg-surface text-ink shadow-sm ring-1 ring-line"
-          : "text-ink-subtle hover:text-ink",
-      ].join(" ")}
-    >
-      {label}
-    </button>
   );
 }

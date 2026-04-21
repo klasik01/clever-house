@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Paperclip, Tag } from "lucide-react";
+import { AlertTriangle, HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Paperclip, Tag } from "lucide-react";
 import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
@@ -8,7 +8,10 @@ import PriorityBadge from "./PriorityBadge";
 import DeadlineChip from "./DeadlineChip";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { getLocation } from "@/lib/locations";
+import { mapLegacyOtazkaStatus } from "@/lib/status";
+import { deadlineState } from "@/lib/deadline";
 
 interface Props {
   task: Task;
@@ -18,10 +21,20 @@ interface Props {
 export default function NapadCard({ task, categories }: Props) {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  const isPmCard =
+    roleState.status === "ready" &&
+    roleState.profile.role === "PROJECT_MANAGER";
+  // V6 — ball-on-me is viewer-role driven: OWNER owns ON_CLIENT_SITE,
+  //       PM owns ON_PM_SITE. Legacy Otázka/Čekám map to these first.
   const isBallOnMe =
     task.type === "otazka" &&
-    (task.assigneeUid ?? task.createdBy) === user?.uid &&
-    (task.status === "Otázka" || task.status === "Čekám");
+    mapLegacyOtazkaStatus(task.status) ===
+      (isPmCard ? "ON_PM_SITE" : "ON_CLIENT_SITE");
+  const deadlineStateNow = task.type === "otazka"
+    ? deadlineState(task.deadline)
+    : null;
+  const isOverdue = deadlineStateNow === "overdue";
   const { byUid } = useUsers(Boolean(user));
   const assignee = task.assigneeUid ? byUid.get(task.assigneeUid) : undefined;
   const created = new Date(task.createdAt);
@@ -50,7 +63,8 @@ export default function NapadCard({ task, categories }: Props) {
     <Link
       to={`/t/${task.id}`}
       aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${titleDisplay}`}
-      className={`block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus ${isBallOnMe ? "border-l-4 border-accent" : ""}`}
+      className={`block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus ${isOverdue ? "border-l-4" : isBallOnMe ? "border-l-4 border-accent" : ""}`}
+      style={isOverdue ? { borderLeftColor: "var(--color-status-danger-fg)" } : undefined}
     >
       <article>
         <div className="flex items-start gap-3">
@@ -70,6 +84,15 @@ export default function NapadCard({ task, categories }: Props) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-base font-medium leading-snug text-ink truncate">
+              {isOverdue && (
+                <span
+                  aria-hidden
+                  className="mr-1 inline-flex items-center align-text-bottom"
+                  style={{ color: "var(--color-status-danger-fg)" }}
+                >
+                  <AlertTriangle size={15} aria-hidden />
+                </span>
+              )}
               {titleDisplay}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -21,6 +21,7 @@ import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { getLocation } from "@/lib/locations";
 import { useAuth } from "@/hooks/useAuth";
+import { useUsers } from "@/hooks/useUsers";
 import type { TaskStatus } from "@/types";
 import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 
@@ -39,6 +40,7 @@ export default function TaskDetail() {
   const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
   const { categories } = useCategories(Boolean(user));
   const { tasks: allTasks } = useTasks(Boolean(user));
+  const { byUid } = useUsers(Boolean(user));
 
   // Editable local state. Initialized once from Firestore task; not re-synced on subsequent
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
@@ -1134,7 +1136,7 @@ export default function TaskDetail() {
           <dt>{t("detail.updated")}</dt>
           <dd>{formatRelative(t, updated)}</dd>
           <dt>{t("detail.author")}</dt>
-          <dd className="truncate">{task.createdBy || "—"}</dd>
+          <dd className="truncate">{byUid.get(task.createdBy)?.email || task.createdBy || "—"}</dd>
         </dl>
       </section>
     </article>

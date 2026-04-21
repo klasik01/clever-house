@@ -13,7 +13,8 @@
     "newTask": "Nový",
     "seznam": "Seznam",
     "zaznamy": "Záznamy",
-    "prehled": "Přehled"
+    "prehled": "Přehled",
+    "ukoly": "Úkoly"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -199,6 +200,18 @@
     "BLOCKED": "Blokováno",
     "CANCELED": "Zrušeno",
     "DONE": "Hotovo"
+  },
+  "ukoly": {
+    "pageTitle": "Úkoly",
+    "pageHint": "Všechny otázky a úkoly na jednom místě.",
+    "emptyTitle": "Zatím nic",
+    "emptyBody": "Žádný úkol neodpovídá filtrům.",
+    "filterPriority": "Priorita",
+    "filterPriorityAll": "Všechny priority",
+    "filterStatus": "Stav",
+    "filterStatusAll": "Všechny stavy",
+    "sectionBallOnMe": "Na tobě",
+    "sectionOther": "Ostatní"
   },
   "filter": {
     "all": "Vše",

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Notebook, Ellipsis, MapPin, Plus, Gauge } from "lucide-react";
+import { Notebook, Ellipsis, MapPin, Plus, ListChecks } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -75,22 +75,29 @@ function BottomTabs({ role }: { role: UserRole }) {
             to="/zaznamy"
             icon={<Notebook aria-hidden size={20} />}
             label={t("tabs.zaznamy")}
-            badge={ballOnMe}
           />
         )}
         {!isPm && <FabCell />}
         {!isPm && (
           <Tab
-            to="/prehled"
-            icon={<Gauge aria-hidden size={20} />}
-            label={t("tabs.prehled")}
+            to="/ukoly"
+            icon={<ListChecks aria-hidden size={20} />}
+            label={t("tabs.ukoly")}
+            badge={ballOnMe}
           />
         )}
         {isPm && (
           <Tab
-            to="/zaznamy?type=otazka"
+            to="/zaznamy"
             icon={<Notebook aria-hidden size={20} />}
             label={t("tabs.zaznamy")}
+          />
+        )}
+        {isPm && (
+          <Tab
+            to="/ukoly"
+            icon={<ListChecks aria-hidden size={20} />}
+            label={t("tabs.ukoly")}
             badge={ballOnMe}
           />
         )}

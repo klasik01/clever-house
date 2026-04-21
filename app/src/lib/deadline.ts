@@ -26,12 +26,20 @@ export function epochMsToDateInput(ms: number | null | undefined): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Compute deadline state relative to `now`. */
+/** Compute deadline state relative to `now`.
+ *  V6.1 tightened "soon" to ≤ 1 calendar day (due today or tomorrow) so the
+ *  red warning doesn't fire too early. Anything further out is "ok". */
 export function deadlineState(deadline: number | null | undefined, now = Date.now()): DeadlineState | null {
   if (deadline === null || deadline === undefined) return null;
   if (deadline < now) return "overdue";
-  const daysRemaining = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
-  if (daysRemaining <= 2) return "soon";
+  const msPerDay = 1000 * 60 * 60 * 24;
+  // Compare at day granularity — a deadline set for 23:59 today and a deadline
+  // set for tomorrow morning both read as "1 day away", which matches the UX
+  // expectation that the red chip fires when the deadline is today or tomorrow.
+  const startOfNow = new Date(now); startOfNow.setHours(0, 0, 0, 0);
+  const startOfDeadline = new Date(deadline); startOfDeadline.setHours(0, 0, 0, 0);
+  const daysRemaining = Math.round((startOfDeadline.getTime() - startOfNow.getTime()) / msPerDay);
+  if (daysRemaining <= 1) return "soon";
   return "ok";
 }
 

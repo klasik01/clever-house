@@ -13,7 +13,7 @@ import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
-import Prehled from "./routes/Prehled";
+import Ukoly from "./routes/Ukoly";
 import NewTask from "./routes/NewTask";
 import Zaznamy from "./routes/Zaznamy";
 import LokaceDetail from "./routes/LokaceDetail";
@@ -33,15 +33,16 @@ export default function App() {
 
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<LokaceForOwner />} />
-          <Route path="/napady" element={<Navigate to="/zaznamy?type=napad" replace />} />
-          <Route path="/otazky" element={<Navigate to="/zaznamy?type=otazka" replace />} />
+          <Route path="/napady" element={<Navigate to="/zaznamy" replace />} />
+          <Route path="/otazky" element={<Navigate to="/ukoly" replace />} />
           <Route path="/zaznamy" element={<Zaznamy />} />
+          <Route path="/ukoly" element={<Ukoly />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
           <Route path="/kategorie/:id" element={<KategorieDetailForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
-          <Route path="/prehled" element={<Prehled />} />
+          <Route path="/prehled" element={<Navigate to="/ukoly" replace />} />
           <Route path="/novy" element={<NewTaskForOwner />} />
           <Route path="/export" element={<ExportForOwner />} />
           <Route path="/lokace" element={<Navigate to="/" replace />} />
@@ -87,7 +88,7 @@ function ExportForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <Export />;
 }
@@ -97,7 +98,7 @@ function KategorieForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <Kategorie />;
 }
@@ -107,7 +108,7 @@ function KategorieDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <KategorieDetail />;
 }
@@ -117,7 +118,7 @@ function LokaceForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <Lokace />;
 }
@@ -127,7 +128,7 @@ function NewTaskForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <NewTask />;
 }
@@ -137,7 +138,7 @@ function LokaceDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
+    return <Navigate to="/ukoly" replace />;
   }
   return <LokaceDetail />;
 }
