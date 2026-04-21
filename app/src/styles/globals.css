@@ -128,9 +128,7 @@
 .cdv-editor {
   min-height: 17rem;
 }
-.cdv-editor .ProseMirror:focus {
-  background: var(--color-bg-subtle);
-}
+/* V3-polish: ProseMirror inherits bg from EditorContent wrapper (bg-surface). */
 .cdv-editor .ProseMirror p {
   margin: 0.25rem 0;
 }

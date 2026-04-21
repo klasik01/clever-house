@@ -564,7 +564,7 @@ export default function TaskDetail() {
         )}
       </div>
 
-      <label htmlFor="detail-title" className="mt-2 block text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+      <label htmlFor="detail-title" className="sr-only">
         {t("detail.titlePrimary")}
       </label>
       <input
@@ -575,7 +575,7 @@ export default function TaskDetail() {
         onBlur={flushOnBlur}
         placeholder={t("detail.titlePlaceholderV2")}
         autoCapitalize="sentences"
-        className="mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-lg font-semibold text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
+        className="mt-2 block w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl font-bold leading-tight text-ink placeholder:text-ink-subtle focus:border-b-line-focus focus:outline-none focus:ring-0"
       />
 
       <div className="mt-3">

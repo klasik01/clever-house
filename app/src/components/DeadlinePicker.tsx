@@ -14,7 +14,14 @@ export default function DeadlinePicker({ value, onChange, disabled }: Props) {
   const dateStr = epochMsToDateInput(value);
 
   return (
-    <div className="flex w-full items-center gap-2">
+    <div
+      className={[
+        "flex w-full items-center rounded-md border bg-surface transition-colors",
+        disabled
+          ? "border-line opacity-40"
+          : "border-line focus-within:border-line-focus focus-within:ring-2 focus-within:ring-line-focus",
+      ].join(" ")}
+    >
       <input
         type="date"
         value={dateStr}
@@ -24,16 +31,16 @@ export default function DeadlinePicker({ value, onChange, disabled }: Props) {
           void onChange(next);
         }}
         aria-label={t("deadline.label")}
-        className="min-w-0 flex-1 min-h-tap rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink focus:border-line-focus focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-40"
+        className="min-w-0 flex-1 min-h-tap rounded-md bg-transparent px-3 py-1.5 text-sm text-ink focus:outline-none"
       />
       {value && !disabled && (
         <button
           type="button"
           onClick={() => void onChange(null)}
           aria-label={t("deadline.none")}
-          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink hover:bg-bg-subtle"
+          className="mr-1 grid size-8 shrink-0 place-items-center rounded-md text-ink-subtle hover:text-ink hover:bg-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
         >
-          <X aria-hidden size={16} />
+          <X aria-hidden size={14} />
         </button>
       )}
     </div>

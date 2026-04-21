@@ -1,3 +1,4 @@
+import { Flame, Minus, MoveDown } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import type { TaskPriority } from "@/types";
 
@@ -25,9 +26,17 @@ export default function PriorityBadge({ priority, className }: Props) {
     >
       <span
         aria-hidden
-        className="inline-block size-1.5 rounded-full"
-        style={{ background: `var(--color-priority-${varSuffix}-dot)` }}
-      />
+        className="grid size-3 place-items-center"
+        style={{ color: `var(--color-priority-${varSuffix}-dot)` }}
+      >
+        {priority === "P1" ? (
+          <Flame aria-hidden size={11} />
+        ) : priority === "P2" ? (
+          <Minus aria-hidden size={11} />
+        ) : (
+          <MoveDown aria-hidden size={11} />
+        )}
+      </span>
       {t(`priority.${priority}`)}
     </span>
   );

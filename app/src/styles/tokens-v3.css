@@ -5,22 +5,22 @@
    ============================================================ */
 
 :root {
-  /* ---------- Priority (otázka-only) ---------- */
-  /* P1 — high / urgent. Reuses danger hue but softer (bg-100 not bg-50) */
-  --color-priority-p1-bg:     var(--danger-50);
-  --color-priority-p1-fg:     var(--danger-700);
-  --color-priority-p1-border: var(--danger-300);
-  --color-priority-p1-dot:    var(--danger-500);
+  /* ---------- Priority (otázka-only) — V3-polish: earth palette only. ---------- */
+  /* P1 — high / urgent: warm oak amber (NOT red), communicates urgence tone-on-tone. */
+  --color-priority-p1-bg:     var(--oak-100);
+  --color-priority-p1-fg:     var(--oak-800);
+  --color-priority-p1-border: var(--oak-400);
+  --color-priority-p1-dot:    var(--oak-600);
 
-  /* P2 — normal / default. Muted warm neutral, no alarm. */
+  /* P2 — normal: muted stone, olive dot. */
   --color-priority-p2-bg:     var(--stone-100);
   --color-priority-p2-fg:     var(--stone-700);
   --color-priority-p2-border: var(--stone-300);
   --color-priority-p2-dot:    var(--olive-600);
 
-  /* P3 — low. Very subtle, shouldn't visually compete. */
+  /* P3 — low: transparent bg, subtle stone text. */
   --color-priority-p3-bg:     transparent;
-  --color-priority-p3-fg:     var(--stone-600);
+  --color-priority-p3-fg:     var(--stone-500);
   --color-priority-p3-border: var(--stone-200);
   --color-priority-p3-dot:    var(--stone-400);
 
@@ -80,10 +80,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-priority-p1-bg:     var(--danger-900);
-    --color-priority-p1-fg:     var(--danger-300);
-    --color-priority-p1-border: var(--danger-700);
-    --color-priority-p1-dot:    var(--danger-500);
+    --color-priority-p1-bg:     var(--oak-900);
+    --color-priority-p1-fg:     var(--oak-200);
+    --color-priority-p1-border: var(--oak-700);
+    --color-priority-p1-dot:    var(--oak-500);
 
     --color-priority-p2-bg:     var(--stone-800);
     --color-priority-p2-fg:     var(--stone-200);

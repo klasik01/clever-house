@@ -1,3 +1,4 @@
+import { Check, Flame, Minus, MoveDown } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import type { TaskPriority } from "@/types";
 
@@ -34,22 +35,30 @@ export default function PrioritySelect({ value, onChange, disabled }: Props) {
             disabled={disabled}
             onClick={() => onChange(p)}
             className={[
-              "inline-flex items-center gap-1.5 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors",
-              "border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
-              active ? "" : "hover:bg-bg-subtle",
+              "inline-flex items-center gap-1.5 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
+              active ? "border-2 shadow-sm" : "border hover:bg-bg-subtle",
               disabled ? "opacity-40 cursor-not-allowed" : "",
             ].join(" ")}
             style={{
               backgroundColor: active ? `var(--color-priority-${varSuffix}-bg)` : "transparent",
               color: active ? `var(--color-priority-${varSuffix}-fg)` : "var(--color-text-muted)",
-              borderColor: active ? `var(--color-priority-${varSuffix}-border)` : "var(--color-border-default)",
+              borderColor: active ? `var(--color-priority-${varSuffix}-dot)` : "var(--color-border-default)",
             }}
           >
+            {active && <Check aria-hidden size={14} className="shrink-0" />}
             <span
               aria-hidden
-              className="inline-block size-2 rounded-full"
-              style={{ background: `var(--color-priority-${varSuffix}-dot)` }}
-            />
+              className="grid size-4 place-items-center"
+              style={{ color: `var(--color-priority-${varSuffix}-dot)` }}
+            >
+              {p === "P1" ? (
+                <Flame aria-hidden size={14} />
+              ) : p === "P2" ? (
+                <Minus aria-hidden size={14} />
+              ) : (
+                <MoveDown aria-hidden size={14} />
+              )}
+            </span>
             <span>{t(`priority.${p}`)}</span>
             <span className="text-xs text-ink-subtle" aria-hidden>
               {t(`priority.${p}Long`)}

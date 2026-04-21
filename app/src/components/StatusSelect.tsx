@@ -1,6 +1,7 @@
+import { Check } from "lucide-react";
 import type { TaskStatus, TaskType } from "@/types";
 import { useT } from "@/i18n/useT";
-import { ALL_STATUSES, statusColors } from "./StatusBadge";
+import { ALL_STATUSES, statusColors, statusIcon } from "./StatusBadge";
 
 interface Props {
   value: TaskStatus;
@@ -51,17 +52,20 @@ export default function StatusSelect({ value, onChange, disabled, type }: Props)
             disabled={disabled}
             onClick={() => onChange(s)}
             className={[
-              "sm:snap-start shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors",
-              "border",
-              active ? "" : "hover:bg-bg-subtle",
+              "sm:snap-start inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
+              active ? "border-2 shadow-sm" : "border hover:bg-bg-subtle",
               disabled ? "opacity-40 cursor-not-allowed" : "",
             ].join(" ")}
             style={{
               backgroundColor: active ? c.bg : "transparent",
               color: active ? c.fg : "var(--color-text-muted)",
-              borderColor: active ? c.border : "var(--color-border-default)",
+              borderColor: active ? c.dot : "var(--color-border-default)",
             }}
           >
+            {active && <Check aria-hidden size={14} className="shrink-0" />}
+            <span aria-hidden className="inline-flex items-center" style={{ color: active ? c.dot : "var(--color-text-subtle)" }}>
+              {statusIcon(s)}
+            </span>
             {t(`status.${s}`)}
           </button>
         );

@@ -1,3 +1,4 @@
+import { CheckCheck, CheckCircle2, Hammer, Hourglass, HelpCircle, Lightbulb } from "lucide-react";
 import type { TaskStatus } from "@/types";
 import { useT } from "@/i18n/useT";
 
@@ -25,9 +26,11 @@ export default function StatusBadge({ status, size = "sm" }: Props) {
     >
       <span
         aria-hidden
-        className="inline-block size-1.5 rounded-pill"
-        style={{ backgroundColor: dot }}
-      />
+        className="inline-flex items-center"
+        style={{ color: dot }}
+      >
+        {statusIcon(safeStatus)}
+      </span>
       {t(`status.${safeStatus}`)}
     </span>
   );
@@ -57,49 +60,71 @@ export function statusColors(s: TaskStatus): {
   dot: string;
   border: string;
 } {
+  // V3-polish: all statuses remapped to warm-earth (stone / oak / olive)
+  // to stay coherent with the rest of the palette. Primitives vivid-colours
+  // (info/warning/danger/success) are kept only for /prehled M2 banner.
   switch (s) {
     case "Otázka":
       return {
-        bg: "var(--color-status-info-bg)",
-        fg: "var(--color-status-info-fg)",
-        dot: "var(--color-status-info-fg)",
-        border: "var(--color-status-info-border)",
+        bg: "var(--color-status-otazka-bg)",
+        fg: "var(--color-status-otazka-fg)",
+        dot: "var(--color-status-otazka-fg)",
+        border: "var(--color-status-otazka-border)",
       };
     case "Čekám":
       return {
-        bg: "var(--color-status-warning-bg)",
-        fg: "var(--color-status-warning-fg)",
-        dot: "var(--color-status-warning-fg)",
-        border: "var(--color-status-warning-border)",
+        bg: "var(--color-status-cekam-bg)",
+        fg: "var(--color-status-cekam-fg)",
+        dot: "var(--color-status-cekam-fg)",
+        border: "var(--color-status-cekam-border)",
       };
     case "Rozhodnuto":
       return {
-        bg: "var(--color-status-success-bg)",
-        fg: "var(--color-status-success-fg)",
-        dot: "var(--color-status-success-fg)",
-        border: "var(--color-status-success-border)",
+        bg: "var(--color-status-rozhodnuto-bg)",
+        fg: "var(--color-status-rozhodnuto-fg)",
+        dot: "var(--color-status-rozhodnuto-fg)",
+        border: "var(--color-status-rozhodnuto-border)",
       };
     case "Ve stavbě":
       return {
-        bg: "var(--color-warm-subtle)",
-        fg: "var(--color-warm-default)",
-        dot: "var(--color-warm-default)",
-        border: "var(--color-warm-default)",
+        bg: "var(--color-status-vestavbe-bg)",
+        fg: "var(--color-status-vestavbe-fg)",
+        dot: "var(--color-status-vestavbe-fg)",
+        border: "var(--color-status-vestavbe-border)",
       };
     case "Hotovo":
       return {
-        bg: "var(--color-status-success-bg)",
-        fg: "var(--color-status-success-fg)",
-        dot: "var(--color-status-success-fg)",
-        border: "var(--color-status-success-border)",
+        bg: "var(--color-status-hotovo-bg)",
+        fg: "var(--color-status-hotovo-fg)",
+        dot: "var(--color-status-hotovo-fg)",
+        border: "var(--color-status-hotovo-border)",
       };
     case "Nápad":
     default:
       return {
-        bg: "var(--color-bg-muted)",
-        fg: "var(--color-text-muted)",
-        dot: "var(--color-text-subtle)",
-        border: "var(--color-border-default)",
+        bg: "var(--color-status-napad-bg)",
+        fg: "var(--color-status-napad-fg)",
+        dot: "var(--color-status-napad-fg)",
+        border: "var(--color-status-napad-border)",
       };
+  }
+}
+
+/** V3-polish: contextual icon per status for scannability with toned-down colors. */
+export function statusIcon(s: TaskStatus): React.ReactNode {
+  switch (s) {
+    case "Otázka":
+      return <HelpCircle aria-hidden size={11} />;
+    case "Čekám":
+      return <Hourglass aria-hidden size={11} />;
+    case "Rozhodnuto":
+      return <CheckCircle2 aria-hidden size={11} />;
+    case "Ve stavbě":
+      return <Hammer aria-hidden size={11} />;
+    case "Hotovo":
+      return <CheckCheck aria-hidden size={11} />;
+    case "Nápad":
+    default:
+      return <Lightbulb aria-hidden size={11} />;
   }
 }
