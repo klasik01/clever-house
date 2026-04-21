@@ -1,18 +1,14 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Lightbulb, RotateCcw } from "lucide-react";
-import Composer from "@/components/Composer";
 import TaskGroupedView, { type GroupBy } from "@/components/TaskGroupedView";
 import FilterChips from "@/components/FilterChips";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
-import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
-import { createTaskFromComposerInput } from "@/lib/createTaskFromComposerInput";
-import type { TaskType } from "@/types";
 import {
   applyCategory,
   applyLocation,
@@ -34,7 +30,6 @@ export default function Home() {
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
-  const { show: showToast } = useToast();
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() =>
     loadCategoryFilter(KEY)
@@ -72,27 +67,6 @@ export default function Home() {
     clearAllFilters(KEY);
   }
 
-  const onSave = useCallback(
-    async (text: string, type: TaskType, imageFiles: File[], linkUrls: string[]) => {
-      if (!user) return;
-      try {
-        await createTaskFromComposerInput({
-          text,
-          type,
-          imageFiles,
-          linkUrls,
-          uid: user.uid,
-          onImageUploadError: () => showToast(t("composer.uploadFailed"), "error"),
-        });
-      } catch (e) {
-        console.error(e);
-        showToast(t("composer.saveFailed"), "error");
-        throw e;
-      }
-    },
-    [user, t, showToast]
-  );
-
   const napady = tasks.filter((tk) => tk.type === "napad");
   const counts = {
     all: napady.length,
@@ -106,9 +80,6 @@ export default function Home() {
 
   return (
     <>
-      <h2 id="capture-heading" className="sr-only">{t("tabs.capture")}</h2>
-      <Composer onSave={onSave} />
-
       <section aria-label={t("aria.napadyList")} className="mx-auto max-w-xl px-4 pt-2 pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips value={filter} onChange={changeFilter} counts={counts} />

@@ -9,7 +9,8 @@
     "questions": "Otázky",
     "more": "Více",
     "locations": "Lokace",
-    "napady": "Nápady"
+    "napady": "Nápady",
+    "newTask": "Nový"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -362,5 +363,9 @@
   },
   "offline": {
     "banner": "Jsi offline — změny se uloží po připojení."
+  },
+  "novy": {
+    "pageTitle": "Nový záznam",
+    "pageHint": "Zapiš nápad nebo otázku. Po uložení doplníš detaily."
   }
 }

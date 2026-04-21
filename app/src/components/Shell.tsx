@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Notebook, HelpCircle, Ellipsis, MapPin } from "lucide-react";
+import { Notebook, HelpCircle, Ellipsis, MapPin, Plus } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -64,6 +64,7 @@ function BottomTabs({ role }: { role: UserRole }) {
             label={t("tabs.napady")}
           />
         )}
+        {!isPm && <FabCell />}
         <Tab
           to="/otazky"
           end={isPm}
@@ -105,6 +106,27 @@ function Tab({
       >
         <span aria-hidden>{icon}</span>
         <span>{label}</span>
+      </NavLink>
+    </li>
+  );
+}
+
+
+function FabCell() {
+  const t = useT();
+  return (
+    <li className="relative -my-2 flex w-14 justify-center">
+      <NavLink
+        to="/novy"
+        aria-label={t("tabs.newTask")}
+        className={({ isActive }) =>
+          [
+            "grid size-14 place-items-center rounded-full bg-accent text-accent-on shadow-md ring-1 ring-line/40 transition-transform duration-fast hover:bg-accent-hover hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
+            isActive ? "ring-2 ring-line-focus" : "",
+          ].join(" ")
+        }
+      >
+        <Plus aria-hidden size={24} />
       </NavLink>
     </li>
   );

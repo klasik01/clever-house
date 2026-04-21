@@ -15,6 +15,7 @@ import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import Lokace from "./routes/Lokace";
 import Prehled from "./routes/Prehled";
+import NewTask from "./routes/NewTask";
 import LokaceDetail from "./routes/LokaceDetail";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/kategorie" element={<KategorieForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/prehled" element={<Prehled />} />
+          <Route path="/novy" element={<NewTaskForOwner />} />
           <Route path="/export" element={<ExportForOwner />} />
           <Route path="/lokace" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -116,6 +118,16 @@ function LokaceForOwner() {
     return <Navigate to="/otazky" replace />;
   }
   return <Lokace />;
+}
+
+/** PM redirects away from `/novy`. */
+function NewTaskForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <NewTask />;
 }
 
 /** PM redirects away from `/lokace/:id`. */
