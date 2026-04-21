@@ -285,7 +285,8 @@
     "lokaceGrid": "Mřížka lokací",
     "lokaceNapadyList": "Seznam nápadů v této lokaci",
     "lokaceOtazkyList": "Seznam otázek v této lokaci",
-    "lokaceTabs": "Přepínač typů"
+    "lokaceTabs": "Přepínač typů",
+    "categoriesGrid": "Mřížka kategorií"
   },
   "toast": {
     "saved": "Uloženo",
@@ -359,7 +360,14 @@
   "categories": {
     "addMore": "Přidat kategorii",
     "remove": "Odebrat kategorii",
-    "hiddenMore": "a další {n}"
+    "hiddenMore": "a další {n}",
+    "pageTitle": "Kategorie",
+    "pageHint": "Procházej nápady a otázky podle kategorie.",
+    "empty": "Zatím nemáš žádné kategorie.",
+    "emptyHint": "Přidej první kategorii přes nastavení.",
+    "manage": "Spravovat kategorie",
+    "notFoundTitle": "Tato kategorie neexistuje",
+    "notFoundBody": "Zkontroluj odkaz nebo se vrať zpět."
   },
   "offline": {
     "banner": "Jsi offline — změny se uloží po připojení."
@@ -367,5 +375,8 @@
   "novy": {
     "pageTitle": "Nový záznam",
     "pageHint": "Zapiš nápad nebo otázku. Po uložení doplníš detaily."
+  },
+  "home": {
+    "viewToggleLabel": "Přepnout zobrazení"
   }
 }

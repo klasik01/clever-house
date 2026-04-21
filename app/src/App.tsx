@@ -13,6 +13,7 @@ import Home from "./routes/Home";
 import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
+import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
 import Prehled from "./routes/Prehled";
 import NewTask from "./routes/NewTask";
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
+          <Route path="/kategorie/:id" element={<KategorieDetailForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/prehled" element={<Prehled />} />
           <Route path="/novy" element={<NewTaskForOwner />} />
@@ -108,6 +110,16 @@ function KategorieForOwner() {
     return <Navigate to="/otazky" replace />;
   }
   return <Kategorie />;
+}
+
+/** PM redirects away from `/kategorie/:id`. */
+function KategorieDetailForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/otazky" replace />;
+  }
+  return <KategorieDetail />;
 }
 
 /** PM redirects away from `/lokace`. */
