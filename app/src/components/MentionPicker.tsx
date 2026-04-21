@@ -60,6 +60,11 @@ export default function MentionPicker({ users, query, onSelect, onClose }: Props
     return () => window.removeEventListener("keydown", onKey, true);
   }, [users, active, onSelect, onClose]);
 
+  const activeId =
+    users && users[active]
+      ? `mp-option-${users[active].uid}`
+      : undefined;
+
   if (!users) return null;
 
   return (
@@ -67,6 +72,7 @@ export default function MentionPicker({ users, query, onSelect, onClose }: Props
       ref={rootRef}
       role="listbox"
       aria-label={t("mentions.typeToSearch")}
+      aria-activedescendant={activeId}
       className="mt-2 max-h-56 overflow-y-auto rounded-md border border-line bg-surface shadow-sm"
     >
       {users.length === 0 ? (
@@ -82,6 +88,7 @@ export default function MentionPicker({ users, query, onSelect, onClose }: Props
               <li key={u.uid}>
                 <button
                   type="button"
+                  id={`mp-option-${u.uid}`}
                   role="option"
                   aria-selected={isActive}
                   onMouseDown={(e) => {

@@ -11,6 +11,8 @@ import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
 import AssigneeSelect from "@/components/AssigneeSelect";
+import PrioritySelect from "@/components/PrioritySelect";
+import DeadlinePicker from "@/components/DeadlinePicker";
 import StatusBadge, { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
@@ -271,11 +273,12 @@ export default function TaskDetail() {
     }
   }
 
-  async function handleCategoryChange(nextId: string | null) {
+  async function handleCategoryChange(nextIds: string[]) {
     if (state.status !== "ready") return;
     setSaving(true);
     try {
-      await updateTask(state.task.id, { categoryId: nextId });
+      const legacy = nextIds[0] ?? null;
+      await updateTask(state.task.id, { categoryIds: nextIds, categoryId: legacy });
       flashSaved();
     } catch (e) {
       console.error("category update failed", e);
@@ -310,6 +313,32 @@ export default function TaskDetail() {
     }
   }
 
+  async function handlePriorityChange(next: import("@/types").TaskPriority) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { priority: next });
+      flashSaved();
+    } catch (e) {
+      console.error("priority update failed", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+
+  async function handleDeadlineChange(nextMs: number | null) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { deadline: nextMs });
+      flashSaved();
+    } catch (e) {
+      console.error("deadline update failed", e);
+    } finally {
+      setSaving(false);
+    }
+  }
   async function handleDelete() {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.confirmDelete"))) return;
@@ -557,6 +586,32 @@ export default function TaskDetail() {
         </section>
       )}
 
+      {task.type === "otazka" && task.createdBy === user?.uid && (
+        <section className="mt-4" aria-labelledby="priority-heading">
+          <h2 id="priority-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("priority.label")}
+          </h2>
+          <PrioritySelect
+            value={task.priority}
+            onChange={handlePriorityChange}
+            disabled={saving}
+          />
+        </section>
+      )}
+
+      {task.type === "otazka" && task.createdBy === user?.uid && (
+        <section className="mt-4" aria-labelledby="deadline-heading">
+          <h2 id="deadline-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("deadline.label")}
+          </h2>
+          <DeadlinePicker
+            value={task.deadline ?? null}
+            onChange={handleDeadlineChange}
+            disabled={saving}
+          />
+        </section>
+      )}
+
       <section className="mt-6" aria-labelledby="status-heading">
         <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("status.label")}
@@ -574,7 +629,7 @@ export default function TaskDetail() {
           {t("detail.categoryLabel")}
         </h2>
         <CategoryPicker
-          value={task.categoryId ?? null}
+          value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
           categories={categories}
           onChange={handleCategoryChange}
           disabled={saving}

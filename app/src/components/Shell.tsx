@@ -3,6 +3,7 @@ import { Notebook, HelpCircle, Ellipsis, MapPin } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
+import OfflineBanner from "./OfflineBanner";
 
 interface Props {
   children: ReactNode;
@@ -12,6 +13,7 @@ interface Props {
 export default function Shell({ children, role }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
+      <OfflineBanner />
       <Header />
       <main
         id="main"

@@ -104,6 +104,7 @@ export default function ReactionBar({ reactions, currentUid, onToggle, disabled 
         {pickerOpen && (
           <div
             role="menu"
+            aria-labelledby="reaction-picker-trigger"
             className="absolute left-0 top-full z-10 mt-1 flex items-center gap-0.5 rounded-md border border-line bg-surface px-1.5 py-1 shadow-sm"
           >
             {REACTION_EMOJI.map((emoji) => {

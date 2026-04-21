@@ -14,6 +14,7 @@ import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import Lokace from "./routes/Lokace";
+import Prehled from "./routes/Prehled";
 import LokaceDetail from "./routes/LokaceDetail";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
+          <Route path="/prehled" element={<Prehled />} />
           <Route path="/export" element={<ExportForOwner />} />
           <Route path="/lokace" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

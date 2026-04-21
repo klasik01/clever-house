@@ -79,3 +79,20 @@ export function applyLocation(tasks: Task[], locationId: string | null): Task[] 
   if (!locationId) return tasks;
   return tasks.filter((t) => t.locationId === locationId);
 }
+
+
+// ---------- Reset ----------
+
+/**
+ * S42 — Remove all filter state for `key` (status / category / location).
+ * Called by Reset pill in list header.
+ */
+export function clearAllFilters(key: string): void {
+  try {
+    sessionStorage.removeItem(PREFIX + key);
+    sessionStorage.removeItem(PREFIX + key + ":category");
+    sessionStorage.removeItem(PREFIX + key + ":location");
+  } catch {
+    /* ignore */
+  }
+}

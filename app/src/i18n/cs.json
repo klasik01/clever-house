@@ -83,7 +83,13 @@
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
     "emptyTitle": "Žádné otázky zatím nemáš.",
-    "emptyBody": "Nápad jde kdykoliv převést na otázku z jeho detailu (přijde v dalším kroku), nebo ho zapiš rovnou jako otázku z hlavní obrazovky."
+    "emptyBody": "Nápad jde kdykoliv převést na otázku z jeho detailu (přijde v dalším kroku), nebo ho zapiš rovnou jako otázku z hlavní obrazovky.",
+    "stuckPill": "Uvízlé {n}",
+    "stuckPillAria": "Uvízlé otázky: {n}. Otevřít přehled.",
+    "groupByLabel": "Seskupit podle",
+    "groupFlat": "Plochý",
+    "groupLokace": "Lokace",
+    "groupKategorie": "Kategorie"
   },
   "detail": {
     "back": "Zpět",
@@ -174,7 +180,9 @@
     "categoryAll": "Všechny kategorie",
     "categoryAriaLabel": "Filtr podle kategorie",
     "locationAll": "Všechny lokace",
-    "locationAriaLabel": "Filtr podle lokace"
+    "locationAriaLabel": "Filtr podle lokace",
+    "reset": "Reset",
+    "resetAriaLabel": "Vymazat všechny filtry"
   },
   "kategorie": {
     "pageTitle": "Kategorie",
@@ -346,5 +354,13 @@
   },
   "avatar": {
     "ariaLabel": "Uživatel"
+  },
+  "categories": {
+    "addMore": "Přidat kategorii",
+    "remove": "Odebrat kategorii",
+    "hiddenMore": "a další {n}"
+  },
+  "offline": {
+    "banner": "Jsi offline — změny se uloží po připojení."
   }
 }
