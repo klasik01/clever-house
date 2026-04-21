@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -33,6 +33,10 @@ export default function RichTextEditor({
 }: Props) {
   const t = useT();
 
+  // Tracks the last markdown we emitted via onChange.
+  // Prevents the sync effect from fighting our own echoed value.
+  const lastEmittedRef = useRef<string>(value);
+
   const editor = useEditor({
     editable: !disabled,
     extensions: [
@@ -59,6 +63,7 @@ export default function RichTextEditor({
     content: value || "",
     onUpdate: ({ editor: ed }: { editor: Editor }) => {
       const md = getMarkdown(ed);
+      lastEmittedRef.current = md;
       onChange(md);
     },
     onBlur: () => {
@@ -79,10 +84,12 @@ export default function RichTextEditor({
   // without losing the cursor on every keystroke.
   useEffect(() => {
     if (!editor) return;
+    // Skip if this value matches what we just emitted — it's our own echo.
+    if (value === lastEmittedRef.current) return;
     const current = getMarkdown(editor);
-    if (value !== current) {
-      editor.commands.setContent(value || "", false);
-    }
+    if (value === current) return;
+    editor.commands.setContent(value || "", false);
+    lastEmittedRef.current = value;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 

@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2, HelpCircle, Notebook } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
+import { useTasks } from "@/hooks/useTasks";
 import { answerAsProjektant, convertNapadToOtazka, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
-import StatusBadge from "@/components/StatusBadge";
+import StatusBadge, { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
 import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Sparkles, X as XIcon } from "lucide-react";
@@ -31,6 +32,7 @@ export default function TaskDetail() {
   const roleState = useUserRole(user?.uid);
   const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
   const { categories } = useCategories(Boolean(user) && !isPm);
+  const { tasks: allTasks } = useTasks(Boolean(user) && !isPm);
 
   // Editable local state. Initialized once from Firestore task; not re-synced on subsequent
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
@@ -56,6 +58,16 @@ export default function TaskDetail() {
     // Re-initialize only if the route's :id changed
     if (state.status !== "ready") initializedRef.current = false;
   }, [state]);
+
+  // Reset transient UI flags when the route's :id changes. TaskDetail is reused
+  // across /t/:id navigations (React Router keeps component mounted), so any
+  // in-flight flag like `converting` would otherwise leak into the next task.
+  useEffect(() => {
+    setConverting(false);
+    setAnswering(false);
+    setSaving(false);
+    setAttachError(null);
+  }, [id]);
 
   // Debounced auto-save
   useEffect(() => {
@@ -520,6 +532,7 @@ export default function TaskDetail() {
           value={task.status}
           onChange={handleStatusChange}
           disabled={saving}
+          type={task.type}
         />
       </section>
 
@@ -689,27 +702,86 @@ export default function TaskDetail() {
         </section>
       )}
 
-      {task.linkedTaskId && (
-        <Link
-          to={`/t/${task.linkedTaskId}`}
-          className="mt-4 flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            {task.type === "napad" ? (
-              <HelpCircleIcon aria-hidden size={18} className="text-accent-visual" />
-            ) : (
-              <Lightbulb aria-hidden size={18} className="text-ink-subtle" />
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                {task.type === "napad" ? t("detail.linkedOtazkaTitle") : t("detail.linkedNapadTitle")}
-              </p>
-              <p className="text-sm text-ink truncate">{t("detail.linkedOpen")}</p>
-            </div>
-          </div>
-          <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
-        </Link>
+      {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (
+        <section className="mt-4" aria-labelledby="linked-otazky-heading">
+          <h2
+            id="linked-otazky-heading"
+            className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+          >
+            {t("detail.linkedOtazkyTitle")}
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {task.linkedTaskIds!.map((otazkaId) => {
+              const ot = allTasks.find((x) => x.id === otazkaId);
+              const title =
+                ot?.title?.trim() ||
+                ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
+                t("detail.noTitle");
+              const c = ot ? statusColors(ot.status) : null;
+              return (
+                <li key={otazkaId}>
+                  <Link
+                    to={`/t/${otazkaId}`}
+                    className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
+                    style={{
+                      borderLeftColor: c ? c.border : "var(--color-border-default)",
+                      borderTopColor: "var(--color-border-default)",
+                      borderRightColor: "var(--color-border-default)",
+                      borderBottomColor: "var(--color-border-default)",
+                    }}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <HelpCircleIcon aria-hidden size={18} className="text-accent-visual shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink truncate">{title}</p>
+                        {ot && c && (
+                          <span
+                            className="mt-1 inline-flex items-center gap-1.5 text-xs"
+                            style={{ color: c.fg }}
+                          >
+                            <span
+                              aria-hidden
+                              className="inline-block size-1.5 rounded-full"
+                              style={{ background: c.dot }}
+                            />
+                            {t(`status.${ot.status}`)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
+
+      {task.type === "otazka" && task.linkedTaskId && (() => {
+        const parent = allTasks.find((x) => x.id === task.linkedTaskId);
+        const parentTitle =
+          parent?.title?.trim() ||
+          parent?.body?.split("\n")[0]?.trim().slice(0, 80) ||
+          t("detail.noTitle");
+        return (
+          <Link
+            to={`/t/${task.linkedTaskId}`}
+            className="mt-4 flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <Lightbulb aria-hidden size={18} className="text-ink-subtle shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                  {t("detail.linkedNapadTitle")}
+                </p>
+                <p className="text-sm text-ink truncate">{parentTitle}</p>
+              </div>
+            </div>
+            <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+          </Link>
+        );
+      })()}
 
       {task.type === "napad" && (
         <div className="mt-6">

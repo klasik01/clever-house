@@ -36,10 +36,6 @@ export default function Composer({ onSave }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
