@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Notebook, HelpCircle, Ellipsis, MapPin, Plus } from "lucide-react";
+import { Notebook, Ellipsis, MapPin, Plus, Gauge } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -55,22 +55,30 @@ function BottomTabs({ role }: { role: UserRole }) {
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
         {!isPm && (
-          <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.locations")} />
+          <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.seznam")} />
         )}
         {!isPm && (
           <Tab
-            to="/napady"
+            to="/zaznamy"
             icon={<Notebook aria-hidden size={20} />}
-            label={t("tabs.napady")}
+            label={t("tabs.zaznamy")}
           />
         )}
         {!isPm && <FabCell />}
-        <Tab
-          to="/otazky"
-          end={isPm}
-          icon={<HelpCircle aria-hidden size={20} />}
-          label={t("tabs.questions")}
-        />
+        {!isPm && (
+          <Tab
+            to="/prehled"
+            icon={<Gauge aria-hidden size={20} />}
+            label={t("tabs.prehled")}
+          />
+        )}
+        {isPm && (
+          <Tab
+            to="/zaznamy?type=otazka"
+            icon={<Notebook aria-hidden size={20} />}
+            label={t("tabs.questions")}
+          />
+        )}
         <Tab
           to="/nastaveni"
           icon={<Ellipsis aria-hidden size={20} />}

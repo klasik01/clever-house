@@ -9,14 +9,13 @@ import {
 import { useAuth } from "./hooks/useAuth";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
-import Home from "./routes/Home";
-import Otazky from "./routes/Otazky";
 import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
 import Prehled from "./routes/Prehled";
 import NewTask from "./routes/NewTask";
+import Zaznamy from "./routes/Zaznamy";
 import LokaceDetail from "./routes/LokaceDetail";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
@@ -34,8 +33,9 @@ export default function App() {
 
         <Route element={<ProtectedLayout />}>
           <Route path="/" element={<LokaceForOwner />} />
-          <Route path="/napady" element={<HomeForOwner />} />
-          <Route path="/otazky" element={<Otazky />} />
+          <Route path="/napady" element={<Navigate to="/zaznamy?type=napad" replace />} />
+          <Route path="/otazky" element={<Navigate to="/zaznamy?type=otazka" replace />} />
+          <Route path="/zaznamy" element={<Zaznamy />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
@@ -80,16 +80,6 @@ function ProtectedLayout() {
       <Outlet />
     </Shell>
   );
-}
-
-/** PM redirects away from `/` (Home has composer — PM shouldn't create). */
-function HomeForOwner() {
-  const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/otazky" replace />;
-  }
-  return <Home />;
 }
 
 /** PM redirects away from `/export`. */

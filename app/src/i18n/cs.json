@@ -10,7 +10,10 @@
     "more": "Více",
     "locations": "Lokace",
     "napady": "Nápady",
-    "newTask": "Nový"
+    "newTask": "Nový",
+    "seznam": "Seznam",
+    "zaznamy": "Záznamy",
+    "prehled": "Přehled"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -378,5 +381,9 @@
   },
   "home": {
     "viewToggleLabel": "Přepnout zobrazení"
+  },
+  "zaznamy": {
+    "pageTitle": "Záznamy",
+    "typeToggleLabel": "Typ záznamu"
   }
 }
