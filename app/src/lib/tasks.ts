@@ -82,7 +82,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -125,6 +125,11 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     attachmentImagePath: data.attachmentImagePath ?? null,
     attachmentLinks: bridgeLinks(data),
     attachmentLinkUrl: data.attachmentLinkUrl ?? null,
+    categoryIds: bridgeCategoryIds(data),
+    priority: bridgePriority(data),
+    deadline: data.deadline ?? null,
+    assigneeUid: data.assigneeUid ?? null,
+    commentCount: typeof data.commentCount === "number" ? data.commentCount : 0,
     createdBy: data.createdBy ?? "",
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
@@ -248,6 +253,34 @@ function bridgeLinks(data: Record<string, unknown>): string[] {
 
 
 /** Bridge legacy linkedTaskId on a nápad to the S26 array shape. For otázka it's ignored (otázka uses single linkedTaskId). */
+/**
+ * V3 bridge — categoryIds[].
+ * Prefers new `categoryIds` array; falls back to legacy single `categoryId`.
+ * Returns [] if neither is present.
+ */
+function bridgeCategoryIds(data: Record<string, unknown>): string[] {
+  const arr = data.categoryIds;
+  if (Array.isArray(arr)) {
+    return arr.filter((x): x is string => typeof x === "string" && x.length > 0);
+  }
+  const single = data.categoryId;
+  if (typeof single === "string" && single.length > 0) {
+    return [single];
+  }
+  return [];
+}
+
+/**
+ * V3 bridge — priority.
+ * Otazky default to "P2" if missing; nápady return undefined.
+ */
+function bridgePriority(data: Record<string, unknown>): import("@/types").TaskPriority | undefined {
+  const p = data.priority;
+  if (p === "P1" || p === "P2" || p === "P3") return p;
+  if (data.type === "otazka") return "P2";
+  return undefined;
+}
+
 function bridgeLinkedTaskIds(data: Record<string, unknown>): string[] {
   const arr = data.linkedTaskIds as string[] | undefined;
   if (Array.isArray(arr) && arr.length > 0) return arr.filter((x) => typeof x === "string");

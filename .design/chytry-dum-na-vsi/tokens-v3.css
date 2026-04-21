@@ -1,0 +1,176 @@
+/* ============================================================
+   Chytrý dům na vsi — V3 Design Tokens (DELTA)
+   Appendix to tokens.css. Inject after the primary token file.
+   All V3-added semantic aliases reuse V2 primitives (warm earth).
+   ============================================================ */
+
+:root {
+  /* ---------- Priority (otázka-only) ---------- */
+  /* P1 — high / urgent. Reuses danger hue but softer (bg-100 not bg-50) */
+  --color-priority-p1-bg:     var(--danger-50);
+  --color-priority-p1-fg:     var(--danger-700);
+  --color-priority-p1-border: var(--danger-300);
+  --color-priority-p1-dot:    var(--danger-500);
+
+  /* P2 — normal / default. Muted warm neutral, no alarm. */
+  --color-priority-p2-bg:     var(--stone-100);
+  --color-priority-p2-fg:     var(--stone-700);
+  --color-priority-p2-border: var(--stone-300);
+  --color-priority-p2-dot:    var(--olive-600);
+
+  /* P3 — low. Very subtle, shouldn't visually compete. */
+  --color-priority-p3-bg:     transparent;
+  --color-priority-p3-fg:     var(--stone-600);
+  --color-priority-p3-border: var(--stone-200);
+  --color-priority-p3-dot:    var(--stone-400);
+
+  /* ---------- Deadline ---------- */
+  /* OK: >2 days remaining */
+  --color-deadline-ok-bg:     var(--stone-100);
+  --color-deadline-ok-fg:     var(--stone-700);
+  /* SOON: 0–2 days remaining */
+  --color-deadline-soon-bg:   var(--warning-50);
+  --color-deadline-soon-fg:   var(--warning-700);
+  /* OVERDUE: past deadline */
+  --color-deadline-overdue-bg:     var(--danger-50);
+  --color-deadline-overdue-fg:     var(--danger-700);
+  --color-deadline-overdue-border: var(--danger-300);
+
+  /* ---------- Avatar gradient seeds (8 hues × 2 stops) ----------
+     Deterministic: UID hash % 8 picks a seed index.
+     Each seed is a from → to gradient, keeps chroma modest so initials
+     (always white) remain legible. OKLCH L=0.5–0.6 range guarantees 4.5:1
+     against white text on all 8 seeds (verified).
+  */
+  --avatar-0-from: oklch(0.52 0.120 30);   /* rust */
+  --avatar-0-to:   oklch(0.55 0.090 50);
+  --avatar-1-from: oklch(0.52 0.100 75);   /* amber */
+  --avatar-1-to:   oklch(0.55 0.075 100);
+  --avatar-2-from: oklch(0.52 0.095 135);  /* moss */
+  --avatar-2-to:   oklch(0.55 0.085 160);
+  --avatar-3-from: oklch(0.52 0.075 195);  /* teal */
+  --avatar-3-to:   oklch(0.55 0.065 215);
+  --avatar-4-from: oklch(0.52 0.085 235);  /* sky */
+  --avatar-4-to:   oklch(0.55 0.090 255);
+  --avatar-5-from: oklch(0.52 0.095 275);  /* lavender */
+  --avatar-5-to:   oklch(0.55 0.085 295);
+  --avatar-6-from: oklch(0.52 0.105 315);  /* rose */
+  --avatar-6-to:   oklch(0.55 0.110 340);
+  --avatar-7-from: oklch(0.52 0.080 20);   /* terracotta */
+  --avatar-7-to:   oklch(0.55 0.060 45);
+  --avatar-text:   #ffffff;
+
+  /* ---------- Comment thread ---------- */
+  --color-comment-author-bg: var(--olive-50);      /* OWNER's own comment */
+  --color-comment-other-bg:  var(--color-surface-default);
+  --color-comment-mention-bg: var(--info-50);      /* highlighted mention chip */
+  --color-comment-mention-fg: var(--info-700);
+  --color-comment-reaction-bg: var(--stone-100);
+  --color-comment-reaction-active-bg: var(--olive-100);
+  --color-comment-reaction-active-fg: var(--olive-800);
+
+  /* ---------- /prehled ---------- */
+  --color-prehled-m2-ok-bg:  var(--success-50);
+  --color-prehled-m2-ok-fg:  var(--success-700);
+  --color-prehled-m2-bad-bg: var(--danger-50);
+  --color-prehled-m2-bad-fg: var(--danger-700);
+}
+
+/* ---------- Dark mode overrides ---------- */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-priority-p1-bg:     var(--danger-900);
+    --color-priority-p1-fg:     var(--danger-300);
+    --color-priority-p1-border: var(--danger-700);
+    --color-priority-p1-dot:    var(--danger-500);
+
+    --color-priority-p2-bg:     var(--stone-800);
+    --color-priority-p2-fg:     var(--stone-200);
+    --color-priority-p2-border: var(--stone-700);
+    --color-priority-p2-dot:    var(--olive-400);
+
+    --color-priority-p3-bg:     transparent;
+    --color-priority-p3-fg:     var(--stone-400);
+    --color-priority-p3-border: var(--stone-700);
+    --color-priority-p3-dot:    var(--stone-600);
+
+    --color-deadline-ok-bg:     var(--stone-800);
+    --color-deadline-ok-fg:     var(--stone-200);
+    --color-deadline-soon-bg:   var(--warning-900);
+    --color-deadline-soon-fg:   var(--warning-300);
+    --color-deadline-overdue-bg:     var(--danger-900);
+    --color-deadline-overdue-fg:     var(--danger-300);
+    --color-deadline-overdue-border: var(--danger-700);
+
+    --color-comment-author-bg: var(--olive-950);
+    --color-comment-other-bg:  var(--color-surface-default);
+    --color-comment-mention-bg: var(--info-900);
+    --color-comment-mention-fg: var(--info-300);
+    --color-comment-reaction-bg: var(--stone-800);
+    --color-comment-reaction-active-bg: var(--olive-900);
+    --color-comment-reaction-active-fg: var(--olive-200);
+
+    --color-prehled-m2-ok-bg:  var(--success-900);
+    --color-prehled-m2-ok-fg:  var(--success-300);
+    --color-prehled-m2-bad-bg: var(--danger-900);
+    --color-prehled-m2-bad-fg: var(--danger-300);
+
+    /* Avatar seeds darken slightly for dark mode — keeps 4.5:1 on white text */
+    --avatar-0-from: oklch(0.45 0.120 30);
+    --avatar-0-to:   oklch(0.48 0.090 50);
+    --avatar-1-from: oklch(0.45 0.100 75);
+    --avatar-1-to:   oklch(0.48 0.075 100);
+    --avatar-2-from: oklch(0.45 0.095 135);
+    --avatar-2-to:   oklch(0.48 0.085 160);
+    --avatar-3-from: oklch(0.45 0.075 195);
+    --avatar-3-to:   oklch(0.48 0.065 215);
+    --avatar-4-from: oklch(0.45 0.085 235);
+    --avatar-4-to:   oklch(0.48 0.090 255);
+    --avatar-5-from: oklch(0.45 0.095 275);
+    --avatar-5-to:   oklch(0.48 0.085 295);
+    --avatar-6-from: oklch(0.45 0.105 315);
+    --avatar-6-to:   oklch(0.48 0.110 340);
+    --avatar-7-from: oklch(0.45 0.080 20);
+    --avatar-7-to:   oklch(0.48 0.060 45);
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Force-dark — duplicates @media dark body */
+  --color-priority-p1-bg:     var(--danger-900);
+  --color-priority-p1-fg:     var(--danger-300);
+  --color-priority-p1-border: var(--danger-700);
+  --color-priority-p1-dot:    var(--danger-500);
+
+  --color-priority-p2-bg:     var(--stone-800);
+  --color-priority-p2-fg:     var(--stone-200);
+  --color-priority-p2-border: var(--stone-700);
+  --color-priority-p2-dot:    var(--olive-400);
+
+  --color-priority-p3-bg:     transparent;
+  --color-priority-p3-fg:     var(--stone-400);
+  --color-priority-p3-border: var(--stone-700);
+  --color-priority-p3-dot:    var(--stone-600);
+
+  --color-deadline-ok-bg:     var(--stone-800);
+  --color-deadline-ok-fg:     var(--stone-200);
+  --color-deadline-soon-bg:   var(--warning-900);
+  --color-deadline-soon-fg:   var(--warning-300);
+  --color-deadline-overdue-bg:     var(--danger-900);
+  --color-deadline-overdue-fg:     var(--danger-300);
+  --color-deadline-overdue-border: var(--danger-700);
+
+  --color-comment-author-bg: var(--olive-950);
+  --color-comment-other-bg:  var(--color-surface-default);
+  --color-comment-mention-bg: var(--info-900);
+  --color-comment-mention-fg: var(--info-300);
+  --color-comment-reaction-bg: var(--stone-800);
+  --color-comment-reaction-active-bg: var(--olive-900);
+  --color-comment-reaction-active-fg: var(--olive-200);
+
+  --color-prehled-m2-ok-bg:  var(--success-900);
+  --color-prehled-m2-ok-fg:  var(--success-300);
+  --color-prehled-m2-bad-bg: var(--danger-900);
+  --color-prehled-m2-bad-fg: var(--danger-300);
+}

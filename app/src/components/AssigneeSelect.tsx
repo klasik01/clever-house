@@ -1,0 +1,146 @@
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, UserMinus } from "lucide-react";
+import AvatarCircle from "./AvatarCircle";
+import { useUsers } from "@/hooks/useUsers";
+import { useAuth } from "@/hooks/useAuth";
+import { useT } from "@/i18n/useT";
+
+interface Props {
+  value: string | null | undefined;
+  onChange: (nextUid: string | null) => void | Promise<void>;
+  disabled?: boolean;
+  /** When true, shows a compact read-only display (for non-authors). */
+  readOnly?: boolean;
+}
+
+/**
+ * AssigneeSelect — dropdown of workspace users.
+ * - Current selection rendered as AvatarCircle + displayName + "Změnit" chevron.
+ * - Dropdown lists all workspace members + "Nikdo" (unassigned) option.
+ * - Own user flagged with "(já)" for quick identification.
+ * - Read-only mode for non-authors: just the avatar + name, no dropdown.
+ */
+export default function AssigneeSelect({ value, onChange, disabled, readOnly }: Props) {
+  const t = useT();
+  const { user } = useAuth();
+  const { users, byUid } = useUsers(Boolean(user));
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const current = value ? byUid.get(value) : undefined;
+  const currentName = current?.displayName || current?.email?.split("@")[0] || null;
+
+  // Close on outside click / Escape
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  async function handlePick(uid: string | null) {
+    setOpen(false);
+    if (uid === (value ?? null)) return;
+    try {
+      await onChange(uid);
+    } catch (e) {
+      console.error("assignee change failed", e);
+    }
+  }
+
+  // Read-only: just the chip
+  if (readOnly) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm">
+        {current ? (
+          <>
+            <AvatarCircle uid={current.uid} displayName={current.displayName} email={current.email} size="sm" />
+            <span className="text-ink truncate">{currentName}</span>
+          </>
+        ) : (
+          <span className="text-ink-subtle">{t("detail.assigneeNone")}</span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div ref={rootRef} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={t("detail.assigneeChange")}
+        className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle focus-visible:border-line-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus disabled:opacity-40 transition-colors"
+      >
+        {current ? (
+          <>
+            <AvatarCircle uid={current.uid} displayName={current.displayName} email={current.email} size="sm" />
+            <span className="text-ink truncate max-w-[10rem]">{currentName}</span>
+          </>
+        ) : (
+          <span className="text-ink-subtle">{t("detail.assigneeNone")}</span>
+        )}
+        <ChevronDown aria-hidden size={14} className="text-ink-subtle shrink-0" />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          className="absolute left-0 top-full z-20 mt-1 max-h-72 min-w-full overflow-y-auto rounded-md border border-line bg-surface shadow-sm"
+        >
+          <li>
+            <button
+              type="button"
+              role="option"
+              aria-selected={!value}
+              onClick={() => handlePick(null)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-subtle hover:bg-bg-subtle"
+            >
+              <span className="grid size-6 place-items-center rounded-full bg-bg-muted text-ink-muted">
+                <UserMinus aria-hidden size={12} />
+              </span>
+              <span>{t("detail.assigneeNone")}</span>
+            </button>
+          </li>
+          {users.map((u) => {
+            const isSelf = user?.uid === u.uid;
+            const isSelected = value === u.uid;
+            const name = u.displayName || u.email?.split("@")[0] || u.uid;
+            return (
+              <li key={u.uid}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handlePick(u.uid)}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${
+                    isSelected ? "bg-bg-subtle" : "hover:bg-bg-subtle"
+                  }`}
+                >
+                  <AvatarCircle uid={u.uid} displayName={u.displayName} email={u.email} size="sm" />
+                  <span className="min-w-0 flex-1 truncate">
+                    <span className="font-medium text-ink">{name}</span>
+                    {isSelf && <span className="ml-1.5 text-xs text-ink-subtle">{t("detail.assigneeSelf")}</span>}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

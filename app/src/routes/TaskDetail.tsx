@@ -10,6 +10,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
+import AssigneeSelect from "@/components/AssigneeSelect";
 import StatusBadge, { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
@@ -20,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
+const CommentThread = lazy(() => import("@/components/CommentThread"));
 
 const AUTOSAVE_DEBOUNCE_MS = 500;
 
@@ -295,6 +297,19 @@ export default function TaskDetail() {
     }
   }
 
+  async function handleAssigneeChange(nextUid: string | null) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { assigneeUid: nextUid });
+      flashSaved();
+    } catch (e) {
+      console.error("assignee update failed", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete() {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.confirmDelete"))) return;
@@ -455,6 +470,10 @@ export default function TaskDetail() {
           </p>
         </section>
 
+        <Suspense fallback={<div className="mt-6 h-40 rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
+          <CommentThread task={task} />
+        </Suspense>
+
         {lightbox && (
           <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
         )}
@@ -523,6 +542,20 @@ export default function TaskDetail() {
           />
         </Suspense>
       </div>
+
+      {task.type === "otazka" && (
+        <section className="mt-6" aria-labelledby="assignee-heading">
+          <h2 id="assignee-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("detail.assignee")}
+          </h2>
+          <AssigneeSelect
+            value={task.assigneeUid ?? null}
+            onChange={handleAssigneeChange}
+            disabled={saving}
+            readOnly={!(task.createdBy === user?.uid)}
+          />
+        </section>
+      )}
 
       <section className="mt-6" aria-labelledby="status-heading">
         <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
@@ -800,6 +833,10 @@ export default function TaskDetail() {
           </button>
         </div>
       )}
+      <Suspense fallback={<div className="mt-6 h-40 rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
+        <CommentThread task={task} />
+      </Suspense>
+
       <hr className="my-6 border-line" />
 
       <section aria-label={t("detail.metadata")} className="text-sm text-ink-muted">

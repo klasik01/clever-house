@@ -491,3 +491,378 @@ Polish + review jdou na začátek června, ale brief říká Metrika B až po 90
 ---
 
 **Note:** Tyto slices staví na kompletním MVP (S01-S22). Každý je shipable standalone, ale S24/S25 mohou být paralel (pokud ne, ordering podle hodnoty/hodinu: S23 first pro list UX baseline).
+
+---
+
+# Phase 7 — V3 Foundations + Vrstva A (Diskuse + Assignee)
+
+**Generated from:** V3_DESIGN_BRIEF.md (2026-04-20), V3_INFORMATION_ARCHITECTURE.md, V3_DESIGN_TOKENS.md
+**Total V3 slices:** 17 (S29–S45)
+**Critical path:** S29 → S30 → S31 → S34 → S37 → S40 (~6 slices for „usable V3")
+**First demoable V3 milestone:** S31 (komentáře fungují v detail otázky) — po 3 slice-ách je V3.0 core usable
+
+### S29 — Schema + types + avatar component
+- **Goal:** Přidat všechna V3 data pole do `Task` type, postavit `AvatarCircle` komponentu s 8-seed gradientem, wire tokens-v3.css do app.
+- **Scope:**
+  - `src/types.ts`: rozšířit `Task` o `priority?: "P1" | "P2" | "P3"`, `deadline?: number | null`, `assigneeUid?: string | null`, `categoryIds?: string[]`, `commentCount?: number`
+  - Nový typ `Comment` (authorUid, body, createdAt, editedAt?, attachmentImages[], attachmentLinks[], mentionedUids[], reactions)
+  - `src/lib/tasks.ts`: bridge helpers `bridgeCategoryIds()` (číst `categoryId` → `[categoryId]`), `bridgePriority()` (default `"P2"` pro existing otázky), extend `updateTask` patch shape
+  - `src/components/AvatarCircle.tsx` — 8-seed gradient kruh s initials (viz V3_DESIGN_TOKENS.md §4), props: `uid`, `displayName`, `size="sm"|"md"|"lg"`
+  - Kopie `tokens-v3.css` do `app/src/styles/`, `@import` v `globals.css`
+  - i18n klíče: `priority.P1/P2/P3`, `deadline.soon/overdue/ok`, `comments.empty/title/composerPlaceholder`, `prehled.pageTitle`, `avatar.ariaLabel`
+- **Out of scope:** Žádné UI, jen data + atomic component
+- **Dependencies (blockedBy):** —
+- **Acceptance criteria:**
+  - [ ] `npm run typecheck` čistý
+  - [ ] `<AvatarCircle uid="test" displayName="Stanislav Kasika" />` vyrenderuje kruh s iniciálami SK + gradient
+  - [ ] `bridgeCategoryIds({categoryId: "x"})` vrací `["x"]`; `bridgeCategoryIds({categoryIds: ["a","b"]})` vrací `["a","b"]`
+- **Size:** M (~4h)
+- **Demo:** Storybook-like test page s 8 AvatarCircle instancemi pro ověření gradient rotace
+
+### S30 — Komentář data layer + Firestore rules
+- **Goal:** Subcollection `tasks/{id}/comments` CRUD + secure rules + realtime hook.
+- **Scope:**
+  - `firestore.rules`: allow `create` pokud `request.auth != null && request.resource.data.authorUid == request.auth.uid`; allow `update` / `delete` pokud `resource.data.authorUid == request.auth.uid`; allow `read` pro auth
+  - `src/lib/comments.ts`: `createComment`, `updateComment` (jen body + editedAt), `deleteComment` (+ cascade delete ze Storage), `subscribeComments(taskId)`
+  - `src/hooks/useComments.ts`: realtime hook, vrací `{ comments, loading, error }`
+  - `tasks/{id}.commentCount` inkrementování přes batch write při create/delete (atomic counter pattern)
+  - Po delete: iterovat `attachmentImages[]` → `deleteTaskImage(path)` per image
+- **Out of scope:** UI (to je v S31)
+- **Dependencies (blockedBy):** S29
+- **Acceptance criteria:**
+  - [ ] Rules emulator test: anonymous user nemůže číst ani psát
+  - [ ] Rules emulator test: auth user A může napsat, nemůže editovat/mazat komentář usera B
+  - [ ] Po `deleteComment`, ve Firebase Storage nezůstal žádný orphaned image path
+  - [ ] `commentCount` na task dokumentu se inkrementuje při create a dekrementuje při delete
+- **Size:** M (~4h)
+- **Demo:** Firestore emulator s 2 test accounty, konzole ukáže úspěšné/zamítnuté ops podle rules
+
+### S31 — Komentáře thread UI (bare)
+- **Goal:** V detailu otázky i nápadu vidím vlákno komentářů a můžu napsat nový (text + obrázky + odkazy). Žádné mentions, reactions, edit — to v dalších slice-ách.
+- **Scope:**
+  - `src/components/CommentThread.tsx`: renderuje `<CommentItem>` per komentář + `<CommentComposer>` na vrcholu
+  - `src/components/CommentItem.tsx`: AvatarCircle + displayName + `formatRelative(createdAt)` + body (plain markdown render jako text, bez rich-text editoru per B3) + attachments grid + actions (pokud autor = user.uid: Edit + Delete; Delete pro teď implementuj s window.confirm, hard delete)
+  - `src/components/CommentComposer.tsx`: textarea + attach image (max 3) + attach link (max 10) + Send button; uses existing `browser-image-compression` + `uploadTaskImage`
+  - `TaskDetail.tsx`: wire `<CommentThread taskId={task.id} />` do sekce „Diskuse ({count})" na konci detailu
+  - i18n: `comments.edit`, `comments.delete`, `comments.confirmDelete`, `comments.send`, `comments.editing`, `comments.empty`
+- **Out of scope:** @mention, emoji reactions, edit inline (pro teď delete + re-create stačí na začátek)
+- **Dependencies (blockedBy):** S29, S30
+- **Acceptance criteria:**
+  - [ ] V detailu otázky vidím seznam komentářů seřazený asc by createdAt
+  - [ ] Složím komentář s textem + 1 obrázkem + 1 odkazem, Send, komentář se objeví ve vláknu do 1s
+  - [ ] Jako autor komentáře vidím Delete tlačítko; smazání ho odebere + commentCount klesne + obrázek zmizí ze Storage
+  - [ ] Jako ne-autor nevidím Delete tlačítko
+  - [ ] Empty state: „Zatím žádná diskuse. Napiš první komentář."
+- **Size:** L (~6h)
+- **Demo:** **V3.0 milestone** — user flow A z V3_INFORMATION_ARCHITECTURE funguje end-to-end: OWNER vidí, PM komentuje, OWNER odpovídá
+
+### S32 — @mention autocomplete
+- **Goal:** V composeru komentáře po napsání `@` → dropdown s users (filtrovaný) → vybraný user se vloží jako chip, `mentionedUids[]` se doplní.
+- **Scope:**
+  - `src/hooks/useUsers.ts`: realtime subscription na `users/` collection, cached users list
+  - `src/components/MentionPicker.tsx`: popover autocomplete na caret position v textarea
+  - `src/lib/mentions.ts`: parser pro markdown `@[Name](uid)` ↔ render chip s `--color-comment-mention-bg` badge
+  - Uložit do `mentionedUids[]` na save, render v `CommentItem` jako clickable chip (pro teď jen text, budoucí V4 klikne → scroll na `/prehled?filter=waiting-me`)
+  - i18n: `mentions.typeToSearch`, `mentions.noResults`
+- **Out of scope:** notifikace (V4), cross-workspace user search (jen lokální collection)
+- **Dependencies (blockedBy):** S31
+- **Acceptance criteria:**
+  - [ ] Napíšu `@st` v composeru, otevře se popover s match `Stanislav Kasika`
+  - [ ] Enter nebo tap → chip se vloží, `mentionedUids` obsahuje Stanislav's uid
+  - [ ] Po send se chip renderuje v komentáři s `--color-comment-mention-bg`
+  - [ ] Popover zmizí po Escape
+- **Size:** M (~4h)
+- **Demo:** OWNER napíše komentář s `@PM`, PM ve vláknu uvidí mention chip (zvýrazněný)
+
+### S33 — Emoji reactions
+- **Goal:** Pod každým komentářem tlačítko 🙂+ → emoji picker → reakce se uloží pod `reactions[emoji]`. Reakce se zobrazují jako pill-counter; tap na pill toggle.
+- **Scope:**
+  - `src/components/ReactionBar.tsx`: seznam existujících reakcí (pills) + + button
+  - Emoji sada: minimalistická — 👍 ❤️ 😄 🎉 😕 (5 voleb, ne full picker)
+  - `src/lib/comments.ts`: `toggleReaction(taskId, commentId, emoji, uid)` přes Firestore transaction (atomic)
+  - Data shape: `reactions: { "👍": ["uid1","uid2"], "❤️": ["uid3"] }`
+  - Active state: pokud `reactions[emoji].includes(user.uid)`, pill má `--color-comment-reaction-active-bg`
+  - i18n: `reactions.add`, `reactions.remove`
+- **Out of scope:** Full emoji picker (Unicode 15 palette zbytečné pro V3), animace
+- **Dependencies (blockedBy):** S31
+- **Acceptance criteria:**
+  - [ ] Tap na 🙂+ u komentáře → 5 emoji voleb → tap 👍 → pill se zobrazí s count=1
+  - [ ] Tap na svůj active pill → reakce se odebere, pill zmizí
+  - [ ] Tap na ne-active pill → přidá mě, count++
+  - [ ] Active state je vizuálně odlišný od neaktivního (fg color + bg)
+- **Size:** M (~3h)
+- **Demo:** PM přidá 👍 na OWNER komentář, OWNER vidí realtime update
+
+### S34 — Assignee field + dropdown + avatar v listu
+- **Goal:** Otázka má viditelného „kdo je teď na tahu" v detail + list kartě; OWNER může změnit přes dropdown.
+- **Scope:**
+  - `src/components/AssigneeSelect.tsx`: dropdown s users z `useUsers`, current selection zobrazená jako AvatarCircle + "Změnit" tlačítko vedle
+  - `TaskDetail.tsx`: přidat do meta-row sekce (nad Status) label „Řeší" + `<AssigneeSelect>`, volatelný přes `updateTask({ assigneeUid })`. Edit právo jen autor.
+  - `NapadCard.tsx`: přidat AvatarCircle size="sm" v pravém horním rohu karty pokud `task.assigneeUid != null`
+  - i18n: `detail.assignee`, `detail.assigneeChange`, `detail.assigneeNone`
+  - Default pro existing otázky (migrace): `assigneeUid` = UID původního PM (read z `workspace/config` — pokud neexistuje, fallback na `createdBy`)
+- **Out of scope:** „Hodit zpět na autora" as 1-tap button (implementováno v S37 jako součást /prehled workflow)
+- **Dependencies (blockedBy):** S29
+- **Acceptance criteria:**
+  - [ ] V detailu otázky vidím avatar + jméno aktuálního assignee + „Změnit" link
+  - [ ] Tap „Změnit" → dropdown s workspace users → výběr → `assigneeUid` se změní
+  - [ ] Na kartě v listu vidím malý avatar v pravém horním rohu
+  - [ ] Jako ne-autor nevidím možnost změnit (dropdown je disabled / skrytý)
+- **Size:** M (~4h)
+- **Demo:** **V3.0 Vrstva A kompletní** — user flow A kompletní včetně přehození odpovědnosti
+
+---
+
+# Phase 8 — Vrstva B (Triage + /prehled)
+
+### S35 — Priority badge + picker (otázka only)
+- **Goal:** Otázka má viditelnou prioritu P1/P2/P3 v detail i list; OWNER může měnit.
+- **Scope:**
+  - `src/components/PrioritySelect.tsx`: 3-button segmented control s V3 tokens (`--color-priority-p[1-3]-*`)
+  - `src/components/PriorityBadge.tsx`: čtená varianta, 1 pill s dotem + textem „P1"
+  - `TaskDetail.tsx`: meta-row sekce přidá PrioritySelect (jen pro type="otazka", autor)
+  - `NapadCard.tsx`: PriorityBadge vlevo vedle title pokud task.priority && task.type === "otazka"
+  - i18n: `priority.P1/P2/P3`, `priority.label`
+- **Out of scope:** Sort by priority v listech (může být v polish phase)
+- **Dependencies (blockedBy):** S29
+- **Acceptance criteria:**
+  - [ ] Otázka v detailu má segmented control se 3 volbami
+  - [ ] Výběr P1 → badge v listu se zobrazí červeným zemitým tónem
+  - [ ] Nápad nemá prioritu viditelnou nikde
+  - [ ] Priority chip má ikonu + text (ne jen barvu) — WCAG 1.4.1
+- **Size:** S (~2h)
+- **Demo:** 3 test otázky P1/P2/P3, všechny viditelné jednou v listu
+
+### S36 — Deadline field + picker + countdown chip
+- **Goal:** Otázka má volitelný deadline, v listu se zobrazuje countdown chip s barevnou eskalací.
+- **Scope:**
+  - `src/components/DeadlinePicker.tsx`: native HTML `<input type="date">` + clear button, formát `YYYY-MM-DD`
+  - `src/lib/deadline.ts`: `formatCountdown(deadline)` → „za 3 dny", „zítra", „dnes", „po termínu 2 dny"; `deadlineState(deadline)` → `"ok"|"soon"|"overdue"`
+  - `src/components/DeadlineChip.tsx`: Clock icon + countdown text, color podle state z tokens-v3.css
+  - `TaskDetail.tsx`: meta-row přidá DeadlinePicker (otazka only, autor only)
+  - `NapadCard.tsx`: DeadlineChip vedle PriorityBadge pokud má deadline
+  - i18n: `deadline.label`, `deadline.none`, `deadline.today/tomorrow/inDays/pastDays`
+- **Out of scope:** Time-of-day precision (jen datum; deadline = konec dne)
+- **Dependencies (blockedBy):** S29
+- **Acceptance criteria:**
+  - [ ] Otázka v detailu má date input + clear X
+  - [ ] Deadline = tomorrow → chip „Zítra" s warning barvou
+  - [ ] Deadline = -1 day → chip „Po termínu 1 den" s danger barvou
+  - [ ] Deadline = +5 days → chip „Za 5 dní" s neutral barvou
+  - [ ] Nápad nemá deadline viditelný
+- **Size:** M (~3h)
+- **Demo:** List otázek s různými deadline states — všechny barvy viditelné
+
+### S37 — /prehled dashboard
+- **Goal:** Nová stránka `/prehled` s 4 sekcemi a M2 banner; klíčová pro Q3 success metric.
+- **Scope:**
+  - `src/routes/Prehled.tsx`: nová route v App.tsx
+  - 4 count tiles (mobile 2×2 grid): Čeká na mě / Čeká na jiné / Po deadline / Uvízlé ≥5 dní
+  - URL param `?filter=stuck|overdue|waiting-me|waiting-others` — default `waiting-me`
+  - Tabs nad listem přepíná filter state (URL query param driven)
+  - M2 banner nahoře: zelený pokud Uvízlé ≤3, červený jinak
+  - `TaskList` reuse s computed filtered tasks
+  - Skeleton / empty / error states
+  - i18n: všechny klíče `prehled.*`
+- **Out of scope:** Time-series graf (jen current snapshot), user per-assignee breakdown
+- **Dependencies (blockedBy):** S29, S34, S36
+- **Acceptance criteria:**
+  - [ ] `/prehled` loaduje bez chyby, ukáže 4 tiles + list defaultně „Čeká na mě"
+  - [ ] Tap tile → filter se přepne, URL se updatne na `?filter=X`
+  - [ ] Deep-link `/prehled?filter=stuck` rovnou aktivuje sekci Uvízlé
+  - [ ] M2 banner: 0–3 uvízlých = zelený; 4+ = červený
+  - [ ] Empty state per sekci funguje („Zatím na tobě nic není. Dobrá práce.")
+- **Size:** L (~5h)
+- **Demo:** Seed 5 test otázek — různé assigneeUid, deadline, status → /prehled ukáže 4 tiles + list správně
+
+### S38 — Nastavení: Přehled card + link
+- **Goal:** Na vrcholu `/nastaveni` velká karta „Přehled" s mini counters; tap → `/prehled`.
+- **Scope:**
+  - `Settings.tsx`: přidat kartu nahoru s 3 mini counts (Čeká na mě, Po deadline, Uvízlé)
+  - Link na `/prehled` (celá karta clickable)
+  - Použije `useTasks` + stejné compute funkce jako S37
+  - i18n: `settings.prehledCard.title/hint`
+- **Out of scope:** —
+- **Dependencies (blockedBy):** S37
+- **Acceptance criteria:**
+  - [ ] Nastavení má na vrcholu kartu s title „Přehled" + 3 mini counters
+  - [ ] Tap karta → navigate `/prehled`
+- **Size:** S (~1h)
+- **Demo:** Ranní ritual flow — user otevře app, tap Více → vidí počty → tap → /prehled
+
+### S39 — Otázky header: Uvízlé pill + group-by tabs
+- **Goal:** V `/otazky` header má „Uvízlé (N)" pill → navigate na /prehled?filter=stuck, a tabs pro group-by Lokace/Kategorie/Plochý.
+- **Scope:**
+  - `Otazky.tsx`: přidat pill vpravo od H2 header
+  - Group-by tabs nad filter chips row
+  - URL param `?group=lokace|kategorie|flat` (default `flat`)
+  - Když group ≠ `flat`, list se rozděluje do sekcí per group
+- **Out of scope:** Same group-by v /napady (odložit do S41)
+- **Dependencies (blockedBy):** S29, S37
+- **Acceptance criteria:**
+  - [ ] V `/otazky` vidím pill „Uvízlé 2" (pokud existují), tap → navigate `/prehled?filter=stuck`
+  - [ ] Přepínám tabs → list se skupinuje jinak, URL se updatuje
+  - [ ] Group „Lokace" → sekce jsou LOCATION_GROUPS s nadpisy, uvnitř tasks
+  - [ ] Reload page s `?group=kategorie` obnoví state
+- **Size:** M (~3h)
+- **Demo:** Různé kombinace group-by × filter se renderují správně
+
+### S40 — Kategorie jako multi-badge (N:M migrace)
+- **Goal:** Task má `categoryIds[]` místo `categoryId`, v detailu chip-field multi-select, v listech multi-badge.
+- **Scope:**
+  - `CategoryPicker.tsx`: rewrite na chip-field — array of selected chips + dropdown add. Tap chip → remove. Max neomezené.
+  - `src/lib/tasks.ts`: breaking migration (0 prod data) — `categoryId` field se přestane používat, `bridgeCategoryIds()` čte legacy pokud existuje
+  - `NapadCard.tsx`: render all `categoryIds` jako malé badges pod title (max 3 visible, +N indicator)
+  - i18n: `categories.addMore`, `categories.selected`
+- **Out of scope:** —
+- **Dependencies (blockedBy):** S29
+- **Acceptance criteria:**
+  - [ ] V detailu CategoryPicker ukazuje všechny selected jako chipy + add button
+  - [ ] Tap add → dropdown s unselected cats → přidá další chip
+  - [ ] Tap chip X → odebere
+  - [ ] V listu vidím všechny kategorie tasku jako small badges (max 3 + „+N")
+  - [ ] Legacy task s `categoryId` se čte správně (bridge funguje)
+- **Size:** M (~3h)
+- **Demo:** Vytvořit task se 4 kategoriemi, v listu vidět 3 viditelné + „+1"
+
+---
+
+# Phase 9 — Vrstva C (Navigation UX)
+
+### S41 — Group-by tabs + Lokace mirror do /napady + /lokace/:id
+- **Goal:** Stejný group-by přepínač i v ostatních listech.
+- **Scope:**
+  - `Home.tsx` (v `/napady`): stejné tabs Lokace/Kategorie/Plochý jako S39
+  - `LokaceDetail.tsx` (v `/lokace/:id`): přidat sub-tabs pro Kategorie uvnitř tab Otázky (vnořené — tab Otázky má dole select Kategorie)
+  - Alternativa pro `/lokace/:id` jednoduší: ponech jen Nápady/Otázky tabs, neaplikuj category group (jinak nested zmatek)
+- **Out of scope:** Remember last group-by cross-route (každá route má vlastní URL state)
+- **Dependencies (blockedBy):** S39, S40
+- **Acceptance criteria:**
+  - [ ] `/napady?group=lokace` sekce per LOCATION_GROUPS
+  - [ ] `/napady?group=kategorie` sekce per category, tasks bez kategorie = sekce „Bez kategorie"
+  - [ ] `/lokace/:id` beze změny (ne-applicable, lokace už je selected)
+- **Size:** S (~2h)
+- **Demo:** 3 routes × 3 group-by states — všechny fungují
+
+### S42 — Reset filter button
+- **Goal:** V listech tlačítko „Reset" které vymaže filter state + localStorage.
+- **Scope:**
+  - `FilterChips.tsx`: přidat X button za chipy, visible jen když alespoň 1 filter aktivní
+  - `src/lib/filters.ts`: přidat `clearAllFilters(key)` který maže status + category + location localStorage keys
+  - Aplikovat v `Home.tsx`, `Otazky.tsx`
+- **Out of scope:** Per-chip X (cluttering)
+- **Dependencies (blockedBy):** —
+- **Acceptance criteria:**
+  - [ ] Když je aktivní aspoň 1 filter, vidím X pill vpravo
+  - [ ] Tap X → všechny filtery se resetují, localStorage se maže, list ukáže všechny tasks
+  - [ ] Když žádný filter není aktivní, X pill není vidět
+- **Size:** S (~1h)
+- **Demo:** Vyberu status + category → X pill se objeví → tap → všechno čisté
+
+---
+
+# Phase 10 — V3 Hardening + Polish
+
+### S43 — Offline guards
+- **Goal:** Když je offline, composer komentáře a upload blokuje s hláškou (žádný silent fail).
+- **Scope:**
+  - `src/hooks/useOnline.ts`: `navigator.onLine` state + online/offline event listeners
+  - `CommentComposer.tsx`: disabled když offline, hláška „Nejsi online, zkus později" (inline)
+  - `uploadTaskImage` wrapper: reject s `OfflineError` když offline
+  - Stejné pro task body editace v detail (existing tasks → noop? anebo guard taky)
+- **Out of scope:** Queue & replay offline ops (Firestore native offline cache přesto drží data pro read-only)
+- **Dependencies (blockedBy):** S31
+- **Acceptance criteria:**
+  - [ ] Dev tool → offline → composer je disabled + hláška viditelná
+  - [ ] Back online → composer znovu active (bez reloadu)
+  - [ ] Attach image offline → toast „Připoj se ke WiFi pro nahrání"
+- **Size:** S (~2h)
+
+### S44 — Design review pass V3.0
+- **Goal:** Spustit `design-review` skill na live buildu po shipu S29–S34 (Vrstva A kompletní).
+- **Scope:**
+  - Playwright screenshots z /t/:id, /prehled, /otazky, /lokace/:id v obou themes
+  - Audit proti V3_DESIGN_BRIEF.md Definition of Done
+  - Finding dokument `V3_DESIGN_REVIEW.md` s findings kategorie kritické/střední/drobné
+  - Každá kritická finding → nová slice v tomto TASKS.md (S45a, S45b, …)
+- **Dependencies (blockedBy):** S34 (po Vrstvě A)
+- **Acceptance criteria:**
+  - [ ] `V3_DESIGN_REVIEW.md` existuje s alespoň 5 findings kategorizovanými
+  - [ ] Každá kritická finding má follow-up slice v tomto souboru
+- **Size:** M (~3h)
+
+### S45 — Performance pass (comment pagination)
+- **Goal:** Pokud task má >50 komentářů, paginate; lazy-load obrázky; limit initial fetch.
+- **Scope:**
+  - `useComments` — limit initial 50, „Načíst starší" button pro pagination
+  - Image lazy-load pomocí `loading="lazy"` (už existuje)
+  - Bundle size check: Tiptap + pdfmake + Firebase — main chunk <300KB gzipped
+- **Dependencies (blockedBy):** S31
+- **Acceptance criteria:**
+  - [ ] Task s 100 komentáři renderuje <1s FCP na mobile 3G throttle
+  - [ ] Main bundle <300KB gzipped
+- **Size:** M (~3h)
+
+---
+
+## V3 Critical path
+
+**Minimální "usable V3" (V3.0):** S29 → S30 → S31 → S34 (~17h). Po tomto bodu má OWNER + PM funkční diskuzní flow. Vše ostatní iteruje na polished UX a triage.
+
+**Full V3 ship:** S29 → S30 → S31 → S32 → S33 → S34 → S35 → S36 → S37 → S38 → S39 → S40 → S41 → S42 → S43 → S44 → S45 (~55h, ~7 dní při 8h/den).
+
+## V3 Out-of-phase backlog (V4+)
+
+- Push notifications
+- Email notifications
+- Invite flow (pozvat user emailem)
+- Sort-by-priority / sort-by-deadline v listech
+- Bulk operations (mark multiple as Hotovo)
+- Activity log na tasku (kdo kdy co změnil)
+- `/prehled` time-series graf (uvízlé per week)
+- Comments export v PDF / text
+
+## V3 Risks & mitigations (z BRIEF §9, aktualizováno po TASKS)
+
+1. **UI overload** — Mitigace: povinný design-review (S44) po Vrstvě A před shipem B. Každá slice v Phase 8-9 musí projít self-test „dává mi tohle větší mentální zátěž než užitek?"
+2. **Polo-mention bez notifikací** — Mitigace: onboarding toast při prvním use `@` v V3.0 „Pozn.: notifikace dorazí v další verzi, tagnutý uživatel se to dozví při otevření app"
+3. **PM adoption** — Mitigace: M2 metrika na /prehled, pokud za 2 týdny po shipu V3.0 je M2 > 3 trvale → spustit V4 notifikace napříč bez čekání na Vrstvu C
+
+## Recommended slicing strategy
+
+- Ship **S29–S34 as V3.0 bundle** (možná v 1 velkém PR se všemi V3 základy) — uživatelsky kompletní diskusní flow
+- Design-review (S44) jako stop-gate před Vrstvou B
+- **Vrstva B (S35–S40) incremental** — každá slice samostatný PR, merguj průběžně. User okamžitě vidí priority, deadline, /prehled
+- **Vrstva C (S41–S42) jako drobné enhancementy** — nízké priority, merg kdy je čas
+
+---
+
+## V3.0 Polish bundle (post-design-review)
+
+Findings z `V3_DESIGN_REVIEW.md` (2026-04-21). Všech 5 slices shipuje jako 1 commit.
+
+### S31a — Composer keyboard shortcuts ✓
+- **Goal**: Cmd/Ctrl+Enter send z textarea.
+- **Scope**: `CommentComposer.tsx` onKeyDown handler.
+- **Size**: XS (~30min)
+
+### S31b — Composer mobile touch targets ✓
+- **Goal**: Remove X buttons na staged images mají 44×44 hit area.
+- **Scope**: `size-5` → `size-8` nebo `::after` extended hit zone.
+- **Size**: XS (~20min)
+
+### S31c — Focus-visible border na textarea ✓
+- **Goal**: Keyboard user vidí focus.
+- **Scope**: `focus:border-line-focus` na composer textarea.
+- **Size**: XS (~10min)
+
+### S31d — Comment edit labels i18n fix ✓
+- **Goal**: „Uložit změny" / „Zrušit" správné akční verby.
+- **Scope**: cs.json `comments.saveEdit`, `comments.cancel`; CommentItem 2 line change.
+- **Size**: XS (~15min)
+
+### S43a — `useOnline` hook (přetáhnuto ze S43) ✓
+- **Goal**: Reaktivní offline detection s event listeners.
+- **Scope**: `src/hooks/useOnline.ts`, wire do CommentThread.
+- **Size**: S (~1h)
+

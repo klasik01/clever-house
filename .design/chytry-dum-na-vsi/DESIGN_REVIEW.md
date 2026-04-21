@@ -44,7 +44,7 @@ The MVP ships a cohesive, token-disciplined React/Vite/Tailwind PWA that faithfu
 ### Medium
 
 3. **Skeleton `animate-pulse` neignoruje `prefers-reduced-motion`** — 8 výskytů v TaskList.tsx, Kategorie.tsx, TaskDetail.tsx, Export.tsx.
-   - **Evidence:** Tailwind 3 `animate-pulse` utility je direct `animation: pulse ...`, není chráněn media query `prefers-reduced-motion`. Globals.css `@media (prefers-reduced-motion: reduce) { animation-duration: 0.01ms \!important }` sice redukuje duration, ale `animation-iteration-count: 1` v téže rule zastaví animaci po 1 iteraci → pro pulse je to funkčně "stop" (good). **Skutečně OK po bližší inspekci globals.css S16.**
+   - **Evidence:** Tailwind 3 `animate-pulse` utility je direct `animation: pulse ...`, není chráněn media query `prefers-reduced-motion`. Globals.css `@media (prefers-reduced-motion: reduce) { animation-duration: 0.01ms !important }` sice redukuje duration, ale `animation-iteration-count: 1` v téže rule zastaví animaci po 1 iteraci → pro pulse je to funkčně "stop" (good). **Skutečně OK po bližší inspekci globals.css S16.**
    - **Impact:** Minimal; reduced-motion users uvidí skeleton "1× pulse" a pak statický stav. To je acceptable behavior.
    - **Fix:** Žádný. Revoked after re-inspection. Keeping as Note.
 

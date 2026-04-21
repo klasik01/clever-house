@@ -3,6 +3,9 @@ import { HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Pap
 import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
+import AvatarCircle from "./AvatarCircle";
+import { useUsers } from "@/hooks/useUsers";
+import { useAuth } from "@/hooks/useAuth";
 import { getLocation } from "@/lib/locations";
 
 interface Props {
@@ -12,6 +15,9 @@ interface Props {
 
 export default function NapadCard({ task, categories }: Props) {
   const t = useT();
+  const { user } = useAuth();
+  const { byUid } = useUsers(Boolean(user));
+  const assignee = task.assigneeUid ? byUid.get(task.assigneeUid) : undefined;
   const created = new Date(task.createdAt);
   const TypeIcon = task.type === "otazka" ? HelpCircle : Notebook;
   const category = task.categoryId
@@ -95,6 +101,15 @@ export default function NapadCard({ task, categories }: Props) {
           {/* Attachments hint via paperclip when one or both present */}
           {(hasImage || hasLink) && (
             <Paperclip aria-hidden size={14} className="mt-1 shrink-0 text-ink-subtle" />
+          )}
+          {assignee && (
+            <AvatarCircle
+              uid={assignee.uid}
+              displayName={assignee.displayName}
+              email={assignee.email}
+              size="sm"
+              className="mt-0.5"
+            />
           )}
         </div>
       </article>

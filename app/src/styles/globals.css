@@ -5,6 +5,7 @@
 @import "@fontsource/inter/700.css";
 
 @import "./tokens.css";
+@import "./tokens-v3.css";
 
 @tailwind base;
 @tailwind components;

@@ -1,0 +1,305 @@
+import { useRef, useState } from "react";
+import { Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
+import { isSupportedImage } from "@/lib/attachments";
+import { normalizeUrl, parseDomain } from "@/lib/links";
+import { useT } from "@/i18n/useT";
+import { useUsers } from "@/hooks/useUsers";
+import { useAuth } from "@/hooks/useAuth";
+import { detectActiveMention, extractMentionedUids, filterUsersForMention, insertMention } from "@/lib/mentions";
+import MentionPicker from "./MentionPicker";
+import type { UserProfile } from "@/types";
+
+const MAX_IMAGES = 3;
+const MAX_LINKS = 10;
+
+export interface StagedImage {
+  file: File;
+  previewUrl: string;
+}
+
+interface Props {
+  disabled?: boolean;
+  submitting?: boolean;
+  offline?: boolean;
+  onSubmit: (input: {
+    body: string;
+    imageFiles: File[];
+    linkUrls: string[];
+    mentionedUids: string[];
+  }) => Promise<void> | void;
+}
+
+/**
+ * CommentComposer — plain markdown textarea + attach pickers.
+ * No Tiptap here, per V2 B3 decision (rich text only in task body, not composers).
+ *
+ * - Textarea auto-grows up to 280px then scrolls
+ * - Attach image: native file picker, max 3, client-side previews
+ * - Attach link: window.prompt (simple, mobile-friendly)
+ * - Send button disabled when body empty or submitting/offline
+ */
+export default function CommentComposer({
+  disabled = false,
+  submitting = false,
+  offline = false,
+  onSubmit,
+}: Props) {
+  const t = useT();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [body, setBody] = useState("");
+  const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
+  const [links, setLinks] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState(0);
+
+  const { user } = useAuth();
+  const { users } = useUsers(Boolean(user));
+
+  // Detect active @mention query at caret.
+  const activeQuery = detectActiveMention(body, cursor);
+  // Filter users excluding yourself — you can mention other workspace members.
+  const pickerUsers = activeQuery
+    ? filterUsersForMention(
+        users.filter((u) => u.uid !== user?.uid),
+        activeQuery.text
+      )
+    : null;
+
+
+  const trulyDisabled = disabled || offline;
+  const canSend = body.trim().length > 0 && !submitting && !trulyDisabled;
+
+  function autoResize(el: HTMLTextAreaElement) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 280) + "px";
+  }
+
+  function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const next: StagedImage[] = [];
+    for (const file of files) {
+      if (!isSupportedImage(file)) {
+        setError(t("detail.attachmentUnsupported"));
+        continue;
+      }
+      next.push({ file, previewUrl: URL.createObjectURL(file) });
+    }
+    if (next.length === 0) return;
+    setStagedImages((prev) => {
+      const combined = [...prev, ...next];
+      if (combined.length > MAX_IMAGES) {
+        combined.slice(MAX_IMAGES).forEach((s) => URL.revokeObjectURL(s.previewUrl));
+        setError(t("comments.maxImages"));
+        return combined.slice(0, MAX_IMAGES);
+      }
+      setError(null);
+      return combined;
+    });
+  }
+
+  function removeImage(index: number) {
+    setStagedImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(index, 1);
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return next;
+    });
+  }
+
+  function handleAddLink() {
+    if (links.length >= MAX_LINKS) {
+      setError(t("comments.maxLinks"));
+      return;
+    }
+    const input = window.prompt(t("composer.linkPromptTitle"), "https://");
+    if (!input) return;
+    const normalized = normalizeUrl(input);
+    if (!normalized) {
+      setError(t("composer.linkInvalid"));
+      return;
+    }
+    setLinks((prev) => [...prev, normalized]);
+    setError(null);
+  }
+
+  function removeLink(index: number) {
+    setLinks((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleSubmit() {
+    if (!canSend) return;
+    try {
+      const trimmed = body.trim();
+      await onSubmit({
+        body: trimmed,
+        imageFiles: stagedImages.map((s) => s.file),
+        linkUrls: links,
+        mentionedUids: extractMentionedUids(trimmed),
+      });
+      // Reset
+      stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
+      setStagedImages([]);
+      setLinks([]);
+      setBody("");
+      setError(null);
+      if (textareaRef.current) autoResize(textareaRef.current);
+    } catch (e) {
+      console.error("comment submit failed", e);
+      setError(t("composer.saveFailed"));
+    }
+  }
+
+  return (
+    <div className="rounded-md border border-line bg-surface p-3">
+      <label htmlFor="comment-composer-body" className="sr-only">
+        {t("comments.composerPlaceholder")}
+      </label>
+      <textarea
+        id="comment-composer-body"
+        ref={textareaRef}
+        value={body}
+        onChange={(e) => {
+          setBody(e.target.value);
+          setCursor(e.target.selectionStart ?? e.target.value.length);
+          autoResize(e.target);
+        }}
+        onKeyUp={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+        onClick={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+        onKeyDown={(e) => {
+          // If mention picker is active, skip Cmd/Ctrl+Enter — picker owns Enter
+          // for selection (see MentionPicker). Otherwise fire submit.
+          if (pickerUsers && pickerUsers.length > 0 && e.key === "Enter") {
+            return;
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            e.preventDefault();
+            if (canSend) void handleSubmit();
+          }
+        }}
+        disabled={trulyDisabled || submitting}
+        placeholder={t("comments.composerPlaceholder")}
+        rows={2}
+        className="block w-full resize-none bg-transparent text-base leading-relaxed text-ink placeholder:text-ink-subtle rounded-sm focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-60"
+      />
+
+      <MentionPicker
+        users={pickerUsers}
+        query={activeQuery?.text ?? ""}
+        onSelect={(u: UserProfile) => {
+          if (!activeQuery) return;
+          const { body: nextBody, cursor: nextCursor } = insertMention(body, activeQuery, u);
+          setBody(nextBody);
+          setCursor(nextCursor);
+          // Restore focus + caret in next tick
+          requestAnimationFrame(() => {
+            const el = textareaRef.current;
+            if (el) {
+              el.focus();
+              el.setSelectionRange(nextCursor, nextCursor);
+              autoResize(el);
+            }
+          });
+        }}
+        onClose={() => {
+          // Collapse the picker by clearing the query — easiest path is to shift
+          // cursor past the "@" so detectActiveMention returns null next render.
+          const el = textareaRef.current;
+          if (el && activeQuery) {
+            el.setSelectionRange(activeQuery.end, activeQuery.end);
+          }
+        }}
+      />
+
+      {stagedImages.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {stagedImages.map((s, i) => (
+            <li key={i} className="relative">
+              <img
+                src={s.previewUrl}
+                alt=""
+                className="size-16 rounded-md object-cover ring-1 ring-line"
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                aria-label={t("composer.removeAttachment")}
+                className="absolute -right-2 -top-2 grid min-h-tap min-w-tap size-8 place-items-center rounded-full bg-black/75 text-white shadow hover:bg-black focus-visible:ring-2 focus-visible:ring-line-focus"
+              >
+                <X aria-hidden size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {links.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1">
+          {links.map((url, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm">
+              <LinkIcon aria-hidden size={14} className="text-accent-visual" />
+              <span className="truncate flex-1 text-ink">{parseDomain(url) ?? url}</span>
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                aria-label={t("composer.removeAttachment")}
+                className="grid size-6 place-items-center rounded-md text-ink-subtle hover:text-ink"
+              >
+                <X aria-hidden size={14} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {(offline || error) && (
+        <p role={error ? "alert" : undefined} className="mt-2 text-xs text-[color:var(--color-status-danger-fg)]">
+          {offline ? t("comments.offline") : error}
+        </p>
+      )}
+
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={trulyDisabled || submitting || stagedImages.length >= MAX_IMAGES}
+            aria-label={t("composer.attachPhoto")}
+            className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
+          >
+            <ImageIcon aria-hidden size={18} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={handleFilePick}
+          />
+          <button
+            type="button"
+            onClick={handleAddLink}
+            disabled={trulyDisabled || submitting || links.length >= MAX_LINKS}
+            aria-label={t("composer.attachLink")}
+            className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
+          >
+            <LinkIcon aria-hidden size={18} />
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={!canSend}
+          className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+        >
+          <Send aria-hidden size={14} />
+          {submitting ? t("composer.saving") : t("comments.send")}
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -20,52 +20,83 @@ service cloud.firestore {
       return isSignedIn() && userRole() == 'PROJECT_MANAGER';
     }
 
-    // Check that only allowed fields changed on update.
-    // PM update on tasks may only change: projektantAnswer, projektantAnswerAt, status, updatedAt.
+    // PM-allowed update fields on tasks: keeps the V2 "Potrebuji doplnit" flow working.
     function pmAllowedFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['projektantAnswer', 'projektantAnswerAt', 'status', 'updatedAt']);
+             .hasOnly(['projektantAnswer', 'projektantAnswerAt', 'status', 'assigneeUid', 'updatedAt']);
+    }
+
+    // Task creator (V3 multi-author ready). Also covers legacy OWNER-created tasks.
+    function isTaskAuthor() {
+      return isSignedIn() && resource.data.createdBy == request.auth.uid;
     }
 
     // ------ Users ------
-    // Each user can read own doc. Only admin (Stanislav via console) writes role.
+    // V3: any authenticated user can list users (for mention autocomplete + assignee dropdown).
     match /users/{uid} {
-      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow read: if isSignedIn();
       // Write via Firebase Admin SDK (manual setup), not from client.
       allow write: if false;
     }
 
     // ------ Tasks ------
     match /tasks/{taskId} {
-      // READ
-      allow read: if isOwner()
-                  || (isProjectManager() && resource.data.type == 'otazka');
+      // READ — V3 any authenticated user can read any task (comments make sense only if readable).
+      allow read: if isSignedIn();
 
-      // CREATE — only OWNER, must set createdBy to self
-      allow create: if isOwner()
+      // CREATE — must set createdBy to self, sensible type + status.
+      allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.type in ['napad', 'otazka']
                     && request.resource.data.status is string;
 
-      // UPDATE
-      allow update: if isOwner()
+      // UPDATE — author can edit anything; PM can flip status + answer fields.
+      allow update: if isTaskAuthor()
                     || (isProjectManager()
                         && resource.data.type == 'otazka'
                         && pmAllowedFields());
 
-      // DELETE — only OWNER
-      allow delete: if isOwner();
+      // DELETE — only author.
+      allow delete: if isTaskAuthor();
+
+      // ------ Comments subcollection (V3) ------
+      match /comments/{commentId} {
+        // READ — any authenticated user (parallel to tasks read).
+        allow read: if isSignedIn();
+
+        // CREATE — author must be self; enforce required fields shape.
+        allow create: if isSignedIn()
+                      && request.resource.data.authorUid == request.auth.uid
+                      && request.resource.data.body is string;
+
+        // UPDATE — author-only, can only change body, editedAt, reactions.
+        //         (Reactions are also toggleable by non-authors; rule split below.)
+        allow update: if isSignedIn()
+                      && (
+                        // Author edit of body/editedAt
+                        (resource.data.authorUid == request.auth.uid
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['body', 'editedAt', 'reactions']))
+                        // Or anyone toggling reactions only
+                        || request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['reactions'])
+                      );
+
+        // DELETE — author only.
+        allow delete: if isSignedIn()
+                      && resource.data.authorUid == request.auth.uid;
+      }
     }
 
     // ------ Categories ------
     match /categories/{categoryId} {
-      allow read: if isSignedIn();     // both roles can read list
-      allow write: if isOwner();       // only OWNER can mutate
+      allow read: if isSignedIn();
+      allow write: if isOwner();
     }
 
-    // ------ Attachments (metadata; binary in Firebase Storage) ------
+    // ------ Attachments (metadata legacy; binaries live in Firebase Storage) ------
     match /attachments/{attachmentId} {
-      allow read: if isOwner() || isProjectManager();
+      allow read: if isSignedIn();
       allow create, update: if isOwner()
                             && request.resource.data.taskId is string;
       allow delete: if isOwner();

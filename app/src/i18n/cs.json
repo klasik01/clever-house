@@ -74,7 +74,11 @@
     "comingSoon": "Brzy",
     "categories": "Kategorie",
     "export": "Export do PDF",
-    "install": "Instalace"
+    "install": "Instalace",
+    "prehledCard": {
+      "title": "Přehled",
+      "hint": "Čeká na mě, po termínu, uvízlé."
+    }
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -139,7 +143,11 @@
     "noTitle": "(bez názvu)",
     "linkedOtazkyTitle": "Vytvořené otázky",
     "convertToOtazkaAgain": "Převést na další otázku",
-    "editorLoading": "Načítám editor…"
+    "editorLoading": "Načítám editor…",
+    "assignee": "Řeší",
+    "assigneeChange": "Změnit řešitele",
+    "assigneeNone": "Nikdo",
+    "assigneeSelf": "(já)"
   },
   "editor": {
     "toolbar": "Formátování",
@@ -276,5 +284,67 @@
     "categoryUpdated": "Kategorie aktualizována",
     "linkSaved": "Odkaz uložen",
     "genericError": "Něco se nepovedlo. Zkus to znovu."
+  },
+  "priority": {
+    "label": "Priorita",
+    "P1": "P1",
+    "P2": "P2",
+    "P3": "P3",
+    "P1Long": "Vysoká",
+    "P2Long": "Střední",
+    "P3Long": "Nízká"
+  },
+  "deadline": {
+    "label": "Termín",
+    "none": "Bez termínu",
+    "today": "Dnes",
+    "tomorrow": "Zítra",
+    "inDays": "Za {n} dní",
+    "pastDays": "Po termínu {n} dní",
+    "pastToday": "Termín dnes uplynul"
+  },
+  "comments": {
+    "title": "Diskuse",
+    "count": "Diskuse ({n})",
+    "empty": "Zatím žádná diskuse. Napiš první komentář.",
+    "composerPlaceholder": "Napiš komentář…",
+    "send": "Odeslat",
+    "edit": "Upravit",
+    "delete": "Smazat",
+    "confirmDelete": "Smazat komentář? Akce je nevratná.",
+    "editedLabel": "(upraveno)",
+    "offline": "Nejsi online. Zkus to znovu, až se připojíš.",
+    "uploading": "Nahrávám…",
+    "maxImages": "Maximálně 3 obrázky na komentář.",
+    "maxLinks": "Maximálně 10 odkazů na komentář.",
+    "saveEdit": "Uložit změny",
+    "cancel": "Zrušit"
+  },
+  "mentions": {
+    "typeToSearch": "Piš pro vyhledání…",
+    "noResults": "Žádný uživatel"
+  },
+  "reactions": {
+    "add": "Přidat reakci",
+    "remove": "Odebrat moji reakci"
+  },
+  "prehled": {
+    "pageTitle": "Přehled",
+    "pageHint": "Kde teď zasekla rozhodnutí.",
+    "waitingMe": "Čeká na mě",
+    "waitingOthers": "Čeká na jiné",
+    "overdue": "Po termínu",
+    "stuck": "Uvízlé (≥5 dní)",
+    "m2OkTitle": "V cíli",
+    "m2OkBody": "Max 3 uvízlé otázky. Aktuálně {n}.",
+    "m2BadTitle": "Překročeno",
+    "m2BadBody": "Máš {n} uvízlých otázek — cíl je max 3.",
+    "emptyWaitingMe": "Zatím na tobě nic není. Dobrá práce.",
+    "emptyWaitingOthers": "Nikdo na nikoho nečeká.",
+    "emptyOverdue": "Žádná otázka po termínu.",
+    "emptyStuck": "Žádná otázka není uvízlá. V cíli."
+  },
+  "avatar": {
+    "ariaLabel": "Uživatel"
   }
 }
