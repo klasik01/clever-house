@@ -1,23 +1,27 @@
 import { Check } from "lucide-react";
 import type { TaskStatus, TaskType } from "@/types";
 import { useT } from "@/i18n/useT";
-import { ALL_STATUSES, statusColors, statusIcon } from "./StatusBadge";
+import { statusColors, statusIcon } from "./StatusBadge";
+import {
+  NAPAD_STATUSES,
+  OTAZKA_STATUSES,
+  mapLegacyOtazkaStatus,
+  statusLabel,
+} from "@/lib/status";
 
 interface Props {
   value: TaskStatus;
   onChange: (next: TaskStatus) => void;
   disabled?: boolean;
   /**
-   * Filters the visible status set to what's sensible for this task type:
-   * - napad: no "Otázka" / "Čekám" (those are Projektant-workflow states)
-   * - otazka: no "Nápad"
-   * Falls back to ALL_STATUSES when omitted.
+   * Task type drives which status options are offered:
+   * - napad  → "Nápad" | "Rozhodnuto" | "Ve stavbě" | "Hotovo"
+   * - otazka → V5 canonical set (ON_PM_SITE, ON_CLIENT_SITE, BLOCKED, CANCELED, DONE)
    */
   type?: TaskType;
+  /** Viewer role — affects labels on ON_CLIENT_SITE / ON_PM_SITE chips. */
+  isPm?: boolean;
 }
-
-const NAPAD_HIDDEN: TaskStatus[] = ["Otázka", "Čekám"];
-const OTAZKA_HIDDEN: TaskStatus[] = ["Nápad"];
 
 /**
  * Segmented control for status. Responsive:
@@ -25,13 +29,19 @@ const OTAZKA_HIDDEN: TaskStatus[] = ["Nápad"];
  * - ≥ 420px: single-row scroll snap if overflow (desktop rarely hits this).
  * role="radiogroup" + aria-checked per option.
  */
-export default function StatusSelect({ value, onChange, disabled, type }: Props) {
+export default function StatusSelect({ value, onChange, disabled, type, isPm = false }: Props) {
   const t = useT();
-  const hidden =
-    type === "napad" ? NAPAD_HIDDEN : type === "otazka" ? OTAZKA_HIDDEN : [];
-  // Always keep the currently selected status visible even if it's "hidden" for
-  // this type — prevents ghost state for legacy records with mismatched status.
-  const visible = ALL_STATUSES.filter((s) => !hidden.includes(s) || s === value);
+
+  // Normalise legacy otazka values to canonical before comparing / rendering.
+  const current: TaskStatus = type === "otazka" ? mapLegacyOtazkaStatus(value) : value;
+
+  const options: TaskStatus[] =
+    type === "napad"
+      ? (NAPAD_STATUSES as TaskStatus[])
+      : type === "otazka"
+      ? (OTAZKA_STATUSES as TaskStatus[])
+      : // No type context — fall back to a broad union (napad + canonical otazka)
+        [...(NAPAD_STATUSES as TaskStatus[]), ...(OTAZKA_STATUSES as TaskStatus[])];
 
   return (
     <div
@@ -40,8 +50,8 @@ export default function StatusSelect({ value, onChange, disabled, type }: Props)
       className="flex flex-wrap gap-1.5 sm:flex-nowrap sm:overflow-x-auto sm:-mx-1 sm:px-1 sm:pb-1 sm:snap-x"
       style={{ scrollbarWidth: "none" }}
     >
-      {visible.map((s) => {
-        const active = s === value;
+      {options.map((s) => {
+        const active = s === current;
         const c = statusColors(s);
         return (
           <button
@@ -66,7 +76,7 @@ export default function StatusSelect({ value, onChange, disabled, type }: Props)
             <span aria-hidden className="inline-flex items-center" style={{ color: active ? c.dot : "var(--color-text-subtle)" }}>
               {statusIcon(s)}
             </span>
-            {t(`status.${s}`)}
+            {statusLabel(t, s, { isPm, type })}
           </button>
         );
       })}

@@ -1,12 +1,27 @@
 export type TaskType = "napad" | "otazka";
 
+/**
+ * Union of every status a Task can have. Historically all values lived together,
+ * but from V5 onwards otázka has its own canonical set (ON_CLIENT_SITE, ON_PM_SITE,
+ * BLOCKED, CANCELED, DONE) while nápad keeps the original workflow labels.
+ *
+ * Legacy otázka values ("Otázka", "Čekám", "Rozhodnuto", "Ve stavbě", "Hotovo")
+ * are kept in the union so old Firestore records still typecheck; they are mapped
+ * to the canonical set at read-time via `mapLegacyOtazkaStatus` (see lib/status.ts).
+ * New writes on otázka always use canonical values.
+ */
 export type TaskStatus =
   | "Nápad"
   | "Otázka"
   | "Čekám"
   | "Rozhodnuto"
   | "Ve stavbě"
-  | "Hotovo";
+  | "Hotovo"
+  | "ON_CLIENT_SITE"
+  | "ON_PM_SITE"
+  | "BLOCKED"
+  | "CANCELED"
+  | "DONE";
 
 export type UserRole = "OWNER" | "PROJECT_MANAGER";
 
@@ -24,6 +39,9 @@ export type TaskPriority = "P1" | "P2" | "P3";
 /** Emoji reaction map: emoji → array of UIDs who reacted. */
 export type ReactionMap = { [emoji: string]: string[] };
 
+/** V4 — workflow action attached to a comment in the Q&A flow. */
+export type CommentWorkflowAction = "flip" | "close";
+
 export interface Comment {
   id: string;
   authorUid: string;
@@ -34,6 +52,12 @@ export interface Comment {
   attachmentLinks?: string[];             // max 10
   mentionedUids?: string[];               // parsed from @[name](uid) markers in body
   reactions?: ReactionMap;
+  /** V4 — if the comment changed task state (flip assignee / close), these track what and to what. */
+  workflowAction?: CommentWorkflowAction | null;
+  /** Status snapshot after the action — used to colorize history in thread. */
+  statusAfter?: TaskStatus | null;
+  /** Assignee uid after the flip — for "was handed to {user}" labels. */
+  assigneeAfter?: string | null;
 }
 
 export interface Task {
@@ -71,6 +95,8 @@ export interface Task {
   assigneeUid?: string | null;
   /** Cached comment count, maintained via batch writes in lib/comments.ts. */
   commentCount?: number;
+  /** V3-polish: OWNER can opt-in to share a nápad with PM (read-only for PM). */
+  sharedWithPm?: boolean;
   createdAt: string;
   updatedAt: string;
   createdBy: string;

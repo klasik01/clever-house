@@ -27,7 +27,10 @@ function interpolate(template: string, vars?: Vars): string {
   );
 }
 
-export function useT() {
+/** Signature of the translator function returned by `useT()`. */
+export type TFn = (key: string, vars?: Vars) => string;
+
+export function useT(): TFn {
   return (key: string, vars?: Vars): string =>
     interpolate(get(cs as Dict, key), vars);
 }

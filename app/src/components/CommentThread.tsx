@@ -5,12 +5,14 @@ import Lightbox from "./Lightbox";
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
 import { useUsers } from "@/hooks/useUsers";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
 import { uploadTaskImage } from "@/lib/attachments";
 import { newId } from "@/lib/id";
 import { useT } from "@/i18n/useT";
-import type { ImageAttachment, Task } from "@/types";
+import { mapLegacyOtazkaStatus } from "@/lib/status";
+import type { ImageAttachment, Task, TaskStatus } from "@/types";
 
 interface Props {
   task: Task;
@@ -24,6 +26,8 @@ interface Props {
 export default function CommentThread({ task }: Props) {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
   const { comments, loading, error } = useComments(task.id);
   const { byUid } = useUsers(Boolean(user));
   const [submitting, setSubmitting] = useState(false);
@@ -32,12 +36,32 @@ export default function CommentThread({ task }: Props) {
   const online = useOnline();
   const offline = !online;
 
-  async function handleSubmit(input: {
-    body: string;
-    imageFiles: File[];
-    linkUrls: string[];
-    mentionedUids: string[];
-  }) {
+  const resolveName = (uid: string) => {
+    const u = byUid.get(uid);
+    return u?.displayName || u?.email?.split("@")[0] || uid.slice(0, 6);
+  };
+
+  // V5 — workflow is status-driven, not assignee-driven.
+  // Flip always sends the ball to the other role: OWNER flips → ON_PM_SITE;
+  // PM flips → ON_CLIENT_SITE. Close always → DONE.
+  //
+  // Workflow is disabled on terminal statuses (DONE / CANCELED / BLOCKED) — from
+  // there the user re-opens manually via StatusSelect.
+  const current = task.type === "otazka" ? mapLegacyOtazkaStatus(task.status) : task.status;
+  const canFlip = current === "ON_CLIENT_SITE" || current === "ON_PM_SITE";
+  const workflowEnabled = task.type === "otazka" && canFlip && Boolean(user);
+  const flipTargetStatus: TaskStatus = isPm ? "ON_CLIENT_SITE" : "ON_PM_SITE";
+  const flipLabel = isPm ? t("comments.flipToClient") : t("comments.flipToPm");
+
+  async function handleSubmit(
+    input: {
+      body: string;
+      imageFiles: File[];
+      linkUrls: string[];
+      mentionedUids: string[];
+    },
+    action?: "flip" | "close" | null,
+  ) {
     if (!user) return;
     setSubmitting(true);
     try {
@@ -52,13 +76,22 @@ export default function CommentThread({ task }: Props) {
         uploaded.push({ id: newId(), url, path });
       }
 
-      // 2. Create comment doc with uploaded refs
+      // 2. Resolve workflow side-effect — status change on flip / close.
+      const workflow =
+        action === "flip" && workflowEnabled
+          ? { action: "flip" as const, statusAfter: flipTargetStatus }
+          : action === "close"
+          ? { action: "close" as const, statusAfter: "DONE" as TaskStatus }
+          : undefined;
+
+      // 3. Create comment doc with uploaded refs + workflow patch
       await createComment(task.id, {
         authorUid: user.uid,
         body: input.body,
         attachmentImages: uploaded,
         attachmentLinks: input.linkUrls,
         mentionedUids: input.mentionedUids,
+        workflow,
       });
     } catch (e) {
       console.error("create comment failed", e);
@@ -91,6 +124,14 @@ export default function CommentThread({ task }: Props) {
         submitting={submitting}
         offline={offline}
         onSubmit={handleSubmit}
+        workflow={
+          workflowEnabled
+            ? {
+                flipLabel,
+                closeLabel: t("comments.sendAndClose"),
+              }
+            : undefined
+        }
       />
 
       {loading && (
@@ -128,6 +169,7 @@ export default function CommentThread({ task }: Props) {
                     : undefined
                 }
                 onToggleReaction={user ? (emoji) => handleToggleReaction(c.id, emoji) : undefined}
+                resolveName={resolveName}
                 onOpenImage={setLightbox}
                 reactionsDisabled={offline}
               />

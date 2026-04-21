@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, HelpCircle, Notebook } from "lucide-react";
+import { ArrowLeft, HelpCircle, MapPin, Notebook, Tag, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
-import { answerAsProjektant, convertNapadToOtazka, deleteTask, needMoreInfoAsProjektant, updateTask } from "@/lib/tasks";
+import { convertNapadToOtazka, deleteTask, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
@@ -19,8 +19,10 @@ import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attach
 import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Sparkles, X as XIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
+import { getLocation } from "@/lib/locations";
 import { useAuth } from "@/hooks/useAuth";
 import type { TaskStatus } from "@/types";
+import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
@@ -35,14 +37,15 @@ export default function TaskDetail() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
-  const { categories } = useCategories(Boolean(user) && !isPm);
-  const { tasks: allTasks } = useTasks(Boolean(user) && !isPm);
+  const { categories } = useCategories(Boolean(user));
+  const { tasks: allTasks } = useTasks(Boolean(user));
 
   // Editable local state. Initialized once from Firestore task; not re-synced on subsequent
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const initializedRef = useRef(false);
+  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingRef = useRef<{ id: string; title: string; body: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
@@ -50,8 +53,6 @@ export default function TaskDetail() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [answerDraft, setAnswerDraft] = useState("");
-  const [answering, setAnswering] = useState(false);
   const [converting, setConverting] = useState(false);
 
   useEffect(() => {
@@ -69,10 +70,17 @@ export default function TaskDetail() {
   // in-flight flag like `converting` would otherwise leak into the next task.
   useEffect(() => {
     setConverting(false);
-    setAnswering(false);
     setSaving(false);
     setAttachError(null);
   }, [id]);
+
+  // Auto-resize title textarea to fit content (grows on wrap).
+  useEffect(() => {
+    const el = titleTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [title]);
 
   // Debounced auto-save + keep pendingRef in sync for unmount flush.
   useEffect(() => {
@@ -154,36 +162,6 @@ export default function TaskDetail() {
     } catch (e) {
       console.error("convert failed", e);
       setConverting(false);
-    }
-  }
-
-  async function handleAnswerAndClose() {
-    if (state.status !== "ready") return;
-    const answer = answerDraft.trim();
-    if (!answer) return;
-    setAnswering(true);
-    try {
-      await answerAsProjektant(state.task.id, answer);
-      flashSaved();
-    } catch (e) {
-      console.error("answer failed", e);
-    } finally {
-      setAnswering(false);
-    }
-  }
-
-  async function handleNeedMoreInfo() {
-    if (state.status !== "ready") return;
-    const answer = answerDraft.trim();
-    if (!answer) return;
-    setAnswering(true);
-    try {
-      await needMoreInfoAsProjektant(state.task.id, answer);
-      flashSaved();
-    } catch (e) {
-      console.error("need-more-info failed", e);
-    } finally {
-      setAnswering(false);
     }
   }
 
@@ -358,6 +336,19 @@ export default function TaskDetail() {
   }
 
 
+
+  async function handleShareToggle(next: boolean) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { sharedWithPm: next });
+      flashSaved();
+    } catch (e) {
+      console.error("share toggle failed", e);
+    } finally {
+      setSaving(false);
+    }
+  }
   async function handleDeadlineChange(nextMs: number | null) {
     if (state.status !== "ready") return;
     setSaving(true);
@@ -408,69 +399,86 @@ export default function TaskDetail() {
 
   // ---------- PM view: read-only question + answer form ----------
   if (isPm) {
-    if (task.type !== "otazka") {
-      // PM should never see nápady — Firestore rules also enforce; this is client safety net.
+    // Non-shared nápad is not visible to PM — client safety net (Firestore rules enforce).
+    if (task.type === "napad" && !task.sharedWithPm) {
       return (
         <NotFound
           title={t("detail.notFoundTitle")}
           body={t("detail.notFoundBody")}
           backLabel={t("detail.back")}
-          onBack={() => navigate("/otazky")}
+          onBack={() => navigate("/zaznamy?type=otazka")}
         />
       );
     }
-    return (
-      <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-heading">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            aria-label={t("detail.back")}
-            className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
-          >
-            <ArrowLeft aria-hidden size={20} />
-          </button>
-          <StatusBadge status={task.status} size="md" />
-          <span className="w-10" aria-hidden />
-        </div>
+    // Shared nápad — read-only view for PM (no answer form, but can comment).
+    if (task.type === "napad") {
+      const categoryIds = task.categoryIds?.length
+        ? task.categoryIds
+        : task.categoryId ? [task.categoryId] : [];
+      const taskCategories = categoryIds
+        .map((id) => categories.find((c) => c.id === id))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c));
+      const location = task.locationId ? getLocation(task.locationId) : null;
 
-        <h1 id="pm-heading" className="sr-only">{t("detail.typeOtazka")}</h1>
-
-        <div className="mt-4 rounded-md bg-surface ring-1 ring-line p-4">
-          {task.body ? (
-            <Suspense
-              fallback={
-                <p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>
-              }
+      return (
+        <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-napad-heading">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label={t("detail.back")}
+              className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
             >
-              <RichTextEditor
-                value={task.body}
-                onChange={() => {}}
-                disabled
-                ariaLabel={t("detail.bodyLabel")}
-              />
-            </Suspense>
-          ) : (
-            <p className="whitespace-pre-wrap break-words text-ink">{task.title}</p>
+              <ArrowLeft aria-hidden size={20} />
+            </button>
+            <StatusBadge status={task.status} size="md" type={task.type} isPm={isPm} />
+            <span className="w-10" aria-hidden />
+          </div>
+
+          <h1 id="pm-napad-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
+            {task.title || t("detail.noTitle")}
+          </h1>
+
+          {/* Meta chips row — Location + Categories (read-only). */}
+          {(location || taskCategories.length > 0) && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {location && (
+                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <MapPin aria-hidden size={11} />
+                  {location.label}
+                </span>
+              )}
+              {taskCategories.map((c) => (
+                <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <Tag aria-hidden size={11} />
+                  {c.label}
+                </span>
+              ))}
+            </div>
           )}
+
+          {/* Body — no wrapper card, sits directly on page bg. */}
+          <div className="mt-4">
+            {task.body ? (
+              <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
+                <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
+              </Suspense>
+            ) : (
+              <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
+            )}
+          </div>
+
+          {/* Attachments — images + links. */}
           {(task.attachmentImages?.length ?? 0) > 0 && (
-            <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {task.attachmentImages!.map((img, idx) => (
                 <li key={img.id ?? idx}>
                   <button
                     type="button"
                     onClick={() => setLightbox(img.url)}
-                    className="block w-full overflow-hidden rounded-md ring-1 ring-line"
+                    className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
                   >
-                    <img
-                      src={img.url}
-                      alt=""
-                      width={200}
-                      height={200}
-                      loading="lazy"
-                      decoding="async"
-                      className="aspect-square w-full object-cover"
-                    />
+                    <img src={img.url} alt="" width={200} height={200} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
                   </button>
                 </li>
               ))}
@@ -493,42 +501,183 @@ export default function TaskDetail() {
               ))}
             </ul>
           )}
+
+          {/* Linked otázky — PM sees only ones assigned to themselves. */}
+          {(() => {
+            const pmLinked = (task.linkedTaskIds ?? [])
+              .map((otazkaId) => {
+                const ot = allTasks.find((x) => x.id === otazkaId);
+                return { otazkaId, ot };
+              })
+              .filter(({ ot }) => ot && ot.assigneeUid === user?.uid);
+            if (pmLinked.length === 0) return null;
+            return (
+              <section className="mt-6" aria-labelledby="pm-linked-otazky-heading">
+                <h2
+                  id="pm-linked-otazky-heading"
+                  className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+                >
+                  {t("detail.linkedOtazkyTitle")}
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  {pmLinked.map(({ otazkaId, ot }) => {
+                    const title =
+                      ot?.title?.trim() ||
+                      ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
+                      t("detail.noTitle");
+                    const c = ot ? statusColors(ot.type === "otazka" ? mapLegacyOtazkaStatus(ot.status) : ot.status) : null;
+                    return (
+                      <li key={otazkaId}>
+                        <Link
+                          to={`/t/${otazkaId}`}
+                          className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
+                          style={{
+                            borderLeftColor: c ? c.border : "var(--color-border-default)",
+                            borderTopColor: "var(--color-border-default)",
+                            borderRightColor: "var(--color-border-default)",
+                            borderBottomColor: "var(--color-border-default)",
+                          }}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <HelpCircleIcon aria-hidden size={18} className="text-accent-visual shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-ink truncate">{title}</p>
+                              {ot && c && (
+                                <span className="mt-1 inline-flex items-center gap-1.5 text-xs" style={{ color: c.fg }}>
+                                  <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: c.dot }} />
+                                  {statusLabel(t, ot.status, { isPm, type: ot.type })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })()}
+
+          <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
+            <CommentThread task={task} />
+          </Suspense>
+
+          {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
+        </article>
+      );
+    }
+    // V5 — PM otazka view: title + meta chips + body + attachments + comments.
+    // Parallels the PM napad view so PM always lands on a consistent layout.
+    const categoryIdsPm = task.categoryIds?.length
+      ? task.categoryIds
+      : task.categoryId ? [task.categoryId] : [];
+    const taskCategoriesPm = categoryIdsPm
+      .map((id) => categories.find((c) => c.id === id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+    const locationPm = task.locationId ? getLocation(task.locationId) : null;
+
+    return (
+      <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-otazka-heading">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label={t("detail.back")}
+            className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
+          >
+            <ArrowLeft aria-hidden size={20} />
+          </button>
+          <StatusBadge status={task.status} size="md" type={task.type} isPm={isPm} />
+          <span className="w-10" aria-hidden />
         </div>
 
-        <section className="mt-6" aria-labelledby="answer-heading">
-          <h2 id="answer-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("detail.projektantAnswer")}
-          </h2>
-          <textarea
-            value={answerDraft}
-            onChange={(e) => setAnswerDraft(e.target.value)}
-            placeholder={t("detail.projektantAnswerPlaceholder")}
-            rows={6}
-            disabled={answering}
-            className="block w-full min-h-[10rem] resize-y rounded-md border border-line bg-surface px-3 py-2 text-base leading-relaxed text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none disabled:opacity-60"
-          />
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={handleNeedMoreInfo}
-              disabled={!answerDraft.trim() || answering}
-              className="min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-            >
-              {t("detail.needMoreInfo")}
-            </button>
-            <button
-              type="button"
-              onClick={handleAnswerAndClose}
-              disabled={!answerDraft.trim() || answering}
-              className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
-            >
-              {t("detail.answerAndClose")}
-            </button>
+        {/* V5 — show the task title for PM (previously hidden). */}
+        <h1 id="pm-otazka-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
+          {task.title || t("detail.noTitle")}
+        </h1>
+
+        {/* Ball-on-me banner for PM when status is ON_PM_SITE. */}
+        {mapLegacyOtazkaStatus(task.status) === "ON_PM_SITE" && (
+          <div
+            role="status"
+            className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
+            style={{
+              background: "var(--color-priority-p1-bg)",
+              color: "var(--color-priority-p1-fg)",
+              borderColor: "var(--color-priority-p1-border)",
+            }}
+          >
+            <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--color-priority-p1-dot)" }} />
+            {t("detail.ballOnMe")}
           </div>
-          <p aria-live="polite" className={`mt-2 text-center text-xs text-ink-subtle transition-opacity ${savedVisible ? "opacity-100" : "opacity-0"}`}>
-            {savedVisible ? t("detail.autoSavedHint") : ""}
-          </p>
-        </section>
+        )}
+
+        {/* V5 — meta chips (Lokace + Kategorie), read-only. */}
+        {(locationPm || taskCategoriesPm.length > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {locationPm && (
+              <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                <MapPin aria-hidden size={11} />
+                {locationPm.label}
+              </span>
+            )}
+            {taskCategoriesPm.map((c) => (
+              <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                <Tag aria-hidden size={11} />
+                {c.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Body — no wrapper card, matches PM napad view. */}
+        <div className="mt-4">
+          {task.body ? (
+            <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
+              <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
+            </Suspense>
+          ) : (
+            <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
+          )}
+        </div>
+
+        {/* V5 — images. */}
+        {(task.attachmentImages?.length ?? 0) > 0 && (
+          <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {task.attachmentImages!.map((img, idx) => (
+              <li key={img.id ?? idx}>
+                <button
+                  type="button"
+                  onClick={() => setLightbox(img.url)}
+                  className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
+                >
+                  <img src={img.url} alt="" width={200} height={200} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* V5 — links. */}
+        {(task.attachmentLinks?.length ?? 0) > 0 && (
+          <ul className="mt-3 flex flex-col gap-2">
+            {task.attachmentLinks!.map((url, i) => (
+              <li key={i}>
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
+                >
+                  <LinkIconLc size={14} />
+                  <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
           <CommentThread task={task} />
@@ -567,15 +716,26 @@ export default function TaskDetail() {
       <label htmlFor="detail-title" className="sr-only">
         {t("detail.titlePrimary")}
       </label>
-      <input
+      <textarea
         id="detail-title"
-        type="text"
+        ref={titleTextareaRef}
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => {
+          // Strip newlines — title is single logical line, but wraps visually.
+          const v = e.target.value.replace(/\n/g, "");
+          setTitle(v);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
         onBlur={flushOnBlur}
+        rows={1}
         placeholder={t("detail.titlePlaceholderV2")}
         autoCapitalize="sentences"
-        className="mt-2 block w-full border-0 border-b border-transparent bg-transparent px-0 py-1 text-2xl font-bold leading-tight text-ink placeholder:text-ink-subtle focus:border-b-line-focus focus:outline-none focus:ring-0"
+        className="mt-2 block w-full resize-none overflow-hidden border-0 border-b border-transparent bg-transparent px-0 py-1 text-xl sm:text-2xl font-bold leading-tight text-ink placeholder:text-ink-subtle focus:border-b-line-focus focus:outline-none focus:ring-0"
       />
 
       <div className="mt-3">
@@ -602,6 +762,26 @@ export default function TaskDetail() {
           />
         </Suspense>
       </div>
+
+      {task.type === "otazka" && (() => {
+        // V5 — banner when ball is on the current viewer (role-based).
+        const canonical = mapLegacyOtazkaStatus(task.status);
+        const mySide = isPm ? "ON_PM_SITE" : "ON_CLIENT_SITE";
+        return canonical === mySide;
+      })() && (
+        <div
+          role="status"
+          className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
+          style={{
+            background: "var(--color-priority-p1-bg)",
+            color: "var(--color-priority-p1-fg)",
+            borderColor: "var(--color-priority-p1-border)",
+          }}
+        >
+          <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--color-priority-p1-dot)" }} />
+          {t("detail.ballOnMe")}
+        </div>
+      )}
 
       {/* Categories — directly under body (full width). */}
       <section className="mt-4" aria-labelledby="cat-heading">
@@ -682,6 +862,27 @@ export default function TaskDetail() {
         </section>
       )}
 
+      {task.type === "napad" && task.createdBy === user?.uid && (
+        <section className="mt-4" aria-labelledby="share-heading">
+          <h2 id="share-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("detail.shareWithPm")}
+          </h2>
+          <label className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle">
+            <input
+              type="checkbox"
+              checked={Boolean(task.sharedWithPm)}
+              onChange={(e) => handleShareToggle(e.target.checked)}
+              disabled={saving}
+              className="size-4 rounded border-line text-accent-visual focus:ring-2 focus:ring-line-focus"
+            />
+            <span className="flex-1">{t("detail.shareWithPmLabel")}</span>
+            <span className="text-xs text-ink-subtle">
+              {task.sharedWithPm ? t("detail.shareOn") : t("detail.shareOff")}
+            </span>
+          </label>
+        </section>
+      )}
+
       <section className="mt-6" aria-labelledby="status-heading">
         <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("status.label")}
@@ -691,6 +892,7 @@ export default function TaskDetail() {
           onChange={handleStatusChange}
           disabled={saving}
           type={task.type}
+          isPm={isPm}
         />
       </section>
 
@@ -812,30 +1014,6 @@ export default function TaskDetail() {
         </button>
       </section>
 
-      {task.type === "otazka" && (task.projektantAnswer || task.status === "Čekám") && (
-        <section className="mt-4" aria-labelledby="pm-answer-heading">
-          <h2 id="pm-answer-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("detail.projektantAnswer")}
-          </h2>
-          {task.projektantAnswer ? (
-            <div className="rounded-md bg-surface ring-1 ring-line p-3">
-              <p className="whitespace-pre-wrap break-words text-ink">{task.projektantAnswer}</p>
-              {task.projektantAnswerAt && (
-                <p className="mt-2 text-xs text-ink-subtle">
-                  {t("detail.projektantAnswerAt", { when: formatRelative(t, new Date(task.projektantAnswerAt)) })}
-                </p>
-              )}
-              {task.status === "Čekám" && (
-                <p className="mt-3 rounded-md bg-[color:var(--color-status-warning-bg)] px-3 py-2 text-xs text-[color:var(--color-status-warning-fg)]">
-                  {t("detail.needMoreInfoBanner")}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-ink-subtle">{t("detail.projektantAnswerNone")}</p>
-          )}
-        </section>
-      )}
 
       {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (
         <section className="mt-4" aria-labelledby="linked-otazky-heading">
@@ -852,7 +1030,7 @@ export default function TaskDetail() {
                 ot?.title?.trim() ||
                 ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
                 t("detail.noTitle");
-              const c = ot ? statusColors(ot.status) : null;
+              const c = ot ? statusColors(ot.type === "otazka" ? mapLegacyOtazkaStatus(ot.status) : ot.status) : null;
               return (
                 <li key={otazkaId}>
                   <Link
@@ -879,7 +1057,7 @@ export default function TaskDetail() {
                               className="inline-block size-1.5 rounded-full"
                               style={{ background: c.dot }}
                             />
-                            {t(`status.${ot.status}`)}
+                            {statusLabel(t, ot.status, { isPm, type: ot.type })}
                           </span>
                         )}
                       </div>

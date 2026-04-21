@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
+import { Check, CornerDownLeft, Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
 import { isSupportedImage } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useT } from "@/i18n/useT";
@@ -21,12 +21,25 @@ interface Props {
   disabled?: boolean;
   submitting?: boolean;
   offline?: boolean;
-  onSubmit: (input: {
-    body: string;
-    imageFiles: File[];
-    linkUrls: string[];
-    mentionedUids: string[];
-  }) => Promise<void> | void;
+  onSubmit: (
+    input: {
+      body: string;
+      imageFiles: File[];
+      linkUrls: string[];
+      mentionedUids: string[];
+    },
+    action?: "flip" | "close" | null
+  ) => Promise<void> | void;
+  /**
+   * V4 — enable workflow actions (flip / close) as additional send buttons.
+   * When present, 3-button row is rendered; otherwise single Send.
+   */
+  workflow?: {
+    flipLabel: string;
+    closeLabel: string;
+    /** Disable flip button (e.g. no peer assignable). */
+    flipDisabled?: boolean;
+  };
 }
 
 /**
@@ -43,6 +56,7 @@ export default function CommentComposer({
   submitting = false,
   offline = false,
   onSubmit,
+  workflow,
 }: Props) {
   const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -129,7 +143,7 @@ export default function CommentComposer({
     setLinks((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(action: "flip" | "close" | null = null) {
     if (!canSend) return;
     try {
       const trimmed = body.trim();
@@ -138,7 +152,7 @@ export default function CommentComposer({
         imageFiles: stagedImages.map((s) => s.file),
         linkUrls: links,
         mentionedUids: extractMentionedUids(trimmed),
-      });
+      }, action);
       // Reset
       stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
       setStagedImages([]);
@@ -153,7 +167,7 @@ export default function CommentComposer({
   }
 
   return (
-    <div className="rounded-md border border-line bg-surface p-3">
+    <div className="rounded-md border border-line bg-surface p-4">
       <label htmlFor="comment-composer-body" className="sr-only">
         {t("comments.composerPlaceholder")}
       </label>
@@ -176,13 +190,15 @@ export default function CommentComposer({
           }
           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
             e.preventDefault();
-            if (canSend) void handleSubmit();
+            // When workflow is active, the primary action is "flip" — so
+            // Cmd/Ctrl+Enter mirrors clicking the primary Send button.
+            if (canSend) void handleSubmit(workflow ? "flip" : null);
           }
         }}
         disabled={trulyDisabled || submitting}
         placeholder={t("comments.composerPlaceholder")}
         rows={2}
-        className="block w-full resize-none bg-transparent text-base leading-relaxed text-ink placeholder:text-ink-subtle rounded-sm focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-60"
+        className="block w-full resize-none bg-transparent text-base leading-relaxed text-ink placeholder:text-ink-subtle rounded-sm px-1 py-1.5 focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-60"
       />
 
       <MentionPicker
@@ -260,45 +276,74 @@ export default function CommentComposer({
         </p>
       )}
 
-      <div className="mt-2 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={trulyDisabled || submitting || stagedImages.length >= MAX_IMAGES}
-            aria-label={t("composer.attachPhoto")}
-            className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
-          >
-            <ImageIcon aria-hidden size={18} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="hidden"
-            onChange={handleFilePick}
-          />
-          <button
-            type="button"
-            onClick={handleAddLink}
-            disabled={trulyDisabled || submitting || links.length >= MAX_LINKS}
-            aria-label={t("composer.attachLink")}
-            className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
-          >
-            <LinkIcon aria-hidden size={18} />
-          </button>
-        </div>
+      {/* Row 1: attachment pickers */}
+      <div className="mt-2 flex items-center gap-1">
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={!canSend}
-          className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={trulyDisabled || submitting || stagedImages.length >= MAX_IMAGES}
+          aria-label={t("composer.attachPhoto")}
+          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
         >
-          <Send aria-hidden size={14} />
-          {submitting ? t("composer.saving") : t("comments.send")}
+          <ImageIcon aria-hidden size={18} />
         </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          multiple
+          className="hidden"
+          onChange={handleFilePick}
+        />
+        <button
+          type="button"
+          onClick={handleAddLink}
+          disabled={trulyDisabled || submitting || links.length >= MAX_LINKS}
+          aria-label={t("composer.attachLink")}
+          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
+        >
+          <LinkIcon aria-hidden size={18} />
+        </button>
+      </div>
+
+      {/* Row 2: send actions. When workflow is enabled the primary Send always
+          flips the ball to the other side — every comment on an otazka goes back
+          to the other party. "Uzavrit" stays as a separate secondary action. */}
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+        {workflow ? (
+          <>
+            <button
+              type="button"
+              onClick={() => handleSubmit("close")}
+              disabled={!canSend}
+              className="inline-flex items-center gap-1.5 min-h-tap rounded-md border border-line bg-transparent px-3 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              <Check aria-hidden size={14} />
+              {workflow.closeLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSubmit("flip")}
+              disabled={!canSend || Boolean(workflow.flipDisabled)}
+              className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+            >
+              <CornerDownLeft aria-hidden size={14} />
+              {submitting ? t("composer.saving") : workflow.flipLabel}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => handleSubmit(null)}
+            disabled={!canSend}
+            aria-label={t("comments.send")}
+            className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+          >
+            <Send aria-hidden size={14} />
+            {submitting ? t("composer.saving") : t("comments.send")}
+          </button>
+        )}
       </div>
     </div>
   );

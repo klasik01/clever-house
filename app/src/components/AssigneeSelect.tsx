@@ -101,7 +101,7 @@ export default function AssigneeSelect({ value, onChange, disabled, readOnly }: 
       {open && (
         <ul
           role="listbox"
-          className="absolute left-0 top-full z-20 mt-1 max-h-72 min-w-full overflow-y-auto rounded-md border border-line bg-surface shadow-sm"
+          className="absolute left-0 top-full z-20 mt-1 max-h-72 min-w-full sm:min-w-[18rem] overflow-y-auto rounded-md border border-line bg-surface shadow-sm"
         >
           <li>
             <button
@@ -133,9 +133,14 @@ export default function AssigneeSelect({ value, onChange, disabled, readOnly }: 
                   }`}
                 >
                   <AvatarCircle uid={u.uid} displayName={u.displayName} email={u.email} size="sm" />
-                  <span className="min-w-0 flex-1 truncate">
-                    <span className="font-medium text-ink">{name}</span>
-                    {isSelf && <span className="ml-1.5 text-xs text-ink-subtle">{t("detail.assigneeSelf")}</span>}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                      <span className="truncate">{name}</span>
+                      {isSelf && <span className="text-xs font-normal text-ink-subtle">{t("detail.assigneeSelf")}</span>}
+                    </span>
+                    {u.email && u.email !== name && (
+                      <span className="block truncate text-xs text-ink-subtle">{u.email}</span>
+                    )}
                   </span>
                 </button>
               </li>

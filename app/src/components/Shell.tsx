@@ -3,6 +3,9 @@ import { Notebook, Ellipsis, MapPin, Plus, Gauge } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
+import { useTasks } from "@/hooks/useTasks";
+import { useAuth } from "@/hooks/useAuth";
+import { mapLegacyOtazkaStatus } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 
 interface Props {
@@ -48,6 +51,16 @@ function Header() {
 function BottomTabs({ role }: { role: UserRole }) {
   const t = useT();
   const isPm = role === "PROJECT_MANAGER";
+  const { user } = useAuth();
+  const { tasks } = useTasks(Boolean(user));
+  // V5 — ball-on-me is derived from role + canonical status (not assigneeUid).
+  // OWNER owns ON_CLIENT_SITE; PM owns ON_PM_SITE. Legacy statuses are mapped first.
+  const mySide = isPm ? "ON_PM_SITE" : "ON_CLIENT_SITE";
+  const ballOnMe = tasks.filter((tk) => {
+    if (tk.type !== "otazka") return false;
+    return mapLegacyOtazkaStatus(tk.status) === mySide;
+  }).length;
+
   return (
     <nav
       aria-label={t("aria.mainNav")}
@@ -62,6 +75,7 @@ function BottomTabs({ role }: { role: UserRole }) {
             to="/zaznamy"
             icon={<Notebook aria-hidden size={20} />}
             label={t("tabs.zaznamy")}
+            badge={ballOnMe}
           />
         )}
         {!isPm && <FabCell />}
@@ -76,7 +90,8 @@ function BottomTabs({ role }: { role: UserRole }) {
           <Tab
             to="/zaznamy?type=otazka"
             icon={<Notebook aria-hidden size={20} />}
-            label={t("tabs.questions")}
+            label={t("tabs.zaznamy")}
+            badge={ballOnMe}
           />
         )}
         <Tab
@@ -94,11 +109,13 @@ function Tab({
   end,
   icon,
   label,
+  badge,
 }: {
   to: string;
   end?: boolean;
   icon: ReactNode;
   label: string;
+  badge?: number;
 }) {
   return (
     <li className="flex-1">
@@ -112,7 +129,17 @@ function Tab({
           ].join(" ")
         }
       >
-        <span aria-hidden>{icon}</span>
+        <span aria-hidden className="relative">
+          {icon}
+          {badge && badge > 0 ? (
+            <span
+              aria-hidden
+              className="absolute -top-1.5 -right-2 grid min-w-[1.1rem] h-[1.1rem] place-items-center rounded-full bg-accent px-1 text-[0.65rem] font-semibold leading-none text-accent-on"
+            >
+              {badge > 9 ? "9+" : badge}
+            </span>
+          ) : null}
+        </span>
         <span>{label}</span>
       </NavLink>
     </li>

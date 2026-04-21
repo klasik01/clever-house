@@ -26,6 +26,19 @@ service cloud.firestore {
              .hasOnly(['projektantAnswer', 'projektantAnswerAt', 'status', 'assigneeUid', 'updatedAt']);
     }
 
+    // V5 — batch comment writes touch the parent task to bump commentCount / updatedAt
+    // (and optionally status + assigneeUid when the comment carries a workflow action).
+    // Any signed-in user must be able to make this side-effect update, otherwise e.g. PM
+    // commenting on an OWNER-created task fails the whole batch. We gate by requiring
+    // commentCount to be one of the affected keys — prevents this clause from being
+    // abused to flip status/assignee without actually writing a comment.
+    function isCommentSideEffect() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['commentCount', 'updatedAt', 'status', 'assigneeUid'])
+             && request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['commentCount']);
+    }
+
     // Task creator (V3 multi-author ready). Also covers legacy OWNER-created tasks.
     function isTaskAuthor() {
       return isSignedIn() && resource.data.createdBy == request.auth.uid;
@@ -41,8 +54,15 @@ service cloud.firestore {
 
     // ------ Tasks ------
     match /tasks/{taskId} {
-      // READ — V3 any authenticated user can read any task (comments make sense only if readable).
-      allow read: if isSignedIn();
+      // READ — V3-polish:
+      //   list: any signed-in user can list; client-side filters napady by sharedWithPm.
+      //   get:  per-document enforcement (direct /t/:id fetches gated here).
+      allow list: if isSignedIn();
+      allow get:  if isSignedIn() && (
+        resource.data.createdBy == request.auth.uid
+        || resource.data.type == 'otazka'
+        || (resource.data.type == 'napad' && resource.data.sharedWithPm == true)
+      );
 
       // CREATE — must set createdBy to self, sensible type + status.
       allow create: if isSignedIn()
@@ -50,11 +70,14 @@ service cloud.firestore {
                     && request.resource.data.type in ['napad', 'otazka']
                     && request.resource.data.status is string;
 
-      // UPDATE — author can edit anything; PM can flip status + answer fields.
+      // UPDATE — author can edit anything; PM can flip legacy V2 fields;
+      // any signed-in user can apply the comment-side-effect diff so batch writes
+      // from createComment succeed regardless of who authored the task.
       allow update: if isTaskAuthor()
                     || (isProjectManager()
                         && resource.data.type == 'otazka'
-                        && pmAllowedFields());
+                        && pmAllowedFields())
+                    || (isSignedIn() && isCommentSideEffect());
 
       // DELETE — only author.
       allow delete: if isTaskAuthor();

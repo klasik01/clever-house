@@ -59,10 +59,19 @@ export async function createComment(
     attachmentImages?: ImageAttachment[];
     attachmentLinks?: string[];
     mentionedUids?: string[];
+    /** V4 — workflow action to apply to parent task atomically with comment write. */
+    workflow?: {
+      action: "flip" | "close";
+      /** Next status for the task (e.g. "Otázka" after flip back, "Hotovo" on close). */
+      statusAfter: import("@/types").TaskStatus;
+      /** Next assigneeUid (null to clear). Only required when action === "flip". */
+      assigneeAfter?: string | null;
+    };
   }
 ): Promise<string> {
   const batch = writeBatch(db);
   const ref = doc(commentsCol(taskId));
+  const wf = input.workflow ?? null;
   batch.set(ref, {
     authorUid: input.authorUid,
     body: input.body,
@@ -72,11 +81,25 @@ export async function createComment(
     attachmentLinks: input.attachmentLinks ?? [],
     mentionedUids: input.mentionedUids ?? [],
     reactions: {},
+    workflowAction: wf ? wf.action : null,
+    statusAfter: wf ? wf.statusAfter : null,
+    assigneeAfter: wf && wf.action === "flip" ? (wf.assigneeAfter ?? null) : null,
   });
-  batch.update(taskRef(taskId), {
+  const taskPatch: Record<string, unknown> = {
     commentCount: increment(1),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (wf) {
+    taskPatch.status = wf.statusAfter;
+    // V5: assigneeAfter is now optional on flip. If the caller doesn't set it,
+    // leave the task's assigneeUid untouched — side is expressed via status,
+    // not via assignment. Pre-V5 callers that still pass an explicit (string or
+    // null) value continue to work.
+    if (wf.action === "flip" && wf.assigneeAfter !== undefined) {
+      taskPatch.assigneeUid = wf.assigneeAfter;
+    }
+  }
+  batch.update(taskRef(taskId), taskPatch);
   await batch.commit();
   return ref.id;
 }
@@ -172,6 +195,9 @@ function fromDocSnap(d: DocumentSnapshot | QueryDocumentSnapshot): Comment {
     attachmentLinks: Array.isArray(data.attachmentLinks) ? data.attachmentLinks : [],
     mentionedUids: Array.isArray(data.mentionedUids) ? data.mentionedUids : [],
     reactions: (data.reactions as ReactionMap) ?? {},
+    workflowAction: (data.workflowAction as "flip" | "close" | null) ?? null,
+    statusAfter: (data.statusAfter as import("@/types").TaskStatus | null) ?? null,
+    assigneeAfter: (data.assigneeAfter as string | null) ?? null,
   };
 }
 

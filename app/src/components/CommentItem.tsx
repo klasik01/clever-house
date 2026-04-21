@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Pencil, Trash2, Check, X, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { Check, CornerDownLeft, ExternalLink, Link as LinkIcon, Pencil, Trash2, X } from "lucide-react";
 import AvatarCircle from "./AvatarCircle";
+import { statusColors } from "./StatusBadge";
+import { mapLegacyOtazkaStatus } from "@/lib/status";
 import ReactionBar from "./ReactionBar";
 import { useT, formatRelative } from "@/i18n/useT";
 import { parseDomain } from "@/lib/links";
@@ -13,6 +15,8 @@ interface Props {
   isAuthor: boolean;                 // comment.authorUid === current user uid
   isTaskOwner: boolean;              // comment author == task creator (highlights)
   currentUid?: string;               // for reaction active state
+  /** V4 — resolve a uid to a display name (for "Přehozeno na …" badge). */
+  resolveName?: (uid: string) => string;
   onEdit?: (body: string) => Promise<void>;
   onDelete?: () => Promise<void>;
   onToggleReaction?: (emoji: string) => Promise<void>;
@@ -33,6 +37,7 @@ export default function CommentItem({
   isAuthor,
   isTaskOwner,
   currentUid,
+  resolveName,
   onEdit,
   onDelete,
   onToggleReaction,
@@ -69,14 +74,45 @@ export default function CommentItem({
     await onDelete();
   }
 
+  const wfStatus = comment.statusAfter ? mapLegacyOtazkaStatus(comment.statusAfter) : null;
+  const wfColor = comment.workflowAction && wfStatus ? statusColors(wfStatus) : null;
+  // Legacy flip comments stored assigneeAfter — still use their resolved name
+  // for the badge. V5 flip comments skip that field and derive the label from
+  // statusAfter (ON_CLIENT_SITE / ON_PM_SITE).
+  const flipTargetName =
+    comment.workflowAction === "flip" && comment.assigneeAfter && resolveName
+      ? resolveName(comment.assigneeAfter)
+      : null;
+  const flipBadgeText =
+    comment.workflowAction === "flip"
+      ? flipTargetName
+        ? t("comments.workflowFlipBadge", { name: flipTargetName })
+        : wfStatus === "ON_CLIENT_SITE"
+        ? t("comments.workflowFlipBadgeToClient")
+        : wfStatus === "ON_PM_SITE"
+        ? t("comments.workflowFlipBadgeToPm")
+        : t("comments.workflowFlipBadge", { name: "?" })
+      : null;
+
   return (
     <article
       aria-label={`${displayName} — ${formatRelative(t, created)}`}
       className={`flex gap-3 rounded-md p-3 ${
-        isTaskOwner
-          ? "bg-[color:var(--color-comment-author-bg)]"
-          : "bg-[color:var(--color-comment-other-bg)] ring-1 ring-line"
+        wfColor ? "border border-l-4" : isTaskOwner ? "" : "ring-1 ring-line"
       }`}
+      style={
+        wfColor
+          ? {
+              background: "var(--color-comment-other-bg)",
+              borderLeftColor: wfColor.border,
+              borderTopColor: "var(--color-border-default)",
+              borderRightColor: "var(--color-border-default)",
+              borderBottomColor: "var(--color-border-default)",
+            }
+          : isTaskOwner
+          ? { background: "var(--color-comment-author-bg)" }
+          : { background: "var(--color-comment-other-bg)" }
+      }
     >
       <AvatarCircle
         uid={comment.authorUid}
@@ -93,6 +129,29 @@ export default function CommentItem({
             <span className="text-ink-subtle">{t("comments.editedLabel")}</span>
           )}
         </header>
+
+        {comment.workflowAction && (
+          <span
+            className="mt-1 inline-flex items-center gap-1 rounded-pill border px-2 py-0.5 text-xs font-medium"
+            style={{
+              background: wfColor?.bg,
+              color: wfColor?.fg,
+              borderColor: wfColor?.border,
+            }}
+          >
+            {comment.workflowAction === "flip" ? (
+              <>
+                <CornerDownLeft aria-hidden size={11} />
+                {flipBadgeText}
+              </>
+            ) : (
+              <>
+                <Check aria-hidden size={11} />
+                {t("comments.workflowCloseBadge")}
+              </>
+            )}
+          </span>
+        )}
 
         {editing ? (
           <div className="mt-2">

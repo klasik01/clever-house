@@ -67,7 +67,12 @@ export default function Zaznamy() {
     setSearchParams(np, { replace: true });
   }
 
-  const typed = tasks.filter((tk) => tk.type === type);
+  // PM sees only napady that owner opted-in to share; otázky are fully multi-party.
+  const typed = tasks.filter((tk) => {
+    if (tk.type !== type) return false;
+    if (type === "napad" && tk.createdBy !== user?.uid && !tk.sharedWithPm) return false;
+    return true;
+  });
   const counts = {
     all: typed.length,
     open: typed.filter((x) => x.status !== "Hotovo").length,

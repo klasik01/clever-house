@@ -18,6 +18,10 @@ interface Props {
 export default function NapadCard({ task, categories }: Props) {
   const t = useT();
   const { user } = useAuth();
+  const isBallOnMe =
+    task.type === "otazka" &&
+    (task.assigneeUid ?? task.createdBy) === user?.uid &&
+    (task.status === "Otázka" || task.status === "Čekám");
   const { byUid } = useUsers(Boolean(user));
   const assignee = task.assigneeUid ? byUid.get(task.assigneeUid) : undefined;
   const created = new Date(task.createdAt);
@@ -46,7 +50,7 @@ export default function NapadCard({ task, categories }: Props) {
     <Link
       to={`/t/${task.id}`}
       aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${titleDisplay}`}
-      className="block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus"
+      className={`block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus ${isBallOnMe ? "border-l-4 border-accent" : ""}`}
     >
       <article>
         <div className="flex items-start gap-3">

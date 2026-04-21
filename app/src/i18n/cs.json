@@ -157,7 +157,13 @@
     "assignee": "Řeší",
     "assigneeChange": "Změnit řešitele",
     "assigneeNone": "Nikdo",
-    "assigneeSelf": "(já)"
+    "assigneeSelf": "(já)",
+    "shareWithPm": "Sdílení s projektantem",
+    "shareWithPmLabel": "Nápad vidí i projektant (jen pro čtení + komentáře)",
+    "shareOn": "Sdíleno",
+    "shareOff": "Nesdíleno",
+    "bodyEmpty": "Bez popisu.",
+    "ballOnMe": "K vyjádření"
   },
   "editor": {
     "toolbar": "Formátování",
@@ -174,7 +180,25 @@
     "Čekám": "Čekám",
     "Rozhodnuto": "Rozhodnuto",
     "Ve stavbě": "Ve stavbě",
-    "Hotovo": "Hotovo"
+    "Hotovo": "Hotovo",
+    "ON_CLIENT_SITE": "K vyjádření",
+    "ON_PM_SITE": "Na projektantovi",
+    "BLOCKED": "Blokováno",
+    "CANCELED": "Zrušeno",
+    "DONE": "Hotovo"
+  },
+  "statusOtazka": {
+    "ON_CLIENT_SITE": {
+      "owner": "K vyjádření",
+      "pm": "Čeká na klienta"
+    },
+    "ON_PM_SITE": {
+      "owner": "Na projektantovi",
+      "pm": "K řešení"
+    },
+    "BLOCKED": "Blokováno",
+    "CANCELED": "Zrušeno",
+    "DONE": "Hotovo"
   },
   "filter": {
     "all": "Vše",
@@ -331,7 +355,15 @@
     "maxImages": "Maximálně 3 obrázky na komentář.",
     "maxLinks": "Maximálně 10 odkazů na komentář.",
     "saveEdit": "Uložit změny",
-    "cancel": "Zrušit"
+    "cancel": "Zrušit",
+    "sendAndFlip": "Poslat → {name}",
+    "sendAndClose": "Poslat a uzavřít",
+    "flipToClient": "Poslat klientovi",
+    "flipToPm": "Poslat projektantovi",
+    "workflowFlipBadge": "→ Přehozeno na {name}",
+    "workflowFlipBadgeToClient": "→ Přehozeno klientovi",
+    "workflowFlipBadgeToPm": "→ Přehozeno projektantovi",
+    "workflowCloseBadge": "→ Uzavřeno"
   },
   "mentions": {
     "typeToSearch": "Piš pro vyhledání…",
