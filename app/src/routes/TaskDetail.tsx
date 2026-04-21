@@ -28,7 +28,10 @@ import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
 
-const AUTOSAVE_DEBOUNCE_MS = 500;
+/** V6.2 — autosave timing. We no longer save on every keystroke; we wait
+ *  until the user blurs the title or body editor, then pause for a short
+ *  grace period so rapid blur→refocus cycles don’t fire a premature save. */
+const BLUR_SAVE_DELAY_MS = 1000;
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +52,10 @@ export default function TaskDetail() {
   const initializedRef = useRef(false);
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingRef = useRef<{ id: string; title: string; body: string } | null>(null);
+  // V6.2 — schedule id for the blur-driven autosave timer. Any re-focus or
+  // fresh blur cancels+reschedules; unmount flushes immediately.
+  const blurSaveTimerRef = useRef<number | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -62,9 +69,13 @@ export default function TaskDetail() {
       setTitle(state.task.title);
       setBody(state.task.body);
       initializedRef.current = true;
+      setHasInitialized(true);
     }
-    // Re-initialize only if the route's :id changed
-    if (state.status !== "ready") initializedRef.current = false;
+    // Re-initialize only if the route's :id changed (or the task disappears).
+    if (state.status !== "ready") {
+      initializedRef.current = false;
+      setHasInitialized(false);
+    }
   }, [state]);
 
   // Reset transient UI flags when the route's :id changes. TaskDetail is reused
@@ -84,7 +95,8 @@ export default function TaskDetail() {
     el.style.height = el.scrollHeight + "px";
   }, [title]);
 
-  // Debounced auto-save + keep pendingRef in sync for unmount flush.
+  // V6.2 — track a pending diff (nothing more). Actual persistence is
+  // triggered on blur (or unmount / page hide) — typing alone never writes.
   useEffect(() => {
     if (state.status !== "ready" || !initializedRef.current) {
       return;
@@ -92,23 +104,20 @@ export default function TaskDetail() {
     const orig = state.task;
     if (title === orig.title && body === orig.body) {
       pendingRef.current = null;
-      return;
+    } else {
+      pendingRef.current = { id: orig.id, title, body };
     }
-    pendingRef.current = { id: orig.id, title, body };
-
-    const handle = window.setTimeout(() => {
-      persist({ title, body });
-      pendingRef.current = null;
-    }, AUTOSAVE_DEBOUNCE_MS);
-
-    return () => window.clearTimeout(handle);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, body]);
+  }, [title, body, state]);
 
   // Flush any pending edit on unmount (browser back, route change) and on page hide
   // (mobile background / tab switch). Fire-and-forget — component is going away.
   useEffect(() => {
     function flushPending() {
+      // Cancel any blur-scheduled save so we don’t double-fire.
+      if (blurSaveTimerRef.current !== null) {
+        window.clearTimeout(blurSaveTimerRef.current);
+        blurSaveTimerRef.current = null;
+      }
       const p = pendingRef.current;
       if (!p) return;
       pendingRef.current = null;
@@ -141,11 +150,31 @@ export default function TaskDetail() {
     }
   }
 
+  function cancelBlurSave() {
+    if (blurSaveTimerRef.current !== null) {
+      window.clearTimeout(blurSaveTimerRef.current);
+      blurSaveTimerRef.current = null;
+    }
+  }
+
+  /** Called when the title textarea or the body editor loses focus. Schedules
+   *  a persist after BLUR_SAVE_DELAY_MS — the short grace period lets a quick
+   *  re-focus cancel the save before it fires (see handleEditorFocus). */
   function flushOnBlur() {
     if (state.status !== "ready") return;
-    const orig = state.task;
-    if (title === orig.title && body === orig.body) return;
-    persist({ title, body });
+    cancelBlurSave();
+    blurSaveTimerRef.current = window.setTimeout(() => {
+      blurSaveTimerRef.current = null;
+      const p = pendingRef.current;
+      if (!p) return;
+      persist({ title: p.title, body: p.body });
+      pendingRef.current = null;
+    }, BLUR_SAVE_DELAY_MS);
+  }
+
+  /** Cancel any in-flight blur-save if the user jumps back into the editor. */
+  function handleEditorFocus() {
+    cancelBlurSave();
   }
 
   function flashSaved() {
@@ -372,7 +401,11 @@ export default function TaskDetail() {
 
   // ---- Render states ----
 
-  if (state.status === "loading") {
+  // V6.2 — also skeleton while we're waiting for the init useEffect to sync
+  // local title/body from the freshly-arrived task. Rendering the editor with
+  // empty local state caused lost keystrokes when the user started typing
+  // before the sync finished.
+  if (state.status === "loading" || (state.status === "ready" && !hasInitialized)) {
     return <SkeletonDetail />;
   }
   if (state.status === "error") {
@@ -734,6 +767,7 @@ export default function TaskDetail() {
           }
         }}
         onBlur={flushOnBlur}
+        onFocus={handleEditorFocus}
         rows={1}
         placeholder={t("detail.titlePlaceholderV2")}
         autoCapitalize="sentences"
@@ -759,6 +793,7 @@ export default function TaskDetail() {
             value={body}
             onChange={setBody}
             onBlur={flushOnBlur}
+            onFocus={handleEditorFocus}
             placeholder={t("detail.bodyPlaceholder")}
             ariaLabel={t("detail.bodyLabel")}
           />

@@ -10,6 +10,9 @@ type Props = {
   value: string;
   onChange: (markdown: string) => void;
   onBlur?: () => void;
+  /** Fires when the editor DOM gains focus. Useful for cancelling a
+   *  blur-scheduled autosave if the user jumps back in to keep typing. */
+  onFocus?: () => void;
   placeholder?: string;
   ariaLabel?: string;
   disabled?: boolean;
@@ -27,6 +30,7 @@ export default function RichTextEditor({
   value,
   onChange,
   onBlur,
+  onFocus,
   placeholder,
   ariaLabel,
   disabled = false,
@@ -68,6 +72,9 @@ export default function RichTextEditor({
     },
     onBlur: () => {
       onBlur?.();
+    },
+    onFocus: () => {
+      onFocus?.();
     },
     editorProps: {
       attributes: {
