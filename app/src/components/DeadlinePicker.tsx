@@ -14,7 +14,7 @@ export default function DeadlinePicker({ value, onChange, disabled }: Props) {
   const dateStr = epochMsToDateInput(value);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex w-full items-center gap-2">
       <input
         type="date"
         value={dateStr}
@@ -24,7 +24,7 @@ export default function DeadlinePicker({ value, onChange, disabled }: Props) {
           void onChange(next);
         }}
         aria-label={t("deadline.label")}
-        className="min-h-tap rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink focus:border-line-focus focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-40"
+        className="min-w-0 flex-1 min-h-tap rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink focus:border-line-focus focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-40"
       />
       {value && !disabled && (
         <button

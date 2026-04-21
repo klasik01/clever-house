@@ -43,6 +43,7 @@ export default function TaskDetail() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const initializedRef = useRef(false);
+  const pendingRef = useRef<{ id: string; title: string; body: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -73,19 +74,49 @@ export default function TaskDetail() {
     setAttachError(null);
   }, [id]);
 
-  // Debounced auto-save
+  // Debounced auto-save + keep pendingRef in sync for unmount flush.
   useEffect(() => {
-    if (state.status !== "ready" || !initializedRef.current) return;
+    if (state.status !== "ready" || !initializedRef.current) {
+      return;
+    }
     const orig = state.task;
-    if (title === orig.title && body === orig.body) return;
+    if (title === orig.title && body === orig.body) {
+      pendingRef.current = null;
+      return;
+    }
+    pendingRef.current = { id: orig.id, title, body };
 
     const handle = window.setTimeout(() => {
       persist({ title, body });
+      pendingRef.current = null;
     }, AUTOSAVE_DEBOUNCE_MS);
 
     return () => window.clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body]);
+
+  // Flush any pending edit on unmount (browser back, route change) and on page hide
+  // (mobile background / tab switch). Fire-and-forget — component is going away.
+  useEffect(() => {
+    function flushPending() {
+      const p = pendingRef.current;
+      if (!p) return;
+      pendingRef.current = null;
+      updateTask(p.id, { title: p.title, body: p.body }).catch((e) =>
+        console.error("flush on hide/unmount failed", e)
+      );
+    }
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flushPending();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushPending);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flushPending);
+      flushPending();
+    };
+  }, []);
 
   async function persist(patch: { title: string; body: string }) {
     if (state.status !== "ready") return;
@@ -499,7 +530,7 @@ export default function TaskDetail() {
           </p>
         </section>
 
-        <Suspense fallback={<div className="mt-6 h-40 rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
+        <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
           <CommentThread task={task} />
         </Suspense>
 
@@ -554,7 +585,7 @@ export default function TaskDetail() {
         <Suspense
           fallback={
             <div
-              className="min-h-[13rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
+              className="min-h-[17rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
               aria-busy="true"
               role="status"
             >
@@ -572,41 +603,80 @@ export default function TaskDetail() {
         </Suspense>
       </div>
 
-      {task.type === "otazka" && (
-        <section className="mt-6" aria-labelledby="assignee-heading">
-          <h2 id="assignee-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("detail.assignee")}
-          </h2>
-          <AssigneeSelect
-            value={task.assigneeUid ?? null}
-            onChange={handleAssigneeChange}
-            disabled={saving}
-            readOnly={!(task.createdBy === user?.uid)}
-          />
-        </section>
-      )}
+      {/* Categories — directly under body (full width). */}
+      <section className="mt-4" aria-labelledby="cat-heading">
+        <h2 id="cat-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+          {t("detail.categoryLabel")}
+        </h2>
+        <CategoryPicker
+          value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
+          categories={categories}
+          onChange={handleCategoryChange}
+          disabled={saving}
+        />
+      </section>
 
-      {task.type === "otazka" && task.createdBy === user?.uid && (
-        <section className="mt-4" aria-labelledby="priority-heading">
-          <h2 id="priority-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("priority.label")}
-          </h2>
-          <PrioritySelect
-            value={task.priority}
-            onChange={handlePriorityChange}
-            disabled={saving}
-          />
-        </section>
-      )}
+      {task.type === "otazka" ? (
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <section aria-labelledby="loc-heading">
+              <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                {t("detail.locationLabel")}
+              </h2>
+              <LocationPicker
+                value={task.locationId ?? null}
+                onChange={handleLocationChange}
+                disabled={saving}
+              />
+            </section>
+            {task.createdBy === user?.uid && (
+              <section aria-labelledby="deadline-heading">
+                <h2 id="deadline-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                  {t("deadline.label")}
+                </h2>
+                <DeadlinePicker
+                  value={task.deadline ?? null}
+                  onChange={handleDeadlineChange}
+                  disabled={saving}
+                />
+              </section>
+            )}
+          </div>
 
-      {task.type === "otazka" && task.createdBy === user?.uid && (
-        <section className="mt-4" aria-labelledby="deadline-heading">
-          <h2 id="deadline-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("deadline.label")}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {task.createdBy === user?.uid && (
+              <section aria-labelledby="priority-heading">
+                <h2 id="priority-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                  {t("priority.label")}
+                </h2>
+                <PrioritySelect
+                  value={task.priority}
+                  onChange={handlePriorityChange}
+                  disabled={saving}
+                />
+              </section>
+            )}
+            <section aria-labelledby="assignee-heading">
+              <h2 id="assignee-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                {t("detail.assignee")}
+              </h2>
+              <AssigneeSelect
+                value={task.assigneeUid ?? null}
+                onChange={handleAssigneeChange}
+                disabled={saving}
+                readOnly={!(task.createdBy === user?.uid)}
+              />
+            </section>
+          </div>
+        </>
+      ) : (
+        <section className="mt-4" aria-labelledby="loc-heading">
+          <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("detail.locationLabel")}
           </h2>
-          <DeadlinePicker
-            value={task.deadline ?? null}
-            onChange={handleDeadlineChange}
+          <LocationPicker
+            value={task.locationId ?? null}
+            onChange={handleLocationChange}
             disabled={saving}
           />
         </section>
@@ -621,29 +691,6 @@ export default function TaskDetail() {
           onChange={handleStatusChange}
           disabled={saving}
           type={task.type}
-        />
-      </section>
-
-      <section className="mt-4" aria-labelledby="cat-heading">
-        <h2 id="cat-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          {t("detail.categoryLabel")}
-        </h2>
-        <CategoryPicker
-          value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
-          categories={categories}
-          onChange={handleCategoryChange}
-          disabled={saving}
-        />
-      </section>
-
-      <section className="mt-4" aria-labelledby="loc-heading">
-        <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          {t("detail.locationLabel")}
-        </h2>
-        <LocationPicker
-          value={task.locationId ?? null}
-          onChange={handleLocationChange}
-          disabled={saving}
         />
       </section>
 

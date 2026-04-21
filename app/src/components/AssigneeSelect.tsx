@@ -61,11 +61,11 @@ export default function AssigneeSelect({ value, onChange, disabled, readOnly }: 
   // Read-only: just the chip
   if (readOnly) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm">
+      <div className="flex w-full items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm">
         {current ? (
           <>
             <AvatarCircle uid={current.uid} displayName={current.displayName} email={current.email} size="sm" />
-            <span className="text-ink truncate">{currentName}</span>
+            <span className="min-w-0 flex-1 truncate text-ink">{currentName}</span>
           </>
         ) : (
           <span className="text-ink-subtle">{t("detail.assigneeNone")}</span>
@@ -75,7 +75,7 @@ export default function AssigneeSelect({ value, onChange, disabled, readOnly }: 
   }
 
   return (
-    <div ref={rootRef} className="relative inline-block">
+    <div ref={rootRef} className="relative block w-full">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -83,17 +83,19 @@ export default function AssigneeSelect({ value, onChange, disabled, readOnly }: 
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t("detail.assigneeChange")}
-        className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle focus-visible:border-line-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus disabled:opacity-40 transition-colors"
+        className="flex w-full items-center justify-between gap-2 min-h-tap rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle focus-visible:border-line-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus disabled:opacity-40 transition-colors"
       >
-        {current ? (
-          <>
-            <AvatarCircle uid={current.uid} displayName={current.displayName} email={current.email} size="sm" />
-            <span className="text-ink truncate max-w-[10rem]">{currentName}</span>
-          </>
-        ) : (
-          <span className="text-ink-subtle">{t("detail.assigneeNone")}</span>
-        )}
-        <ChevronDown aria-hidden size={14} className="text-ink-subtle shrink-0" />
+        <span className="flex min-w-0 flex-1 items-center gap-2">
+          {current ? (
+            <>
+              <AvatarCircle uid={current.uid} displayName={current.displayName} email={current.email} size="sm" />
+              <span className="min-w-0 flex-1 truncate text-left text-ink">{currentName}</span>
+            </>
+          ) : (
+            <span className="text-ink-subtle">{t("detail.assigneeNone")}</span>
+          )}
+        </span>
+        <ChevronDown aria-hidden size={14} className="shrink-0 text-ink-subtle" />
       </button>
 
       {open && (

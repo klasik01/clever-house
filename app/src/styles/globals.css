@@ -112,12 +112,21 @@
 
 /* Tiptap / ProseMirror — S27 rich text editor */
 .cdv-editor .ProseMirror {
-  min-height: 10rem;
+  /* V3.1 — bigger default (~16rem = 256px) and user-resizable via vertical drag handle. */
+  min-height: 16rem;
+  max-height: 80vh;
+  resize: vertical;
+  overflow: auto;
   padding: 0.5rem 0.75rem;
   outline: none;
   color: var(--color-text-default);
   line-height: var(--line-height-normal);
   word-break: break-word;
+}
+
+/* Skeleton fallback (while Tiptap chunk loads) should match the new min-height. */
+.cdv-editor {
+  min-height: 17rem;
 }
 .cdv-editor .ProseMirror:focus {
   background: var(--color-bg-subtle);

@@ -101,7 +101,7 @@ export default function RichTextEditor({
   if (!editor) {
     return (
       <div
-        className="mt-3 min-h-[13rem] rounded-md border border-line bg-surface"
+        className="mt-3 min-h-[17rem] rounded-md border border-line bg-surface"
         aria-busy="true"
       />
     );
