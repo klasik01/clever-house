@@ -2,12 +2,14 @@ import { Notebook, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
+import SearchInput from "@/components/SearchInput";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
+import { applySearch } from "@/lib/search";
 import {
   applyCategory,
   applyLocation,
@@ -41,6 +43,13 @@ export default function Zaznamy() {
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
+  const [query, setQuery] = useState<string>(() => {
+    try { return sessionStorage.getItem("filter:napady:q") ?? ""; } catch { return ""; }
+  });
+  function setQueryPersist(next: string) {
+    setQuery(next);
+    try { sessionStorage.setItem("filter:napady:q", next); } catch { /* ignore */ }
+  }
 
   // V10: OWNER sees every OWNER's napady (workspace = household).
   // PM sees only those explicitly shared via `sharedWithPm`. Firestore rules
@@ -56,18 +65,22 @@ export default function Zaznamy() {
     done: napady.filter((x) => x.status === "Hotovo").length,
   };
 
-  const visible = applyLocation(
-    applyCategory(applyOpenClosed(napady, filter), categoryId),
-    locationId,
+  const visible = applySearch(
+    applyLocation(
+      applyCategory(applyOpenClosed(napady, filter), categoryId),
+      locationId,
+    ),
+    query,
   );
 
   const isFilterActive =
-    filter !== "open" || categoryId !== null || locationId !== null;
+    filter !== "open" || categoryId !== null || locationId !== null || query.trim() !== "";
 
   function handleResetFilters() {
     setFilter("open");
     setCategoryId(null);
     setLocationId(null);
+    setQueryPersist("");
     clearAllFilters(KEY);
   }
 
@@ -84,6 +97,10 @@ export default function Zaznamy() {
           {t("zaznamy.pageTitle")}
         </h2>
       </header>
+
+      <div className="mb-4">
+        <SearchInput value={query} onChange={setQueryPersist} />
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterChips

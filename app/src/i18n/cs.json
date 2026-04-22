@@ -227,6 +227,11 @@
     "pageTitle": "Rozpočet",
     "comingSoon": "Tady budou cenové nabídky od dodavatelů. Zatím nic."
   },
+  "search": {
+    "placeholder": "Hledat…",
+    "ariaLabel": "Hledat",
+    "clear": "Vymazat hledání"
+  },
   "filter": {
     "all": "Vše",
     "open": "Otevřené",

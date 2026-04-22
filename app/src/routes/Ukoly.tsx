@@ -5,10 +5,12 @@ import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import PriorityFilterChip from "@/components/PriorityFilterChip";
 import StatusFilterChip from "@/components/StatusFilterChip";
+import SearchInput from "@/components/SearchInput";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
+import { applySearch } from "@/lib/search";
 import {
   applyCategory,
   applyLocation,
@@ -46,6 +48,13 @@ export default function Ukoly() {
   );
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [status, setStatus] = useState<TaskStatus | null>(null);
+  const [query, setQuery] = useState<string>(() => {
+    try { return sessionStorage.getItem("filter:ukoly:q") ?? ""; } catch { return ""; }
+  });
+  function setQueryPersist(next: string) {
+    setQuery(next);
+    try { sessionStorage.setItem("filter:ukoly:q", next); } catch { /* ignore */ }
+  }
   // V10 — "Moje / Všechny" filter. Defaults to "mine" so the tab feels like
   // a personal inbox; user can flip to "all" for cross-workspace view.
   const [ownerMode, setOwnerMode] = useState<"mine" | "all">(() => {
@@ -66,7 +75,8 @@ export default function Ukoly() {
     locationId !== null ||
     priority !== null ||
     status !== null ||
-    ownerMode !== "mine";
+    ownerMode !== "mine" ||
+    query.trim() !== "";
 
   function handleReset() {
     setCategoryId(null);
@@ -74,6 +84,7 @@ export default function Ukoly() {
     setPriority(null);
     setStatus(null);
     setOwnerModePersist("mine");
+    setQueryPersist("");
     clearAllFilters(KEY);
   }
 
@@ -99,7 +110,11 @@ export default function Ukoly() {
     : byStatus;
 
   // 4. Category + location use the shared helpers.
-  const filtered = applyLocation(applyCategory(byPriority, categoryId), locationId);
+  // 5. Search (title + body) applied last — diacritic-insensitive.
+  const filtered = applySearch(
+    applyLocation(applyCategory(byPriority, categoryId), locationId),
+    query,
+  );
 
   // 5. Split into ball-on-me + rest; sort each by updatedAt DESC. Concat with
   //    ball-on-me first so NapadCard’s highlight lines up with list position.
@@ -129,6 +144,10 @@ export default function Ukoly() {
         </h2>
         <p className="mt-1 text-sm text-ink-muted">{t("ukoly.pageHint")}</p>
       </header>
+
+      <div className="mb-4">
+        <SearchInput value={query} onChange={setQueryPersist} />
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
