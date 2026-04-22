@@ -133,3 +133,44 @@ describe("convertNapadToOtazka", () => {
     expect(ops.length).toBe(2);
   });
 });
+
+describe("createTask — V10 assigneeUid defaults", () => {
+  it("new otazka gets the creator as assigneeUid (first solver)", async () => {
+    const id = await createTask(
+      { type: "otazka", title: "Kde umístit rozvaděč?", body: "", status: "OPEN" },
+      "owner-1",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBe("owner-1");
+  });
+
+  it("new napad has no assignee (concept doesn\'t apply)", async () => {
+    const id = await createTask(
+      { type: "napad", title: "Rekonstrukce", body: "", status: "Nápad" },
+      "owner-1",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBeNull();
+  });
+});
+
+describe("convertNapadToOtazka — V10 defaults", () => {
+  it("new úkol opens with status=OPEN and assigneeUid=creator", async () => {
+    const source = {
+      id: "n1",
+      type: "napad" as const,
+      title: "Zahrada",
+      body: "",
+      status: "Nápad" as const,
+      createdAt: "2026-04-01T00:00:00Z",
+      updatedAt: "2026-04-01T00:00:00Z",
+      createdBy: "someone",
+    };
+    __firestoreState.store.set("tasks/n1", { linkedTaskIds: [] });
+    const newId = await convertNapadToOtazka(source, "converter");
+    const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(doc.status).toBe("OPEN");
+    expect(doc.assigneeUid).toBe("converter");
+  });
+});
+

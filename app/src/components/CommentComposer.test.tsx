@@ -70,3 +70,75 @@ describe("CommentComposer (V10)", () => {
     expect(action).toBe("close");
   });
 });
+
+describe("CommentComposer — peer picker (V10)", () => {
+  const peers = [
+    { uid: "u-anna", displayName: "Anna" },
+    { uid: "u-bob",  displayName: "Bob" },
+    { uid: "u-cili", displayName: "Cilla" },
+  ];
+
+  it("disables the primary flip button when no peer is selected", () => {
+    renderWithProviders(
+      <CommentComposer
+        onSubmit={vi.fn()}
+        workflow={{ closeLabel: "Uzavřít", peers, defaultPeerUid: null }}
+      />,
+    );
+    const primary = screen.getByRole("button", { name: /Poslat/ });
+    expect(primary).toBeDisabled();
+  });
+
+  it("opens the peer dropdown on chevron click + lists every peer", async () => {
+    renderWithProviders(
+      <CommentComposer
+        onSubmit={vi.fn()}
+        workflow={{ closeLabel: "Uzavřít", peers, defaultPeerUid: "u-anna" }}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Vybrat příjemce/i }));
+    const options = screen.getAllByRole("option");
+    expect(options.length).toBe(3);
+    expect(options[0]).toHaveTextContent("Anna");
+    expect(options[2]).toHaveTextContent("Cilla");
+  });
+
+  it("selecting a peer updates the primary button label + routes the next flip to that uid", async () => {
+    const fn = vi.fn();
+    renderWithProviders(
+      <CommentComposer
+        onSubmit={fn}
+        workflow={{ closeLabel: "Uzavřít", peers, defaultPeerUid: "u-anna" }}
+      />,
+    );
+    // Open dropdown, pick Bob.
+    await userEvent.click(screen.getByRole("button", { name: /Vybrat příjemce/i }));
+    await userEvent.click(screen.getByRole("option", { name: "Bob" }));
+    // Primary label now reflects Bob.
+    expect(screen.getByRole("button", { name: /Poslat Bob/ })).toBeInTheDocument();
+    // Type + fire flip.
+    await userEvent.type(screen.getByPlaceholderText(/komentář/i), "ok");
+    await userEvent.click(screen.getByRole("button", { name: /Poslat Bob/ }));
+    const [, action, targetUid] = fn.mock.calls[0];
+    expect(action).toBe("flip");
+    expect(targetUid).toBe("u-bob");
+  });
+
+  it("updates seed when the defaultPeerUid prop changes (e.g. task switch)", () => {
+    const { rerender } = renderWithProviders(
+      <CommentComposer
+        onSubmit={vi.fn()}
+        workflow={{ closeLabel: "Uzavřít", peers, defaultPeerUid: "u-anna" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Poslat Anna/ })).toBeInTheDocument();
+    rerender(
+      <CommentComposer
+        onSubmit={vi.fn()}
+        workflow={{ closeLabel: "Uzavřít", peers, defaultPeerUid: "u-cili" }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Poslat Cilla/ })).toBeInTheDocument();
+  });
+});
+
