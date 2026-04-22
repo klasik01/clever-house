@@ -1,14 +1,17 @@
-import { ChevronRight, FileDown, LogOut, Tag } from "lucide-react";
+import { ChevronRight, FileDown, LogOut, MapPin, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 import InstallHelper from "@/components/InstallHelper";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useT } from "@/i18n/useT";
 
 export default function Settings() {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
 
   async function handleSignOut() {
     await signOut();
@@ -25,10 +28,13 @@ export default function Settings() {
         <Row label={t("settings.email")} value={user?.email ?? "—"} />
       </SettingsGroup>
 
-      <SettingsGroup title="Data">
-        <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
-        <LinkRow to="/export" icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
-      </SettingsGroup>
+      {!isPm && (
+        <SettingsGroup title="Data">
+          <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
+          <LinkRow to="/nastaveni/lokace" icon={<MapPin size={18} aria-hidden />} label={t("settings.locationsManage")} />
+          <LinkRow to="/export" icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
+        </SettingsGroup>
+      )}
 
       <SettingsGroup title={t("settings.themeLabel")}>
         <div className="px-4 py-3">

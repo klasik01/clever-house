@@ -47,8 +47,7 @@ export default function StatusSelect({ value, onChange, disabled, type, isPm = f
     <div
       role="radiogroup"
       aria-label={t("status.label")}
-      className="flex flex-wrap gap-1.5 sm:flex-nowrap sm:overflow-x-auto sm:-mx-1 sm:px-1 sm:pb-1 sm:snap-x"
-      style={{ scrollbarWidth: "none" }}
+      className="flex flex-wrap gap-1.5"
     >
       {options.map((s) => {
         const active = s === current;
@@ -62,7 +61,7 @@ export default function StatusSelect({ value, onChange, disabled, type, isPm = f
             disabled={disabled}
             onClick={() => onChange(s)}
             className={[
-              "sm:snap-start inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
+              "inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
               active ? "border-2 shadow-sm" : "border hover:bg-bg-subtle",
               disabled ? "opacity-40 cursor-not-allowed" : "",
             ].join(" ")}

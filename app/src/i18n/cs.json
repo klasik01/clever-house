@@ -78,6 +78,7 @@
     "themeDark": "Tmavé",
     "comingSoon": "Brzy",
     "categories": "Kategorie",
+    "locationsManage": "Lokace",
     "export": "Export do PDF",
     "install": "Instalace",
     "prehledCard": {
@@ -238,10 +239,13 @@
     "loadFailed": "Nepodařilo se načíst kategorie."
   },
   "locations": {
-    "groupOutdoor": "Venkovní",
-    "groupGeneral": "Dům obecně",
-    "groupLiving": "Obytné prostory",
-    "groupHygiene": "Hygiena + wellness",
+    "groupPozemek": "Pozemek",
+    "groupDum": "Dům",
+    "groupSite": "Sítě",
+    "groupOutdoor": "Pozemek",
+    "groupGeneral": "Dům",
+    "groupLiving": "Dům",
+    "groupHygiene": "Dům",
     "pageTitle": "Lokace",
     "pageHint": "Procházej nápady a otázky podle místa v domě.",
     "openCount": "{n} otevřených",
@@ -251,7 +255,21 @@
     "tabNapady": "Nápady",
     "tabOtazky": "Otázky",
     "notFoundTitle": "Tato lokace neexistuje",
-    "notFoundBody": "Zkontroluj odkaz nebo se vrať zpátky na přehled."
+    "notFoundBody": "Zkontroluj odkaz nebo se vrať zpátky na přehled.",
+    "manage": {
+      "pageTitle": "Správa lokací",
+      "pageHint": "Přidej, přejmenuj nebo smaž vlastní místa. Skupiny jsou pevné (Pozemek / Dům / Sítě).",
+      "addPlaceholder": "Nová lokace…",
+      "add": "Přidat",
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "rename": "Přejmenovat",
+      "delete": "Smazat",
+      "confirmDelete": "Smazat „{name}“? Úkoly, které na ni odkazují, ztratí přiřazení.",
+      "dragHint": "Přetáhni do jiné skupiny",
+      "empty": "V této skupině zatím nic není.",
+      "loadFailed": "Nepodařilo se načíst lokace."
+    }
   },
   "role": {
     "missingTitle": "Účet není plně nastaven",

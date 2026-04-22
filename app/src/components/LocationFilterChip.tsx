@@ -1,5 +1,7 @@
 import { MapPin } from "lucide-react";
-import { LOCATIONS, locationsByGroup } from "@/lib/locations";
+import { locationsByGroup } from "@/lib/locations";
+import { useLocations } from "@/hooks/useLocations";
+import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 
 interface Props {
@@ -9,9 +11,11 @@ interface Props {
 
 export default function LocationFilterChip({ value, onChange }: Props) {
   const t = useT();
-  const selected = value ? LOCATIONS.find((l) => l.id === value) : null;
+  const { user } = useAuth();
+  const { locations } = useLocations(Boolean(user));
+  const selected = value ? locations.find((l) => l.id === value) : null;
   const label = selected ? selected.label : t("filter.locationAll");
-  const groups = locationsByGroup();
+  const groups = locationsByGroup(locations);
 
   return (
     <label className="relative inline-flex items-center">
@@ -36,13 +40,15 @@ export default function LocationFilterChip({ value, onChange }: Props) {
       >
         <option value="">{t("filter.locationAll")}</option>
         {groups.map((g) => (
-          <optgroup key={g.group} label={t(g.i18nKey)}>
-            {g.items.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.label}
-              </option>
-            ))}
-          </optgroup>
+          g.items.length > 0 && (
+            <optgroup key={g.group} label={t(g.i18nKey)}>
+              {g.items.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.label}
+                </option>
+              ))}
+            </optgroup>
+          )
         ))}
       </select>
     </label>

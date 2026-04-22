@@ -1,4 +1,6 @@
 import { locationsByGroup } from "@/lib/locations";
+import { useLocations } from "@/hooks/useLocations";
+import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 
 interface Props {
@@ -10,10 +12,15 @@ interface Props {
 /**
  * Native <select> with <optgroup> — renders as OS picker wheel on mobile
  * with clear visual group separation. Zero custom UI surface.
+ *
+ * V7: picks up user-managed locations via useLocations (with DEFAULTS fallback
+ * while the first snapshot is pending).
  */
 export default function LocationPicker({ value, onChange, disabled }: Props) {
   const t = useT();
-  const groups = locationsByGroup();
+  const { user } = useAuth();
+  const { locations } = useLocations(Boolean(user));
+  const groups = locationsByGroup(locations);
   const current = value ?? "";
 
   return (
@@ -26,13 +33,15 @@ export default function LocationPicker({ value, onChange, disabled }: Props) {
     >
       <option value="">{t("detail.locationNone")}</option>
       {groups.map((g) => (
-        <optgroup key={g.group} label={t(g.i18nKey)}>
-          {g.items.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.label}
-            </option>
-          ))}
-        </optgroup>
+        g.items.length > 0 && (
+          <optgroup key={g.group} label={t(g.i18nKey)}>
+            {g.items.map((loc) => (
+              <option key={loc.id} value={loc.id}>
+                {loc.label}
+              </option>
+            ))}
+          </optgroup>
+        )
       ))}
     </select>
   );

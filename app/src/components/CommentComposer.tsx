@@ -230,7 +230,7 @@ export default function CommentComposer({
       />
 
       {stagedImages.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-2">
+        <ul className="mt-3 flex flex-wrap gap-2 border-t border-line pt-2">
           {stagedImages.map((s, i) => (
             <li key={i} className="relative">
               <img
@@ -252,7 +252,7 @@ export default function CommentComposer({
       )}
 
       {links.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-1">
+        <ul className="mt-3 flex flex-col gap-1 border-t border-line pt-2">
           {links.map((url, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">
               <LinkIcon aria-hidden size={14} className="text-accent-visual" />
@@ -276,74 +276,74 @@ export default function CommentComposer({
         </p>
       )}
 
-      {/* Row 1: attachment pickers */}
-      <div className="mt-2 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={trulyDisabled || submitting || stagedImages.length >= MAX_IMAGES}
-          aria-label={t("composer.attachPhoto")}
-          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
-        >
-          <ImageIcon aria-hidden size={18} />
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          multiple
-          className="hidden"
-          onChange={handleFilePick}
-        />
-        <button
-          type="button"
-          onClick={handleAddLink}
-          disabled={trulyDisabled || submitting || links.length >= MAX_LINKS}
-          aria-label={t("composer.attachLink")}
-          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
-        >
-          <LinkIcon aria-hidden size={18} />
-        </button>
-      </div>
-
-      {/* Row 2: send actions. When workflow is enabled the primary Send always
-          flips the ball to the other side — every comment on an otazka goes back
-          to the other party. "Uzavrit" stays as a separate secondary action. */}
-      <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-        {workflow ? (
-          <>
-            <button
-              type="button"
-              onClick={() => handleSubmit("close")}
-              disabled={!canSend}
-              className="inline-flex items-center gap-1.5 min-h-tap rounded-md border border-line bg-transparent px-3 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-            >
-              <Check aria-hidden size={14} />
-              {workflow.closeLabel}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSubmit("flip")}
-              disabled={!canSend || Boolean(workflow.flipDisabled)}
-              className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
-            >
-              <CornerDownLeft aria-hidden size={14} />
-              {submitting ? t("composer.saving") : workflow.flipLabel}
-            </button>
-          </>
-        ) : (
+      {/* V7.2 — single row: attachments pinned left, send actions right.
+          V7.3 — divider above so the action bar reads as a footer distinct
+          from the textarea + staged attachments. */}
+      <div className="mt-3 pt-2 border-t border-line flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => handleSubmit(null)}
-            disabled={!canSend}
-            aria-label={t("comments.send")}
-            className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={trulyDisabled || submitting || stagedImages.length >= MAX_IMAGES}
+            aria-label={t("composer.attachPhoto")}
+            className="grid size-8 place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
           >
-            <Send aria-hidden size={14} />
-            {submitting ? t("composer.saving") : t("comments.send")}
+            <ImageIcon aria-hidden size={18} />
           </button>
-        )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="hidden"
+            onChange={handleFilePick}
+          />
+          <button
+            type="button"
+            onClick={handleAddLink}
+            disabled={trulyDisabled || submitting || links.length >= MAX_LINKS}
+            aria-label={t("composer.attachLink")}
+            className="grid size-8 place-items-center rounded-md text-ink-muted hover:text-ink disabled:opacity-40"
+          >
+            <LinkIcon aria-hidden size={18} />
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {workflow ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSubmit("close")}
+                disabled={!canSend}
+                className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+              >
+                <Check aria-hidden size={12} />
+                {workflow.closeLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmit("flip")}
+                disabled={!canSend || Boolean(workflow.flipDisabled)}
+                className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+              >
+                <CornerDownLeft aria-hidden size={12} />
+                {submitting ? t("composer.saving") : workflow.flipLabel}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleSubmit(null)}
+              disabled={!canSend}
+              aria-label={t("comments.send")}
+              className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+            >
+              <Send aria-hidden size={12} />
+              {submitting ? t("composer.saving") : t("comments.send")}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

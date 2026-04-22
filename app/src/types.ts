@@ -109,12 +109,20 @@ export interface Category {
   createdAt: string;
 }
 
-export type LocationGroup = "outdoor" | "general" | "living" | "hygiene";
+/** V7 — locations editable, reduced to 3 groups.
+ *  "pozemek" = land / garden / outdoor.
+ *  "dum"     = indoor rooms (living, general, hygiene — collapsed).
+ *  "site"    = utility / network infrastructure. */
+export type LocationGroup = "pozemek" | "dum" | "site";
 
 export interface Location {
   id: string;
   label: string;
   group: LocationGroup;
+  /** Only set on user-created records (Firestore-backed). Seeded defaults
+   *  don’t need it, but consumers shouldn’t rely on it being set. */
+  createdBy?: string;
+  createdAt?: string;
 }
 
 export interface UserProfile {

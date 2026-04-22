@@ -97,7 +97,7 @@ export default function CommentItem({
   return (
     <article
       aria-label={`${displayName} — ${formatRelative(t, created)}`}
-      className={`flex gap-3 rounded-md p-3 ${
+      className={`flex gap-2.5 rounded-md p-2.5 ${
         wfColor ? "border border-l-4" : isTaskOwner ? "" : "ring-1 ring-line"
       }`}
       style={
@@ -118,7 +118,7 @@ export default function CommentItem({
         uid={comment.authorUid}
         displayName={author?.displayName}
         email={author?.email}
-        size="md"
+        size="sm"
       />
 
       <div className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ export default function CommentItem({
 
         {comment.workflowAction && (
           <span
-            className="mt-1 inline-flex items-center gap-1 rounded-pill border px-2 py-0.5 text-xs font-medium"
+            className="mt-1.5 inline-flex items-center gap-1 rounded-pill border px-2 py-0.5 text-xs font-medium"
             style={{
               background: wfColor?.bg,
               color: wfColor?.fg,
@@ -154,21 +154,21 @@ export default function CommentItem({
         )}
 
         {editing ? (
-          <div className="mt-2">
+          <div className="mt-2.5">
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               rows={Math.max(2, draft.split("\n").length)}
-              className="block w-full resize-y rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
+              className="block w-full resize-y rounded-md border border-line bg-surface px-2 py-1 text-xs leading-relaxed text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
             />
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSaveEdit}
                 disabled={saving || !draft.trim()}
-                className="inline-flex items-center gap-1 min-h-tap rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40"
+                className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40"
               >
-                <Check aria-hidden size={14} />
+                <Check aria-hidden size={12} />
                 {saving ? t("composer.saving") : t("comments.saveEdit")}
               </button>
               <button
@@ -177,15 +177,15 @@ export default function CommentItem({
                   setDraft(comment.body);
                   setEditing(false);
                 }}
-                className="inline-flex items-center gap-1 min-h-tap rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+                className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted hover:text-ink"
               >
-                <X aria-hidden size={14} />
+                <X aria-hidden size={12} />
                 {t("comments.cancel")}
               </button>
             </div>
           </div>
         ) : (
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink">
+          <p className="mt-2.5 pb-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-ink">
             {splitBodyByMentions(comment.body).map((part, i) =>
               part.kind === "text" ? (
                 <span key={i}>{part.text}</span>
@@ -207,7 +207,7 @@ export default function CommentItem({
 
         {/* Attachments — images grid */}
         {!editing && (comment.attachmentImages?.length ?? 0) > 0 && (
-          <ul className="mt-2 grid grid-cols-3 gap-2">
+          <ul className="mt-2 grid grid-cols-3 gap-2 border-t border-line pt-2">
             {comment.attachmentImages!.map((img, i) => (
               <li key={img.id ?? i}>
                 <button
@@ -232,7 +232,7 @@ export default function CommentItem({
 
         {/* Attachments — links list */}
         {!editing && (comment.attachmentLinks?.length ?? 0) > 0 && (
-          <ul className="mt-2 flex flex-col gap-1">
+          <ul className="mt-2 flex flex-col gap-1 border-t border-line pt-2">
             {comment.attachmentLinks!.map((url, i) => (
               <li key={i}>
                 <a
@@ -261,12 +261,12 @@ export default function CommentItem({
 
         {/* Actions — only for author */}
         {isAuthor && !editing && (
-          <footer className="mt-2 flex items-center gap-1">
+          <footer className="mt-2 flex items-center gap-1 border-t border-line pt-2">
             <button
               type="button"
               onClick={() => setEditing(true)}
               aria-label={t("comments.edit")}
-              className="inline-flex items-center gap-1 min-h-tap rounded-md px-2 py-1 text-xs text-ink-subtle hover:text-ink hover:bg-bg-subtle"
+              className="inline-flex items-center gap-1 h-7 rounded-md px-1.5 text-[11px] text-ink-subtle hover:text-ink hover:bg-bg-subtle"
             >
               <Pencil aria-hidden size={12} />
               {t("comments.edit")}
@@ -275,7 +275,7 @@ export default function CommentItem({
               type="button"
               onClick={handleDelete}
               aria-label={t("comments.delete")}
-              className="inline-flex items-center gap-1 min-h-tap rounded-md px-2 py-1 text-xs text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
+              className="inline-flex items-center gap-1 h-7 rounded-md px-1.5 text-[11px] text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
             >
               <Trash2 aria-hidden size={12} />
               {t("comments.delete")}

@@ -3,7 +3,8 @@ import { MapPin, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
-import { LOCATIONS, locationsByGroup } from "@/lib/locations";
+import { locationsByGroup } from "@/lib/locations";
+import { useLocations } from "@/hooks/useLocations";
 import { useT } from "@/i18n/useT";
 import type { Category, Task } from "@/types";
 
@@ -20,6 +21,7 @@ export default function Lokace() {
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
+  const { locations } = useLocations(Boolean(user));
   const [params, setParams] = useSearchParams();
   const view: HomeView = (params.get("view") as HomeView | null) ?? "lokace";
 
@@ -66,7 +68,7 @@ export default function Lokace() {
       )}
 
       {!loading && !error && view === "lokace" && (
-        <LocationsGrid tasks={tasks} />
+        <LocationsGrid tasks={tasks} locations={locations} />
       )}
 
       {!loading && !error && view === "kategorie" && (
@@ -108,10 +110,10 @@ function ViewTab({
 
 // ---- Locations grid (V2 content) ----
 
-function LocationsGrid({ tasks }: { tasks: Task[] }) {
+function LocationsGrid({ tasks, locations }: { tasks: Task[]; locations: import("@/types").Location[] }) {
   const t = useT();
-  const counts = buildOpenCountsByLocation(tasks);
-  const groups = locationsByGroup();
+  const counts = buildOpenCountsByLocation(tasks, locations);
+  const groups = locationsByGroup(locations);
 
   return (
     <div aria-label={t("aria.lokaceGrid")} className="mt-4 flex flex-col gap-6">
@@ -156,14 +158,14 @@ function LocationsGrid({ tasks }: { tasks: Task[] }) {
   );
 }
 
-function buildOpenCountsByLocation(tasks: Task[]): Map<string, number> {
+function buildOpenCountsByLocation(tasks: Task[], locations: import("@/types").Location[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const t of tasks) {
     if (t.status === "Hotovo") continue;
     if (!t.locationId) continue;
     m.set(t.locationId, (m.get(t.locationId) ?? 0) + 1);
   }
-  for (const l of LOCATIONS) if (!m.has(l.id)) m.set(l.id, 0);
+  for (const l of locations) if (!m.has(l.id)) m.set(l.id, 0);
   return m;
 }
 

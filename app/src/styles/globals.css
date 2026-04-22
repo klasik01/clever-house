@@ -120,7 +120,10 @@
   padding: 0.5rem 0.75rem;
   outline: none;
   color: var(--color-text-default);
-  line-height: var(--line-height-normal);
+  /* V7.2 — body text matches category / status chip scale (12px). The whole
+     detail page reads as one consistent scale that way. */
+  font-size: 0.75rem;
+  line-height: 1.55;
   word-break: break-word;
 }
 
@@ -133,16 +136,16 @@
   margin: 0.25rem 0;
 }
 .cdv-editor .ProseMirror h1 {
-  font-size: 1.375rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   margin: 0.75rem 0 0.25rem;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 .cdv-editor .ProseMirror h2 {
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   margin: 0.75rem 0 0.25rem;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 .cdv-editor .ProseMirror ul {
   list-style: disc;

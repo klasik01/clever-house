@@ -117,6 +117,12 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
+    // ------ Locations (V7: user-managed, OWNER-only writes) ------
+    match /locations/{locationId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
     // ------ Attachments (metadata legacy; binaries live in Firebase Storage) ------
     match /attachments/{attachmentId} {
       allow read: if isSignedIn();

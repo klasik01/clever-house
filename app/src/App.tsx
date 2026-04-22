@@ -13,6 +13,7 @@ import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
+import LokaceManage from "./routes/LokaceManage";
 import Ukoly from "./routes/Ukoly";
 import NewTask from "./routes/NewTask";
 import Zaznamy from "./routes/Zaznamy";
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
+          <Route path="/nastaveni/lokace" element={<LokaceManageForOwner />} />
           <Route path="/kategorie/:id" element={<KategorieDetailForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/prehled" element={<Navigate to="/ukoly" replace />} />
@@ -91,6 +93,16 @@ function ExportForOwner() {
     return <Navigate to="/ukoly" replace />;
   }
   return <Export />;
+}
+
+/** PM redirects away from `/nastaveni/lokace`. */
+function LokaceManageForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to="/ukoly" replace />;
+  }
+  return <LokaceManage />;
 }
 
 /** PM redirects away from `/kategorie`. */
