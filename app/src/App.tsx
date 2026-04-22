@@ -14,6 +14,8 @@ import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
 import LokaceManage from "./routes/LokaceManage";
+import Rozpocet from "./routes/Rozpocet";
+import Harmonogram from "./routes/Harmonogram";
 import Ukoly from "./routes/Ukoly";
 import NewTask from "./routes/NewTask";
 import Zaznamy from "./routes/Zaznamy";
@@ -42,6 +44,8 @@ export default function App() {
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />
           <Route path="/nastaveni/lokace" element={<LokaceManageForOwner />} />
+          <Route path="/rozpocet" element={<RozpocetForPm />} />
+          <Route path="/harmonogram" element={<HarmonogramForPm />} />
           <Route path="/kategorie/:id" element={<KategorieDetailForOwner />} />
           <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
           <Route path="/prehled" element={<Navigate to="/ukoly" replace />} />
@@ -93,6 +97,26 @@ function ExportForOwner() {
     return <Navigate to="/ukoly" replace />;
   }
   return <Export />;
+}
+
+/** OWNER redirects away from `/harmonogram` — PM-only feature for V11.1. */
+function HarmonogramForPm() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
+    return <Navigate to="/" replace />;
+  }
+  return <Harmonogram />;
+}
+
+/** OWNER redirects away from `/rozpocet` — PM-only feature for V11. */
+function RozpocetForPm() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
+    return <Navigate to="/" replace />;
+  }
+  return <Rozpocet />;
 }
 
 /** PM redirects away from `/nastaveni/lokace`. */

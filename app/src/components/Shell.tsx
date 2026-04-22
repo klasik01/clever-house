@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Notebook, Ellipsis, MapPin, Plus, ListChecks } from "lucide-react";
+import { Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -63,39 +63,45 @@ function BottomTabs({ role }: { role: UserRole }) {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {!isPm && (
-          <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.seznam")} />
-        )}
-        {!isPm && (
-          <Tab
-            to="/zaznamy"
-            icon={<Notebook aria-hidden size={20} />}
-            label={t("tabs.zaznamy")}
-          />
-        )}
-        <FabCell />
-        {!isPm && (
-          <Tab
-            to="/ukoly"
-            icon={<ListChecks aria-hidden size={20} />}
-            label={t("tabs.ukoly")}
-            badge={ballOnMe}
-          />
-        )}
-        {isPm && (
-          <Tab
-            to="/zaznamy"
-            icon={<Notebook aria-hidden size={20} />}
-            label={t("tabs.zaznamy")}
-          />
-        )}
-        {isPm && (
-          <Tab
-            to="/ukoly"
-            icon={<ListChecks aria-hidden size={20} />}
-            label={t("tabs.ukoly")}
-            badge={ballOnMe}
-          />
+        {!isPm ? (
+          <>
+            {/* OWNER nav: Seznam / Záznamy · FAB · Úkoly / Nastavení */}
+            <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.seznam")} />
+            <Tab
+              to="/zaznamy"
+              icon={<Notebook aria-hidden size={20} />}
+              label={t("tabs.zaznamy")}
+            />
+            <FabCell />
+            <Tab
+              to="/ukoly"
+              icon={<ListChecks aria-hidden size={20} />}
+              label={t("tabs.ukoly")}
+              badge={ballOnMe}
+            />
+          </>
+        ) : (
+          <>
+            {/* PM nav: Rozpočet · Záznamy · FAB · Úkoly / Nastavení.
+                Layout: [Rozpočet] [Záznamy] [⊕] [Úkoly] · [Nastavení]. */}
+            <Tab
+              to="/harmonogram"
+              icon={<CalendarDays aria-hidden size={20} />}
+              label={t("tabs.harmonogram")}
+            />
+            <Tab
+              to="/zaznamy"
+              icon={<Notebook aria-hidden size={20} />}
+              label={t("tabs.zaznamy")}
+            />
+            <FabCell />
+            <Tab
+              to="/ukoly"
+              icon={<ListChecks aria-hidden size={20} />}
+              label={t("tabs.ukoly")}
+              badge={ballOnMe}
+            />
+          </>
         )}
         <Tab
           to="/nastaveni"

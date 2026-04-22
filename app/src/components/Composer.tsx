@@ -18,16 +18,21 @@ interface Props {
     imageFiles: File[],
     linkUrls: string[]
   ) => Promise<void> | void;
+  /**
+   * When set, the type toggle is hidden and every save uses this type.
+   * Used by PM's /novy flow — PM can only create úkoly, never nápady.
+   */
+  lockedType?: TaskType;
 }
 
 const MAX_COMPOSER_IMAGES = 10;
 
-export default function Composer({ onSave }: Props) {
+export default function Composer({ onSave, lockedType }: Props) {
   const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState<string>(() => loadDraft());
-  const [type, setType] = useState<TaskType>("napad");
+  const [type, setType] = useState<TaskType>(lockedType ?? "napad");
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
   const [linkUrls, setLinkUrls] = useState<string[]>([]);
   const [lastReturnAt, setLastReturnAt] = useState<number>(0);
@@ -114,7 +119,7 @@ export default function Composer({ onSave }: Props) {
       await onSave(trimmed, type, stagedImages.map((s) => s.file), linkUrls);
       setValue("");
       saveDraft("");
-      setType("napad");
+      setType(lockedType ?? "napad");
       clearAllImages();
       setLinkUrls([]);
       setJustSaved(true);
@@ -157,14 +162,16 @@ export default function Composer({ onSave }: Props) {
   return (
     <section aria-label={t("aria.quickCapture")} className="mx-auto max-w-xl px-4 pt-3 pb-2">
       <div className="rounded-lg bg-surface shadow-sm ring-1 ring-line focus-within:ring-line-focus transition-colors">
-        <div
-          role="group"
-          aria-label={t("composer.typeToggleLabel")}
-          className="flex items-center gap-1 border-b border-line bg-bg-subtle/60 p-1 rounded-t-lg"
-        >
-          <TypePill active={type === "napad"} onClick={() => setType("napad")} label={t("composer.typeNapad")} />
-          <TypePill active={type === "otazka"} onClick={() => setType("otazka")} label={t("composer.typeOtazka")} />
-        </div>
+        {!lockedType && (
+          <div
+            role="group"
+            aria-label={t("composer.typeToggleLabel")}
+            className="flex items-center gap-1 border-b border-line bg-bg-subtle/60 p-1 rounded-t-lg"
+          >
+            <TypePill active={type === "napad"} onClick={() => setType("napad")} label={t("composer.typeNapad")} />
+            <TypePill active={type === "otazka"} onClick={() => setType("otazka")} label={t("composer.typeOtazka")} />
+          </div>
+        )}
 
         <label htmlFor="composer-textarea" className="sr-only">{placeholder}</label>
         <textarea

@@ -14,7 +14,9 @@
     "seznam": "Seznam",
     "zaznamy": "Záznamy",
     "prehled": "Přehled",
-    "ukoly": "Úkoly"
+    "ukoly": "Úkoly",
+    "rozpocet": "Rozpočet",
+    "harmonogram": "Harmonogram"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -29,7 +31,7 @@
     "typeToggleLabel": "Typ záznamu",
     "typeNapad": "Nápad",
     "typeOtazka": "Úkol",
-    "placeholderOtazka": "Na co se chceš zeptat Projektanta?",
+    "placeholderOtazka": "Co je potřeba řešit?",
     "attachPreview": "Náhled připojeného obrázku",
     "removeAttachment": "Odebrat přílohu",
     "uploadFailed": "Nahrávání obrázku selhalo. Task je uložen bez přílohy.",
@@ -83,6 +85,11 @@
     "locationsManage": "Lokace",
     "export": "Export do PDF",
     "install": "Instalace",
+    "todoTitle": "Pracuje se na",
+    "todoHint": "Funkce jsou rozpracované, přijdou v další verzi.",
+    "todoRozpocet": "Rozpočet a cenové nabídky",
+    "todoHarmonogram": "Harmonogram prací",
+    "todoNotifikace": "Notifikace",
     "prehledCard": {
       "title": "Přehled",
       "hint": "Čeká na mě, po termínu, uvízlé."
@@ -211,6 +218,14 @@
     "ownerAll": "Všechny",
     "sectionBallOnMe": "Na tobě",
     "sectionOther": "Ostatní"
+  },
+  "harmonogram": {
+    "pageTitle": "Harmonogram prací",
+    "comingSoon": "Tady uvidíš, co se právě dělá a co je naplánované. Teď se na tom pracuje."
+  },
+  "rozpocet": {
+    "pageTitle": "Rozpočet",
+    "comingSoon": "Tady budou cenové nabídky od dodavatelů. Zatím nic."
   },
   "filter": {
     "all": "Vše",
@@ -442,7 +457,9 @@
   },
   "novy": {
     "pageTitle": "Nový záznam",
-    "pageHint": "Zapiš nápad nebo otázku. Po uložení doplníš detaily."
+    "pageTitlePm": "Nový úkol",
+    "pageHint": "Zapiš nápad nebo úkol. Po uložení doplníš detaily.",
+    "pageHintPm": "Zapiš úkol pro tým. Po uložení doplníš detaily."
   },
   "home": {
     "viewToggleLabel": "Přepnout zobrazení"

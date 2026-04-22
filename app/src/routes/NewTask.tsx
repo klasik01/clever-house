@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Composer from "@/components/Composer";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/components/Toast";
 import { createTaskFromComposerInput } from "@/lib/createTaskFromComposerInput";
 import type { TaskType } from "@/types";
@@ -16,6 +17,13 @@ import type { TaskType } from "@/types";
 export default function NewTask() {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  const isPm =
+    roleState.status === "ready" &&
+    roleState.profile.role === "PROJECT_MANAGER";
+  // V10 — PM may only create úkoly. Lock the composer type so the toggle
+  // disappears entirely for PM.
+  const lockedType: TaskType | undefined = isPm ? "otazka" : undefined;
   const { show: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -54,11 +62,13 @@ export default function NewTask() {
           <ArrowLeft aria-hidden size={20} />
         </button>
         <h2 id="novy-heading" className="text-xl font-semibold tracking-tight text-ink">
-          {t("novy.pageTitle")}
+          {t(isPm ? "novy.pageTitlePm" : "novy.pageTitle")}
         </h2>
       </header>
-      <p className="mb-4 text-sm text-ink-muted">{t("novy.pageHint")}</p>
-      <Composer onSave={onSave} />
+      <p className="mb-4 text-sm text-ink-muted">
+        {t(isPm ? "novy.pageHintPm" : "novy.pageHint")}
+      </p>
+      <Composer onSave={onSave} lockedType={lockedType} />
     </section>
   );
 }
