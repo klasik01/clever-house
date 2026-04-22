@@ -15,7 +15,8 @@
     "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",

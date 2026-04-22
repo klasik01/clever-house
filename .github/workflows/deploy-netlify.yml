@@ -1,0 +1,87 @@
+name: Deploy · Netlify (production, main)
+
+# Manual production deploy to Netlify. Only runs from the `main` branch.
+# The `environment: production` block lets you add required reviewers /
+# secrets via GitHub Environments for extra protection.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-netlify-prod
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard (main only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse if not on main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Production Netlify deploy can only be dispatched from the 'main' branch (current: ${{ github.ref }})"
+            exit 1
+          fi
+
+  deploy:
+    name: Build + Netlify deploy
+    needs: guard
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.netlify.outputs.deploy-url }}
+    defaults:
+      run:
+        working-directory: ./app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Netlify hosts the app at the domain root — no base path.
+          VITE_BASE_PATH: /
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
+      - name: Deploy to Netlify (production)
+        id: netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: app/dist
+          production-deploy: true
+          deploy-message: "Deploy ${{ github.sha }} from ${{ github.ref_name }}"
+          enable-pull-request-comment: false
+          enable-commit-comment: false
+          github-deployment-environment: production
+          fails-without-credentials: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
