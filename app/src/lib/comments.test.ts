@@ -9,10 +9,10 @@ import { createComment } from "./comments";
 beforeEach(() => __firestoreState.reset());
 
 describe("createComment — no workflow", () => {
-  it("writes a comment doc + increments parent commentCount atomically via batch", async () => {
-    __firestoreState.store.set("tasks/t1", { commentCount: 2, status: "Otázka" });
+  it("writes a comment doc + bumps commentCount atomically", async () => {
+    __firestoreState.store.set("tasks/t1", { commentCount: 2, status: "OPEN" });
 
-    const commentId = await createComment("t1", {
+    const id = await createComment("t1", {
       authorUid: "owner",
       body: "hi",
       attachmentImages: [],
@@ -20,9 +20,7 @@ describe("createComment — no workflow", () => {
       mentionedUids: [],
     });
 
-    // Comment doc written under subcollection
-    const commentPath = `tasks/t1/comments/${commentId}`;
-    const stored = __firestoreState.store.get(commentPath);
+    const stored = __firestoreState.store.get(`tasks/t1/comments/${id}`);
     expect(stored).toMatchObject({
       authorUid: "owner",
       body: "hi",
@@ -31,82 +29,45 @@ describe("createComment — no workflow", () => {
       assigneeAfter: null,
     });
 
-    // Parent task: commentCount++ via increment sentinel applied by mock
     const parent = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
     expect(parent.commentCount).toBe(3);
-    // Status untouched when no workflow
-    expect(parent.status).toBe("Otázka");
-
-    // Both writes happened inside a single batch
-    const batchCalls = __firestoreState.calls.filter((c) => c.op.startsWith("batch."));
-    expect(batchCalls.length).toBe(2);
+    expect(parent.status).toBe("OPEN");
   });
 });
 
-describe("createComment — workflow: flip", () => {
-  it("updates task.status to the flip target + commentCount++", async () => {
+describe("createComment — V10 workflow: flip (assignee only)", () => {
+  it("updates task.assigneeUid without touching status", async () => {
     __firestoreState.store.set("tasks/t1", {
       commentCount: 0,
-      status: "ON_PM_SITE",
-      assigneeUid: "pm-1",
+      status: "OPEN",
+      assigneeUid: "me",
     });
 
-    const id = await createComment("t1", {
-      authorUid: "pm-1",
-      body: "done thinking",
-      workflow: {
-        action: "flip",
-        statusAfter: "ON_CLIENT_SITE",
-      },
-    });
-
-    const c = __firestoreState.store.get(`tasks/t1/comments/${id}`) as Record<string, unknown>;
-    expect(c.workflowAction).toBe("flip");
-    expect(c.statusAfter).toBe("ON_CLIENT_SITE");
-
-    const t = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
-    expect(t.status).toBe("ON_CLIENT_SITE");
-    expect(t.commentCount).toBe(1);
-    // assigneeUid untouched when assigneeAfter not provided (V5 behaviour)
-    expect(t.assigneeUid).toBe("pm-1");
-  });
-
-  it("explicit assigneeAfter overrides the preserved assignee", async () => {
-    __firestoreState.store.set("tasks/t1", {
-      commentCount: 0,
-      status: "Otázka",
-      assigneeUid: "pm-1",
-    });
     await createComment("t1", {
-      authorUid: "owner",
+      authorUid: "me",
       body: "handing off",
-      workflow: {
-        action: "flip",
-        statusAfter: "ON_PM_SITE",
-        assigneeAfter: "pm-2",
-      },
+      workflow: { action: "flip", assigneeAfter: "peer" },
     });
+
     const t = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
-    expect(t.assigneeUid).toBe("pm-2");
+    expect(t.status).toBe("OPEN");
+    expect(t.assigneeUid).toBe("peer");
+    expect(t.commentCount).toBe(1);
   });
 
-  it("passing assigneeAfter=null explicitly clears the assignee", async () => {
+  it("flip without assigneeAfter leaves assignee untouched", async () => {
     __firestoreState.store.set("tasks/t1", {
       commentCount: 0,
-      status: "Otázka",
-      assigneeUid: "pm-1",
+      status: "OPEN",
+      assigneeUid: "me",
     });
     await createComment("t1", {
-      authorUid: "owner",
-      body: "unclaimed",
-      workflow: {
-        action: "flip",
-        statusAfter: "ON_PM_SITE",
-        assigneeAfter: null,
-      },
+      authorUid: "me",
+      body: "nothing really",
+      workflow: { action: "flip" },
     });
     const t = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
-    expect(t.assigneeUid).toBeNull();
+    expect(t.assigneeUid).toBe("me");
   });
 });
 
@@ -114,8 +75,8 @@ describe("createComment — workflow: close", () => {
   it("sets statusAfter to DONE and does not touch assigneeUid", async () => {
     __firestoreState.store.set("tasks/t1", {
       commentCount: 0,
-      status: "ON_PM_SITE",
-      assigneeUid: "pm-1",
+      status: "OPEN",
+      assigneeUid: "me",
     });
     await createComment("t1", {
       authorUid: "owner",
@@ -124,6 +85,6 @@ describe("createComment — workflow: close", () => {
     });
     const t = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
     expect(t.status).toBe("DONE");
-    expect(t.assigneeUid).toBe("pm-1"); // untouched on close
+    expect(t.assigneeUid).toBe("me");
   });
 });

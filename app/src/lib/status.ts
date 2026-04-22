@@ -2,19 +2,19 @@ import type { TaskStatus, TaskType } from "@/types";
 import type { TFn } from "@/i18n/useT";
 
 /**
- * V5 — canonical status set for otázka.
+ * V10 — canonical status set for úkoly (otázky).
  *
- * ON_CLIENT_SITE — the ball is on the owner (client). Translations differ by
- *                  viewer role: OWNER sees "K vyjádření", PM sees "Čeká na klienta".
- * ON_PM_SITE     — the ball is on the project manager. OWNER sees
- *                  "Na projektantovi", PM sees "K řešení".
- * BLOCKED        — externally blocked; nobody can move it right now.
- * CANCELED       — withdrawn; no further action expected.
- * DONE           — resolved.
+ * V10 collapsed the V5 role-based model (ON_CLIENT_SITE / ON_PM_SITE) into a
+ * single active state + three terminal ones. "Kdo to řeší" lives in
+ * `task.assigneeUid` now, not in the status.
+ *
+ * OPEN     — úkol se aktivně řeší. Assignee = řešitel.
+ * BLOCKED  — externě blokováno (např. čeká se na 3. stranu).
+ * CANCELED — stornováno, žádná akce se neočekává.
+ * DONE     — vyřešeno.
  */
 export type OtazkaStatusCanonical =
-  | "ON_CLIENT_SITE"
-  | "ON_PM_SITE"
+  | "OPEN"
   | "BLOCKED"
   | "CANCELED"
   | "DONE";
@@ -22,8 +22,7 @@ export type OtazkaStatusCanonical =
 export type NapadStatus = "Nápad" | "Rozhodnuto" | "Ve stavbě" | "Hotovo";
 
 export const OTAZKA_STATUSES: OtazkaStatusCanonical[] = [
-  "ON_PM_SITE",
-  "ON_CLIENT_SITE",
+  "OPEN",
   "BLOCKED",
   "CANCELED",
   "DONE",
@@ -37,46 +36,45 @@ export const NAPAD_STATUSES: NapadStatus[] = [
 ];
 
 /**
- * Map legacy otázka status values (from pre-V5 Firestore records) onto the new
- * canonical set. Called at read sites — no destructive DB migration.
+ * Map a legacy otázka status value onto the V10 canonical set.
  *
- *   "Otázka"     → ON_PM_SITE      (ball was on assignee / PM)
- *   "Čekám"      → ON_CLIENT_SITE  (ball was on OWNER awaiting info)
- *   "Rozhodnuto" → DONE            (rolled up — legacy "decided" is basically closed)
- *   "Ve stavbě"  → DONE            (same — work has moved on)
- *   "Hotovo"     → DONE
+ *   "Otázka", "Čekám"                       → OPEN   (active, pre-V5 two-state)
+ *   "ON_CLIENT_SITE", "ON_PM_SITE"           → OPEN   (active, V5 role-based)
+ *   "Rozhodnuto", "Ve stavbě", "Hotovo"      → DONE
+ *   "BLOCKED", "CANCELED", "DONE"             pass-through
+ *   "OPEN"                                    pass-through
  *
- * Already-canonical values pass through. Nápad values are returned untouched
- * because nápad keeps its own workflow — callers should gate on task.type first.
+ * Never destructive — only transforms for read/render; writes use the new
+ * canonical values directly.
  */
 export function mapLegacyOtazkaStatus(s: TaskStatus): OtazkaStatusCanonical {
   switch (s) {
-    case "ON_CLIENT_SITE":
-    case "ON_PM_SITE":
+    case "OPEN":
     case "BLOCKED":
     case "CANCELED":
     case "DONE":
       return s;
+    case "ON_PM_SITE":
+    case "ON_CLIENT_SITE":
     case "Otázka":
-      return "ON_PM_SITE";
     case "Čekám":
-      return "ON_CLIENT_SITE";
+      return "OPEN";
     case "Rozhodnuto":
     case "Ve stavbě":
     case "Hotovo":
       return "DONE";
     case "Nápad":
     default:
-      // Should never happen for type=otazka, but default to ON_PM_SITE so the
-      // task doesn't visually disappear.
-      return "ON_PM_SITE";
+      // Nápad never reaches here for a type=otazka task — fall back to OPEN
+      // so the task doesn’t visually disappear.
+      return "OPEN";
   }
 }
 
 /**
  * Returns the canonical status for any task, branching on type.
  * For nápad the raw value is returned unchanged; for otázka the legacy mapper
- * normalises old records to V5 values.
+ * normalises older records to V10 values.
  */
 export function canonicalStatus(
   type: TaskType,
@@ -91,26 +89,36 @@ export function isOtazkaCanonical(s: TaskStatus): s is OtazkaStatusCanonical {
 }
 
 /**
- * Render a per-role Czech label for any (canonical) status.
- *
- * - ON_CLIENT_SITE and ON_PM_SITE have two i18n keys each: `.owner` / `.pm`.
- * - BLOCKED / CANCELED / DONE are role-agnostic.
- * - Legacy otazka values are mapped first.
- * - Nápad statuses fall back to the existing flat `status.*` keys.
+ * V10 — ball-on-me = assigneeUid points at `uid` and the úkol is still OPEN.
+ * Legacy records without assigneeUid fall back to createdBy so the original
+ * author keeps the ball until they explicitly pass it on.
+ */
+export function isBallOnMe(
+  task: { type: TaskType; status: TaskStatus; assigneeUid?: string | null; createdBy: string },
+  uid: string | undefined,
+): boolean {
+  if (!uid) return false;
+  if (task.type !== "otazka") return false;
+  if (canonicalStatus(task.type, task.status) !== "OPEN") return false;
+  const assigned = task.assigneeUid ?? task.createdBy;
+  return assigned === uid;
+}
+
+/**
+ * Render a Czech label for any status. V10 status labels are role-agnostic
+ * (assignee drives ownership, not role). Legacy values go through the mapper
+ * first so old records still read correctly.
  */
 export function statusLabel(
   t: TFn,
   status: TaskStatus,
-  opts: { isPm: boolean; type?: TaskType } = { isPm: false },
+  opts: { isPm?: boolean; type?: TaskType } = {},
 ): string {
-  const { isPm, type } = opts;
-  // If we know it is otázka, normalise legacy values first.
+  const { type } = opts;
   const s = type === "otazka" ? mapLegacyOtazkaStatus(status) : status;
   switch (s) {
-    case "ON_CLIENT_SITE":
-      return t(isPm ? "statusOtazka.ON_CLIENT_SITE.pm" : "statusOtazka.ON_CLIENT_SITE.owner");
-    case "ON_PM_SITE":
-      return t(isPm ? "statusOtazka.ON_PM_SITE.pm" : "statusOtazka.ON_PM_SITE.owner");
+    case "OPEN":
+      return t("statusOtazka.OPEN");
     case "BLOCKED":
       return t("statusOtazka.BLOCKED");
     case "CANCELED":
@@ -118,7 +126,7 @@ export function statusLabel(
     case "DONE":
       return t("statusOtazka.DONE");
     default:
-      // Nápad flat keys + legacy otazka values when type is unknown
+      // Nápad flat keys fall through.
       return t(`status.${s}`);
   }
 }

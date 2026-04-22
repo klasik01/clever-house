@@ -42,13 +42,11 @@ export default function Zaznamy() {
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
 
+  // V10: OWNER sees every OWNER's napady (workspace = household).
+  // PM sees only those explicitly shared via `sharedWithPm`. Firestore rules
+  // now enforce this on read — the client filter is defensive.
   const napady = tasks.filter((tk) => {
     if (tk.type !== "napad") return false;
-    // OWNER-created: always visible for OWNER; for PM only if shared.
-    // The backing useTasks hook already filters by Firestore rules, so this
-    // client-side check primarily guards OWNER-side against glimpsing a
-    // transiently-unshared record (belt + suspenders).
-    if (tk.createdBy !== user?.uid && !tk.sharedWithPm) return false;
     return true;
   });
 

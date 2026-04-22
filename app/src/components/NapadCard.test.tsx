@@ -10,45 +10,49 @@ vi.mock("@/hooks/useAuth", () => ({
 vi.mock("@/hooks/useUsers", () => ({
   useUsers: () => ({ users: [], byUid: new Map(), loading: false }),
 }));
-vi.mock("@/hooks/useUserRole", () => ({
-  useUserRole: () => ({ status: "ready", profile: { uid: "owner-1", email: "o@x", role: "OWNER", displayName: "Owner" } }),
-}));
 
 const base: Task = {
   id: "t1",
   type: "otazka",
   title: "Jak zapojit rozvaděč?",
   body: "",
-  status: "ON_CLIENT_SITE",
+  status: "OPEN",
+  assigneeUid: "owner-1",
   createdAt: "2026-04-10T10:00:00.000Z",
   updatedAt: "2026-04-10T10:00:00.000Z",
   createdBy: "owner-1",
 } as Task;
 
-describe("NapadCard", () => {
+describe("NapadCard (V10)", () => {
   it("renders the title", () => {
     renderWithProviders(<NapadCard task={base} />);
     expect(screen.getByText(/Jak zapojit rozvaděč/)).toBeInTheDocument();
   });
 
-  it("applies ball-on-me border (accent) when OWNER + ON_CLIENT_SITE", () => {
+  it("applies ball-on-me border when assigneeUid === current user", () => {
     const { container } = renderWithProviders(<NapadCard task={base} />);
     const link = container.querySelector("a");
     expect(link?.className).toMatch(/border-l-4/);
     expect(link?.className).toMatch(/border-accent/);
   });
 
-  it("applies the danger border when the task is overdue", () => {
+  it("no ball-on-me border when assigneeUid is someone else", () => {
+    const other = { ...base, assigneeUid: "someone-else" } as Task;
+    const { container } = renderWithProviders(<NapadCard task={other} />);
+    const link = container.querySelector("a");
+    expect(link?.className).not.toMatch(/border-accent/);
+  });
+
+  it("applies the danger border when the úkol is overdue", () => {
     const yesterday = Date.now() - 2 * 24 * 60 * 60 * 1000;
     const overdue = { ...base, deadline: yesterday } as Task;
     const { container } = renderWithProviders(<NapadCard task={overdue} />);
     const link = container.querySelector("a");
     expect(link?.className).toMatch(/border-l-4/);
-    // Inline style points at the danger token
     expect(link?.getAttribute("style") ?? "").toContain("color-status-danger-fg");
   });
 
-  it("no border when type=napad and nothing special", () => {
+  it("no border when type=napad", () => {
     const napad = { ...base, type: "napad", status: "Nápad" } as Task;
     const { container } = renderWithProviders(<NapadCard task={napad} />);
     const link = container.querySelector("a");

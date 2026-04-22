@@ -135,13 +135,8 @@ function LokaceForOwner() {
   return <Lokace />;
 }
 
-/** PM redirects away from `/novy`. */
+/** V10 — both OWNER and PM can create tasks. (Kept wrapper name for callsite stability.) */
 function NewTaskForOwner() {
-  const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
-  }
   return <NewTask />;
 }
 

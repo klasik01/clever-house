@@ -59,12 +59,14 @@ export async function createComment(
     attachmentImages?: ImageAttachment[];
     attachmentLinks?: string[];
     mentionedUids?: string[];
-    /** V4 — workflow action to apply to parent task atomically with comment write. */
+    /** V4/V10 — workflow action to apply to parent task atomically with comment write.
+     *  V10: statusAfter is OPTIONAL on flip (assignee changes, status stays OPEN).
+     *  Close always carries statusAfter: "DONE". */
     workflow?: {
       action: "flip" | "close";
-      /** Next status for the task (e.g. "Otázka" after flip back, "Hotovo" on close). */
-      statusAfter: import("@/types").TaskStatus;
-      /** Next assigneeUid (null to clear). Only required when action === "flip". */
+      /** Next status for the task. Omit on flip to leave status untouched. */
+      statusAfter?: import("@/types").TaskStatus;
+      /** Next assigneeUid. Set on flip to route the ball; leave undefined to preserve. */
       assigneeAfter?: string | null;
     };
   }
@@ -82,7 +84,7 @@ export async function createComment(
     mentionedUids: input.mentionedUids ?? [],
     reactions: {},
     workflowAction: wf ? wf.action : null,
-    statusAfter: wf ? wf.statusAfter : null,
+    statusAfter: wf?.statusAfter ?? null,
     assigneeAfter: wf && wf.action === "flip" ? (wf.assigneeAfter ?? null) : null,
   });
   const taskPatch: Record<string, unknown> = {
@@ -90,11 +92,11 @@ export async function createComment(
     updatedAt: serverTimestamp(),
   };
   if (wf) {
-    taskPatch.status = wf.statusAfter;
-    // V5: assigneeAfter is now optional on flip. If the caller doesn't set it,
-    // leave the task's assigneeUid untouched — side is expressed via status,
-    // not via assignment. Pre-V5 callers that still pass an explicit (string or
-    // null) value continue to work.
+    // Status only changes if the caller explicitly asks. V10 flip keeps the
+    // úkol at OPEN and only moves assigneeUid; close sets DONE.
+    if (wf.statusAfter !== undefined) {
+      taskPatch.status = wf.statusAfter;
+    }
     if (wf.action === "flip" && wf.assigneeAfter !== undefined) {
       taskPatch.assigneeUid = wf.assigneeAfter;
     }

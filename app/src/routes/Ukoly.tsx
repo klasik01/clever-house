@@ -7,7 +7,6 @@ import PriorityFilterChip from "@/components/PriorityFilterChip";
 import StatusFilterChip from "@/components/StatusFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
 import {
@@ -19,7 +18,7 @@ import {
   saveCategoryFilter,
   saveLocationFilter,
 } from "@/lib/filters";
-import { mapLegacyOtazkaStatus } from "@/lib/status";
+import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus } from "@/lib/status";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
 
 const KEY = "ukoly";
@@ -34,11 +33,6 @@ const KEY = "ukoly";
 export default function Ukoly() {
   const t = useT();
   const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  const isPm =
-    roleState.status === "ready" &&
-    roleState.profile.role === "PROJECT_MANAGER";
-
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
@@ -52,23 +46,47 @@ export default function Ukoly() {
   );
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [status, setStatus] = useState<TaskStatus | null>(null);
+  // V10 — "Moje / Všechny" filter. Defaults to "mine" so the tab feels like
+  // a personal inbox; user can flip to "all" for cross-workspace view.
+  const [ownerMode, setOwnerMode] = useState<"mine" | "all">(() => {
+    try {
+      const v = sessionStorage.getItem("filter:ukoly:owner");
+      return v === "all" ? "all" : "mine";
+    } catch {
+      return "mine";
+    }
+  });
+  function setOwnerModePersist(next: "mine" | "all") {
+    setOwnerMode(next);
+    try { sessionStorage.setItem("filter:ukoly:owner", next); } catch { /* ignore */ }
+  }
 
   const isFilterActive =
     categoryId !== null ||
     locationId !== null ||
     priority !== null ||
-    status !== null;
+    status !== null ||
+    ownerMode !== "mine";
 
   function handleReset() {
     setCategoryId(null);
     setLocationId(null);
     setPriority(null);
     setStatus(null);
+    setOwnerModePersist("mine");
     clearAllFilters(KEY);
   }
 
-  // 1. Narrow to otázky.
-  const otazky = tasks.filter((tk) => tk.type === "otazka");
+  // 1. Narrow to otázky, optionally constrained to "mine" (assigned to me
+  //    or — for legacy records without assigneeUid — created by me).
+  const otazky = tasks.filter((tk) => {
+    if (tk.type !== "otazka") return false;
+    if (ownerMode === "mine") {
+      const assigned = tk.assigneeUid ?? tk.createdBy;
+      return assigned === user?.uid;
+    }
+    return true;
+  });
 
   // 2. Apply status (V5 canonical; legacy Otázka/Čekám mapped on the fly).
   const byStatus = status
@@ -84,12 +102,11 @@ export default function Ukoly() {
   const filtered = applyLocation(applyCategory(byPriority, categoryId), locationId);
 
   // 5. Split into ball-on-me + rest; sort each by updatedAt DESC. Concat with
-  //    ball-on-me first so NapadCard's highlight lines up with list position.
-  const mySide: TaskStatus = isPm ? "ON_PM_SITE" : "ON_CLIENT_SITE";
+  //    ball-on-me first so NapadCard’s highlight lines up with list position.
   const ballOnMe: Task[] = [];
   const rest: Task[] = [];
   for (const tk of filtered) {
-    if (mapLegacyOtazkaStatus(tk.status) === mySide) ballOnMe.push(tk);
+    if (isBallOnMeV10(tk, user?.uid)) ballOnMe.push(tk);
     else rest.push(tk);
   }
   const byUpdated = (a: Task, b: Task) =>
@@ -114,7 +131,8 @@ export default function Ukoly() {
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
-        <StatusFilterChip value={status} onChange={setStatus} isPm={isPm} />
+        <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
+        <StatusFilterChip value={status} onChange={setStatus} />
         <PriorityFilterChip value={priority} onChange={setPriority} />
         <CategoryFilterChip
           value={categoryId}
@@ -156,5 +174,51 @@ export default function Ukoly() {
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * V10 — tiny pill toggle. "Moje" = my úkoly (assignee me); "Všechny" = full
+ * workspace list (useful when coordinating with wife / PM).
+ */
+function OwnerModeChip({
+  value,
+  onChange,
+}: {
+  value: "mine" | "all";
+  onChange: (next: "mine" | "all") => void;
+}) {
+  const t = useT();
+  return (
+    <div role="radiogroup" aria-label={t("ukoly.filterOwnerAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value === "mine"}
+        onClick={() => onChange("mine")}
+        className={[
+          "min-h-tap px-3 py-1.5 text-sm font-medium",
+          value === "mine"
+            ? "bg-accent text-accent-on"
+            : "bg-transparent text-ink-muted hover:text-ink",
+        ].join(" ")}
+      >
+        {t("ukoly.ownerMine")}
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value === "all"}
+        onClick={() => onChange("all")}
+        className={[
+          "min-h-tap px-3 py-1.5 text-sm font-medium border-l border-line",
+          value === "all"
+            ? "bg-accent text-accent-on"
+            : "bg-transparent text-ink-muted hover:text-ink",
+        ].join(" ")}
+      >
+        {t("ukoly.ownerAll")}
+      </button>
+    </div>
   );
 }

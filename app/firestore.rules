@@ -58,9 +58,13 @@ service cloud.firestore {
       //   list: any signed-in user can list; client-side filters napady by sharedWithPm.
       //   get:  per-document enforcement (direct /t/:id fetches gated here).
       allow list: if isSignedIn();
+      // V10: every OWNER sees every OWNER's napady (workspace = one household).
+      //      Otazky are shared across the whole workspace. Napady shared with PM
+      //      stay visible to PM regardless of OWNER role.
       allow get:  if isSignedIn() && (
         resource.data.createdBy == request.auth.uid
         || resource.data.type == 'otazka'
+        || (resource.data.type == 'napad' && isOwner())
         || (resource.data.type == 'napad' && resource.data.sharedWithPm == true)
       );
 

@@ -4,40 +4,35 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/render";
 import StatusSelect from "./StatusSelect";
 
-describe("StatusSelect", () => {
-  it("shows only V5 canonical otazka statuses when type=otazka", () => {
+describe("StatusSelect (V10)", () => {
+  it("shows the 4 canonical otazka statuses (OPEN/BLOCKED/CANCELED/DONE)", () => {
     renderWithProviders(
-      <StatusSelect value="ON_PM_SITE" type="otazka" onChange={() => {}} />,
-    );
-    // The role="radio" options should cover the 5 canonical statuses.
-    const radios = screen.getAllByRole("radio");
-    expect(radios.length).toBe(5);
-  });
-
-  it("shows napad statuses when type=napad", () => {
-    renderWithProviders(
-      <StatusSelect value="Nápad" type="napad" onChange={() => {}} />,
+      <StatusSelect value="OPEN" type="otazka" onChange={() => {}} />,
     );
     const radios = screen.getAllByRole("radio");
     expect(radios.length).toBe(4);
-    expect(screen.getByText("Nápad")).toBeInTheDocument();
-    expect(screen.getByText("Rozhodnuto")).toBeInTheDocument();
   });
 
-  it("normalises legacy otazka value when rendering", () => {
+  it("shows napad statuses when type=napad (unchanged)", () => {
     renderWithProviders(
-      <StatusSelect value="Otázka" type="otazka" onChange={() => {}} isPm={false} />,
+      <StatusSelect value="Nápad" type="napad" onChange={() => {}} />,
     );
-    // "Otázka" maps to ON_PM_SITE which for OWNER reads "Na projektantovi".
-    const label = screen.getByText("Na projektantovi");
-    const active = label.closest("button");
-    expect(active).toHaveAttribute("aria-checked", "true");
+    expect(screen.getAllByRole("radio").length).toBe(4);
+    expect(screen.getByText("Nápad")).toBeInTheDocument();
+  });
+
+  it("normalises legacy ON_PM_SITE → OPEN aria-checked", () => {
+    renderWithProviders(
+      <StatusSelect value="ON_PM_SITE" type="otazka" onChange={() => {}} />,
+    );
+    const open = screen.getByText("Otevřený").closest("button");
+    expect(open).toHaveAttribute("aria-checked", "true");
   });
 
   it("fires onChange with the clicked status value", async () => {
     const fn = vi.fn();
     renderWithProviders(
-      <StatusSelect value="ON_PM_SITE" type="otazka" onChange={fn} isPm={false} />,
+      <StatusSelect value="OPEN" type="otazka" onChange={fn} />,
     );
     await userEvent.click(screen.getByText("Blokováno"));
     expect(fn).toHaveBeenCalledWith("BLOCKED");

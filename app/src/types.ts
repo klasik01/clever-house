@@ -1,14 +1,14 @@
 export type TaskType = "napad" | "otazka";
 
 /**
- * Union of every status a Task can have. Historically all values lived together,
- * but from V5 onwards otázka has its own canonical set (ON_CLIENT_SITE, ON_PM_SITE,
- * BLOCKED, CANCELED, DONE) while nápad keeps the original workflow labels.
+ * Union of every status a Task can have. Historically role-based values
+ * (ON_CLIENT_SITE, ON_PM_SITE — V5) were canonical for otázka. V10 collapses
+ * "kdo to řeší" into `assigneeUid`, so status only tracks whether the task
+ * is still active (OPEN) or reached a terminal state (BLOCKED / CANCELED / DONE).
  *
- * Legacy otázka values ("Otázka", "Čekám", "Rozhodnuto", "Ve stavbě", "Hotovo")
- * are kept in the union so old Firestore records still typecheck; they are mapped
- * to the canonical set at read-time via `mapLegacyOtazkaStatus` (see lib/status.ts).
- * New writes on otázka always use canonical values.
+ * Legacy values stay in the union — `mapLegacyOtazkaStatus` (see lib/status.ts)
+ * collapses them at read time. New writes on otázka only use the V10 canonical
+ * set (OPEN | BLOCKED | CANCELED | DONE).
  */
 export type TaskStatus =
   | "Nápad"
@@ -19,6 +19,7 @@ export type TaskStatus =
   | "Hotovo"
   | "ON_CLIENT_SITE"
   | "ON_PM_SITE"
+  | "OPEN"
   | "BLOCKED"
   | "CANCELED"
   | "DONE";

@@ -8,9 +8,8 @@ import PriorityBadge from "./PriorityBadge";
 import DeadlineChip from "./DeadlineChip";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserRole } from "@/hooks/useUserRole";
 import { getLocation } from "@/lib/locations";
-import { mapLegacyOtazkaStatus } from "@/lib/status";
+import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import { deadlineState } from "@/lib/deadline";
 
 interface Props {
@@ -21,16 +20,10 @@ interface Props {
 export default function NapadCard({ task, categories }: Props) {
   const t = useT();
   const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  const isPmCard =
-    roleState.status === "ready" &&
-    roleState.profile.role === "PROJECT_MANAGER";
-  // V6 — ball-on-me is viewer-role driven: OWNER owns ON_CLIENT_SITE,
-  //       PM owns ON_PM_SITE. Legacy Otázka/Čekám map to these first.
-  const isBallOnMe =
-    task.type === "otazka" &&
-    mapLegacyOtazkaStatus(task.status) ===
-      (isPmCard ? "ON_PM_SITE" : "ON_CLIENT_SITE");
+  // V10 — ball-on-me is assignee-driven. Only the current resolver sees the
+  //       accent border, regardless of role. Fallback to createdBy for legacy
+  //       records without assigneeUid.
+  const isBallOnMe = isBallOnMeV10(task, user?.uid);
   const deadlineStateNow = task.type === "otazka"
     ? deadlineState(task.deadline)
     : null;

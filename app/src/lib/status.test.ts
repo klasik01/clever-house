@@ -3,112 +3,128 @@ import {
   mapLegacyOtazkaStatus,
   canonicalStatus,
   isOtazkaCanonical,
+  isBallOnMe,
   statusLabel,
   OTAZKA_STATUSES,
   NAPAD_STATUSES,
 } from "./status";
-import type { TaskStatus } from "@/types";
+import type { Task, TaskStatus } from "@/types";
 
-/**
- * A tiny stand-in for the useT() TFn. Every i18n key we ask for is echoed
- * back verbatim so assertions stay readable — the production resolver is
- * tested elsewhere. The second arg (vars) is unused for these keys.
- */
 const identT = ((key: string) => key) as (k: string) => string;
 
-describe("mapLegacyOtazkaStatus", () => {
-  it("passes canonical otazka statuses through", () => {
-    for (const s of OTAZKA_STATUSES) {
-      expect(mapLegacyOtazkaStatus(s)).toBe(s);
-    }
+describe("mapLegacyOtazkaStatus (V10)", () => {
+  it("passes V10 canonical otazka statuses through", () => {
+    for (const s of OTAZKA_STATUSES) expect(mapLegacyOtazkaStatus(s)).toBe(s);
   });
 
-  it("maps legacy \"Otázka\" → ON_PM_SITE (ball on PM)", () => {
-    expect(mapLegacyOtazkaStatus("Otázka")).toBe("ON_PM_SITE");
+  it("collapses V5 role-based values → OPEN", () => {
+    expect(mapLegacyOtazkaStatus("ON_PM_SITE")).toBe("OPEN");
+    expect(mapLegacyOtazkaStatus("ON_CLIENT_SITE")).toBe("OPEN");
   });
 
-  it("maps legacy \"Čekám\" → ON_CLIENT_SITE (ball on owner)", () => {
-    expect(mapLegacyOtazkaStatus("Čekám")).toBe("ON_CLIENT_SITE");
-  });
-
-  it("rolls up legacy resolved-ish statuses to DONE", () => {
+  it("collapses pre-V5 values → OPEN (active) or DONE (closed)", () => {
+    expect(mapLegacyOtazkaStatus("Otázka")).toBe("OPEN");
+    expect(mapLegacyOtazkaStatus("Čekám")).toBe("OPEN");
     expect(mapLegacyOtazkaStatus("Rozhodnuto")).toBe("DONE");
     expect(mapLegacyOtazkaStatus("Ve stavbě")).toBe("DONE");
     expect(mapLegacyOtazkaStatus("Hotovo")).toBe("DONE");
   });
 
-  it("defaults Nápad → ON_PM_SITE so task never disappears", () => {
-    expect(mapLegacyOtazkaStatus("Nápad")).toBe("ON_PM_SITE");
+  it("defaults Nápad → OPEN so úkol never disappears", () => {
+    expect(mapLegacyOtazkaStatus("Nápad")).toBe("OPEN");
   });
 });
 
 describe("canonicalStatus", () => {
   it("normalises legacy otazka values when type is otazka", () => {
-    expect(canonicalStatus("otazka", "Otázka")).toBe("ON_PM_SITE");
-    expect(canonicalStatus("otazka", "Čekám")).toBe("ON_CLIENT_SITE");
+    expect(canonicalStatus("otazka", "Otázka")).toBe("OPEN");
+    expect(canonicalStatus("otazka", "ON_PM_SITE")).toBe("OPEN");
     expect(canonicalStatus("otazka", "Hotovo")).toBe("DONE");
   });
 
   it("leaves nápad values untouched", () => {
-    for (const s of NAPAD_STATUSES) {
-      expect(canonicalStatus("napad", s)).toBe(s);
-    }
-  });
-
-  it("does not mutate already-canonical otazka values", () => {
-    expect(canonicalStatus("otazka", "BLOCKED")).toBe("BLOCKED");
-    expect(canonicalStatus("otazka", "CANCELED")).toBe("CANCELED");
+    for (const s of NAPAD_STATUSES) expect(canonicalStatus("napad", s)).toBe(s);
   });
 });
 
 describe("isOtazkaCanonical", () => {
-  it("recognises every canonical otazka status", () => {
+  it("recognises every V10 canonical otazka status", () => {
     for (const s of OTAZKA_STATUSES) expect(isOtazkaCanonical(s)).toBe(true);
   });
 
   it("rejects nápad + legacy statuses", () => {
-    for (const s of ["Nápad", "Otázka", "Čekám", "Rozhodnuto", "Ve stavbě", "Hotovo"] as TaskStatus[]) {
+    for (const s of ["Nápad", "Otázka", "Čekám", "Rozhodnuto", "Ve stavbě", "Hotovo", "ON_PM_SITE", "ON_CLIENT_SITE"] as TaskStatus[]) {
       expect(isOtazkaCanonical(s)).toBe(false);
     }
   });
 });
 
-describe("statusLabel — per-role + per-type keys", () => {
-  it("ON_CLIENT_SITE picks owner vs pm key", () => {
-    expect(statusLabel(identT, "ON_CLIENT_SITE", { isPm: false }))
-      .toBe("statusOtazka.ON_CLIENT_SITE.owner");
-    expect(statusLabel(identT, "ON_CLIENT_SITE", { isPm: true }))
-      .toBe("statusOtazka.ON_CLIENT_SITE.pm");
+describe("statusLabel (V10 — role-agnostic)", () => {
+  it("OPEN maps to statusOtazka.OPEN", () => {
+    expect(statusLabel(identT, "OPEN", { type: "otazka" })).toBe("statusOtazka.OPEN");
   });
 
-  it("ON_PM_SITE picks owner vs pm key", () => {
-    expect(statusLabel(identT, "ON_PM_SITE", { isPm: false }))
-      .toBe("statusOtazka.ON_PM_SITE.owner");
-    expect(statusLabel(identT, "ON_PM_SITE", { isPm: true }))
-      .toBe("statusOtazka.ON_PM_SITE.pm");
-  });
-
-  it("BLOCKED / CANCELED / DONE are role-agnostic", () => {
+  it("BLOCKED / CANCELED / DONE labels are terminal + same for every viewer", () => {
     for (const s of ["BLOCKED", "CANCELED", "DONE"] as const) {
-      const ownerLabel = statusLabel(identT, s, { isPm: false });
-      const pmLabel = statusLabel(identT, s, { isPm: true });
-      expect(ownerLabel).toBe(pmLabel);
-      expect(ownerLabel).toBe(`statusOtazka.${s}`);
+      expect(statusLabel(identT, s, { type: "otazka", isPm: false }))
+        .toBe(`statusOtazka.${s}`);
+      expect(statusLabel(identT, s, { type: "otazka", isPm: true }))
+        .toBe(`statusOtazka.${s}`);
     }
   });
 
-  it("maps legacy otazka values before labelling when type=otazka", () => {
-    // "Otázka" → ON_PM_SITE → owner-variant when !isPm
-    expect(statusLabel(identT, "Otázka", { isPm: false, type: "otazka" }))
-      .toBe("statusOtazka.ON_PM_SITE.owner");
-    expect(statusLabel(identT, "Čekám", { isPm: true, type: "otazka" }))
-      .toBe("statusOtazka.ON_CLIENT_SITE.pm");
+  it("maps legacy otazka values via mapper first", () => {
+    expect(statusLabel(identT, "Otázka", { type: "otazka" })).toBe("statusOtazka.OPEN");
+    expect(statusLabel(identT, "ON_PM_SITE", { type: "otazka" })).toBe("statusOtazka.OPEN");
+    expect(statusLabel(identT, "Hotovo", { type: "otazka" })).toBe("statusOtazka.DONE");
   });
 
   it("falls back to flat status.* keys for nápad statuses", () => {
-    expect(statusLabel(identT, "Nápad", { isPm: false })).toBe("status.Nápad");
-    expect(statusLabel(identT, "Rozhodnuto", { isPm: false })).toBe("status.Rozhodnuto");
-    expect(statusLabel(identT, "Ve stavbě", { isPm: false })).toBe("status.Ve stavbě");
-    expect(statusLabel(identT, "Hotovo", { isPm: false })).toBe("status.Hotovo");
+    expect(statusLabel(identT, "Nápad")).toBe("status.Nápad");
+    expect(statusLabel(identT, "Rozhodnuto")).toBe("status.Rozhodnuto");
+  });
+});
+
+describe("isBallOnMe (V10 — assignee-driven)", () => {
+  function mk(overrides: Partial<Task> = {}): Task {
+    return {
+      id: overrides.id ?? "t",
+      type: overrides.type ?? "otazka",
+      title: "",
+      body: "",
+      status: overrides.status ?? "OPEN",
+      createdBy: overrides.createdBy ?? "author",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      ...overrides,
+    } as Task;
+  }
+
+  it("returns false when no uid given", () => {
+    expect(isBallOnMe(mk(), undefined)).toBe(false);
+  });
+
+  it("true when assignee matches uid and úkol is OPEN", () => {
+    expect(isBallOnMe(mk({ assigneeUid: "me" }), "me")).toBe(true);
+  });
+
+  it("false when úkol is DONE / BLOCKED / CANCELED even if assignee matches", () => {
+    expect(isBallOnMe(mk({ assigneeUid: "me", status: "DONE" }), "me")).toBe(false);
+    expect(isBallOnMe(mk({ assigneeUid: "me", status: "BLOCKED" }), "me")).toBe(false);
+    expect(isBallOnMe(mk({ assigneeUid: "me", status: "CANCELED" }), "me")).toBe(false);
+  });
+
+  it("false for napad tasks (concept does not apply)", () => {
+    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me" }), "me")).toBe(false);
+  });
+
+  it("falls back to createdBy when assigneeUid is null (legacy record)", () => {
+    expect(isBallOnMe(mk({ createdBy: "me" }), "me")).toBe(true);
+    expect(isBallOnMe(mk({ createdBy: "other" }), "me")).toBe(false);
+  });
+
+  it("maps legacy Otázka / ON_PM_SITE statuses to OPEN before the check", () => {
+    expect(isBallOnMe(mk({ assigneeUid: "me", status: "Otázka" }), "me")).toBe(true);
+    expect(isBallOnMe(mk({ assigneeUid: "me", status: "ON_PM_SITE" }), "me")).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
 import { useTasks } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
-import { mapLegacyOtazkaStatus } from "@/lib/status";
+import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 
 interface Props {
@@ -53,13 +53,9 @@ function BottomTabs({ role }: { role: UserRole }) {
   const isPm = role === "PROJECT_MANAGER";
   const { user } = useAuth();
   const { tasks } = useTasks(Boolean(user));
-  // V5 — ball-on-me is derived from role + canonical status (not assigneeUid).
-  // OWNER owns ON_CLIENT_SITE; PM owns ON_PM_SITE. Legacy statuses are mapped first.
-  const mySide = isPm ? "ON_PM_SITE" : "ON_CLIENT_SITE";
-  const ballOnMe = tasks.filter((tk) => {
-    if (tk.type !== "otazka") return false;
-    return mapLegacyOtazkaStatus(tk.status) === mySide;
-  }).length;
+  // V10 — ball-on-me is assignee-driven across all roles. The badge counts
+  // every OPEN úkol where assigneeUid points at the current viewer.
+  const ballOnMe = tasks.filter((tk) => isBallOnMeV10(tk, user?.uid)).length;
 
   return (
     <nav
@@ -77,7 +73,7 @@ function BottomTabs({ role }: { role: UserRole }) {
             label={t("tabs.zaznamy")}
           />
         )}
-        {!isPm && <FabCell />}
+        <FabCell />
         {!isPm && (
           <Tab
             to="/ukoly"

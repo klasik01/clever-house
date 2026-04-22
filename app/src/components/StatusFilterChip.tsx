@@ -7,7 +7,7 @@ interface Props {
   value: TaskStatus | null;
   onChange: (next: TaskStatus | null) => void;
   /** Viewer role — determines which ON_CLIENT_SITE/ON_PM_SITE label is shown. */
-  isPm: boolean;
+  isPm?: boolean;
 }
 
 /**

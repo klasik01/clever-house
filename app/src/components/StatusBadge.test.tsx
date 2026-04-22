@@ -3,32 +3,30 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "@/test/render";
 import StatusBadge from "./StatusBadge";
 
-describe("StatusBadge", () => {
-  it("renders the OWNER label for ON_CLIENT_SITE", () => {
-    renderWithProviders(
-      <StatusBadge status="ON_CLIENT_SITE" type="otazka" isPm={false} />,
-    );
-    // Matches the i18n key value from cs.json
-    expect(screen.getByText("K vyjádření")).toBeInTheDocument();
+describe("StatusBadge (V10)", () => {
+  it("renders OPEN label for active úkoly", () => {
+    renderWithProviders(<StatusBadge status="OPEN" type="otazka" />);
+    expect(screen.getByText("Otevřený")).toBeInTheDocument();
   });
 
-  it("renders the PM label for ON_CLIENT_SITE", () => {
-    renderWithProviders(
-      <StatusBadge status="ON_CLIENT_SITE" type="otazka" isPm={true} />,
-    );
-    expect(screen.getByText("Čeká na klienta")).toBeInTheDocument();
-  });
-
-  it("role-agnostic BLOCKED label", () => {
+  it("BLOCKED label", () => {
     renderWithProviders(<StatusBadge status="BLOCKED" type="otazka" />);
     expect(screen.getByText("Blokováno")).toBeInTheDocument();
   });
 
-  it("normalises legacy Otázka → ON_PM_SITE label", () => {
-    renderWithProviders(
-      <StatusBadge status="Otázka" type="otazka" isPm={false} />,
-    );
-    expect(screen.getByText("Na projektantovi")).toBeInTheDocument();
+  it("CANCELED label", () => {
+    renderWithProviders(<StatusBadge status="CANCELED" type="otazka" />);
+    expect(screen.getByText("Zrušeno")).toBeInTheDocument();
+  });
+
+  it("DONE label", () => {
+    renderWithProviders(<StatusBadge status="DONE" type="otazka" />);
+    expect(screen.getByText("Hotovo")).toBeInTheDocument();
+  });
+
+  it("normalises legacy V5 ON_PM_SITE → OPEN label", () => {
+    renderWithProviders(<StatusBadge status="ON_PM_SITE" type="otazka" />);
+    expect(screen.getByText("Otevřený")).toBeInTheDocument();
   });
 
   it("nápad status falls back to flat key", () => {

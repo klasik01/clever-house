@@ -23,7 +23,7 @@ import { getLocation } from "@/lib/locations";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import type { TaskStatus } from "@/types";
-import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
+import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
@@ -595,6 +595,23 @@ export default function TaskDetail() {
             );
           })()}
 
+          {/* V10 — PM can convert an owner nápad into a new úkol (becomes assignee). */}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={handleConvert}
+              disabled={converting || saving}
+              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              <Sparkles aria-hidden size={16} className="text-accent-visual" />
+              {converting
+                ? t("detail.converting")
+                : (task.linkedTaskIds?.length ?? 0) > 0
+                ? t("detail.convertToOtazkaAgain")
+                : t("detail.convertToOtazka")}
+            </button>
+          </div>
+
           <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
             <CommentThread task={task} />
           </Suspense>
@@ -633,8 +650,8 @@ export default function TaskDetail() {
           {task.title || t("detail.noTitle")}
         </h1>
 
-        {/* Ball-on-me banner for PM when status is ON_PM_SITE. */}
-        {mapLegacyOtazkaStatus(task.status) === "ON_PM_SITE" && (
+        {/* Ball-on-me banner — V10 assignee-driven, same rule for OWNER + PM. */}
+        {isBallOnMeV10(task, user?.uid) && (
           <div
             role="status"
             className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
@@ -800,12 +817,7 @@ export default function TaskDetail() {
         </Suspense>
       </div>
 
-      {task.type === "otazka" && (() => {
-        // V5 — banner when ball is on the current viewer (role-based).
-        const canonical = mapLegacyOtazkaStatus(task.status);
-        const mySide = isPm ? "ON_PM_SITE" : "ON_CLIENT_SITE";
-        return canonical === mySide;
-      })() && (
+      {isBallOnMeV10(task, user?.uid) && (
         <div
           role="status"
           className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
@@ -910,7 +922,8 @@ export default function TaskDetail() {
               checked={Boolean(task.sharedWithPm)}
               onChange={(e) => handleShareToggle(e.target.checked)}
               disabled={saving}
-              className="size-4 rounded border-line text-accent-visual focus:ring-2 focus:ring-line-focus"
+              className="size-4 rounded border-line focus:ring-2 focus:ring-line-focus"
+              style={{ accentColor: "var(--color-accent-visual)" }}
             />
             <span className="flex-1">{t("detail.shareWithPmLabel")}</span>
             <span className="text-xs text-ink-subtle">

@@ -76,9 +76,9 @@ export default function CommentItem({
 
   const wfStatus = comment.statusAfter ? mapLegacyOtazkaStatus(comment.statusAfter) : null;
   const wfColor = comment.workflowAction && wfStatus ? statusColors(wfStatus) : null;
-  // Legacy flip comments stored assigneeAfter — still use their resolved name
-  // for the badge. V5 flip comments skip that field and derive the label from
-  // statusAfter (ON_CLIENT_SITE / ON_PM_SITE).
+  // V10 — flip badge resolves the target name from assigneeAfter (new: set on
+  // every flip). Legacy V5 records without assigneeAfter fall back to a generic
+  // "Přehozeno" label.
   const flipTargetName =
     comment.workflowAction === "flip" && comment.assigneeAfter && resolveName
       ? resolveName(comment.assigneeAfter)
@@ -87,10 +87,6 @@ export default function CommentItem({
     comment.workflowAction === "flip"
       ? flipTargetName
         ? t("comments.workflowFlipBadge", { name: flipTargetName })
-        : wfStatus === "ON_CLIENT_SITE"
-        ? t("comments.workflowFlipBadgeToClient")
-        : wfStatus === "ON_PM_SITE"
-        ? t("comments.workflowFlipBadgeToPm")
         : t("comments.workflowFlipBadge", { name: "?" })
       : null;
 

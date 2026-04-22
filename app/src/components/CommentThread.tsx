@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import CommentComposer from "./CommentComposer";
 import CommentItem from "./CommentItem";
 import Lightbox from "./Lightbox";
 import { useAuth } from "@/hooks/useAuth";
 import { useComments } from "@/hooks/useComments";
 import { useUsers } from "@/hooks/useUsers";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
 import { uploadTaskImage } from "@/lib/attachments";
@@ -20,16 +19,15 @@ interface Props {
 
 /**
  * CommentThread — "Diskuse (N)" section under a task.
- * Owns the composer state + image upload pipeline.
- * Uses useComments + useUsers for realtime data.
+ * Owns the composer state + image upload pipeline. V10: workflow is
+ * assignee-driven. Flipping changes `task.assigneeUid` to whomever the user
+ * picks in the composer dropdown; status stays OPEN.
  */
 export default function CommentThread({ task }: Props) {
   const t = useT();
   const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
   const { comments, loading, error } = useComments(task.id);
-  const { byUid } = useUsers(Boolean(user));
+  const { users, byUid } = useUsers(Boolean(user));
   const [submitting, setSubmitting] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
 
@@ -41,17 +39,38 @@ export default function CommentThread({ task }: Props) {
     return u?.displayName || u?.email?.split("@")[0] || uid.slice(0, 6);
   };
 
-  // V5 — workflow is status-driven, not assignee-driven.
-  // Flip always sends the ball to the other role: OWNER flips → ON_PM_SITE;
-  // PM flips → ON_CLIENT_SITE. Close always → DONE.
-  //
-  // Workflow is disabled on terminal statuses (DONE / CANCELED / BLOCKED) — from
-  // there the user re-opens manually via StatusSelect.
+  // V10 — workflow is active on otázka while still OPEN. Closed / cancelled /
+  // blocked úkoly don’t offer flip; use StatusSelect to re-open.
   const current = task.type === "otazka" ? mapLegacyOtazkaStatus(task.status) : task.status;
-  const canFlip = current === "ON_CLIENT_SITE" || current === "ON_PM_SITE";
-  const workflowEnabled = task.type === "otazka" && canFlip && Boolean(user);
-  const flipTargetStatus: TaskStatus = isPm ? "ON_CLIENT_SITE" : "ON_PM_SITE";
-  const flipLabel = isPm ? t("comments.flipToClient") : t("comments.flipToPm");
+  const workflowEnabled = task.type === "otazka" && current === "OPEN" && Boolean(user);
+
+  // Peers = every other workspace user. Sorted alphabetically for predictable
+  // dropdown ordering.
+  const peers = useMemo(() => {
+    return users
+      .filter((u) => u.uid !== user?.uid)
+      .map((u) => ({
+        uid: u.uid,
+        displayName: u.displayName || u.email?.split("@")[0] || u.uid.slice(0, 6),
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "cs"));
+  }, [users, user?.uid]);
+
+  // Default target = předchozí předkladatel (person who most recently flipped
+  // the ball to me). Fallback to task.createdBy when that isn’t me.
+  const defaultPeerUid = useMemo(() => {
+    if (!user) return null;
+    // comments are returned newest-first by subscribeComments.
+    const prior = comments.find(
+      (c) =>
+        c.workflowAction === "flip" &&
+        c.assigneeAfter === user.uid &&
+        c.authorUid !== user.uid,
+    );
+    if (prior) return prior.authorUid;
+    if (task.createdBy !== user.uid) return task.createdBy;
+    return peers[0]?.uid ?? null;
+  }, [comments, user, task.createdBy, peers]);
 
   async function handleSubmit(
     input: {
@@ -61,6 +80,7 @@ export default function CommentThread({ task }: Props) {
       mentionedUids: string[];
     },
     action?: "flip" | "close" | null,
+    targetUid?: string | null,
   ) {
     if (!user) return;
     setSubmitting(true);
@@ -76,10 +96,11 @@ export default function CommentThread({ task }: Props) {
         uploaded.push({ id: newId(), url, path });
       }
 
-      // 2. Resolve workflow side-effect — status change on flip / close.
+      // 2. Resolve workflow side-effect. Flip changes assignee only (status
+      //    stays OPEN). Close moves to DONE.
       const workflow =
-        action === "flip" && workflowEnabled
-          ? { action: "flip" as const, statusAfter: flipTargetStatus }
+        action === "flip" && workflowEnabled && targetUid
+          ? { action: "flip" as const, assigneeAfter: targetUid }
           : action === "close"
           ? { action: "close" as const, statusAfter: "DONE" as TaskStatus }
           : undefined;
@@ -127,8 +148,9 @@ export default function CommentThread({ task }: Props) {
         workflow={
           workflowEnabled
             ? {
-                flipLabel,
                 closeLabel: t("comments.sendAndClose"),
+                peers,
+                defaultPeerUid,
               }
             : undefined
         }

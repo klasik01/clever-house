@@ -6,9 +6,9 @@ import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 interface Props {
   status: TaskStatus;
   size?: "sm" | "md";
-  /** Type context — required for per-role otazka labelling + legacy mapping. */
+  /** Type context — required for legacy mapping of otázka statuses. */
   type?: TaskType;
-  /** Pass the current viewer role so ON_CLIENT_SITE / ON_PM_SITE can use the right translation. */
+  /** Kept for API compat; V10 status labels are role-agnostic. */
   isPm?: boolean;
 }
 
@@ -16,9 +16,8 @@ interface Props {
  * Small colored pill with dot + label for a task status.
  * Colors pull from semantic status tokens (status.*-fg / bg / border).
  */
-export default function StatusBadge({ status, size = "sm", type, isPm = false }: Props) {
+export default function StatusBadge({ status, size = "sm", type }: Props) {
   const t = useT();
-  // Normalise legacy otazka statuses so old records render with the new palette.
   const display: TaskStatus = type === "otazka" ? mapLegacyOtazkaStatus(status) : (isKnownStatus(status) ? status : "Nápad");
   const { bg, fg, dot } = statusColors(display);
 
@@ -37,7 +36,7 @@ export default function StatusBadge({ status, size = "sm", type, isPm = false }:
       >
         {statusIcon(display)}
       </span>
-      {statusLabel(t, display, { isPm, type })}
+      {statusLabel(t, display, { type })}
     </span>
   );
 }
@@ -52,6 +51,7 @@ export const ALL_STATUSES: TaskStatus[] = [
   "Hotovo",
   "ON_PM_SITE",
   "ON_CLIENT_SITE",
+  "OPEN",
   "BLOCKED",
   "CANCELED",
   "DONE",
@@ -73,22 +73,14 @@ export function statusColors(s: TaskStatus): {
   border: string;
 } {
   switch (s) {
-    // --- V5 canonical otazka statuses ---
-    case "ON_PM_SITE":
-      // Ball on PM — reuses the warmer oak ("Otázka") palette.
+    // --- V10 canonical otazka statuses ---
+    case "OPEN":
+      // Active úkol — reuses the warmer oak palette (familiar visual).
       return {
         bg: "var(--color-status-otazka-bg)",
         fg: "var(--color-status-otazka-fg)",
         dot: "var(--color-status-otazka-fg)",
         border: "var(--color-status-otazka-border)",
-      };
-    case "ON_CLIENT_SITE":
-      // Ball on OWNER — reuses the "Čekám" palette (slightly deeper).
-      return {
-        bg: "var(--color-status-cekam-bg)",
-        fg: "var(--color-status-cekam-fg)",
-        dot: "var(--color-status-cekam-fg)",
-        border: "var(--color-status-cekam-border)",
       };
     case "BLOCKED":
       // Externally blocked — use danger tokens so it visibly stands out.
@@ -113,7 +105,9 @@ export function statusColors(s: TaskStatus): {
         dot: "var(--color-status-hotovo-fg)",
         border: "var(--color-status-hotovo-border)",
       };
-    // --- Legacy otazka + all nápad statuses ---
+    // --- Legacy V5 otazka aliases (read-only, render like OPEN) ---
+    case "ON_PM_SITE":
+    case "ON_CLIENT_SITE":
     case "Otázka":
       return {
         bg: "var(--color-status-otazka-bg)",
@@ -163,10 +157,8 @@ export function statusColors(s: TaskStatus): {
 /** Contextual icon per status for scannability at glance. */
 export function statusIcon(s: TaskStatus): React.ReactNode {
   switch (s) {
-    // V5 canonical
-    case "ON_PM_SITE":
-      return <HelpCircle aria-hidden size={11} />;
-    case "ON_CLIENT_SITE":
+    // V10 canonical
+    case "OPEN":
       return <Inbox aria-hidden size={11} />;
     case "BLOCKED":
       return <CircleSlash aria-hidden size={11} />;
@@ -174,9 +166,12 @@ export function statusIcon(s: TaskStatus): React.ReactNode {
       return <XCircle aria-hidden size={11} />;
     case "DONE":
       return <CheckCheck aria-hidden size={11} />;
-    // Legacy
+    // Legacy V5 + old
+    case "ON_PM_SITE":
     case "Otázka":
       return <HelpCircle aria-hidden size={11} />;
+    case "ON_CLIENT_SITE":
+      return <Inbox aria-hidden size={11} />;
     case "Čekám":
       return <Hourglass aria-hidden size={11} />;
     case "Rozhodnuto":

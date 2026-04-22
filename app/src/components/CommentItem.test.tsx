@@ -4,8 +4,6 @@ import { renderWithProviders } from "@/test/render";
 import CommentItem from "./CommentItem";
 import type { Comment } from "@/types";
 
-// AvatarCircle is fine; no external deps. ReactionBar renders nothing when reactions is empty.
-
 const baseComment: Comment = {
   id: "c1",
   authorUid: "u1",
@@ -13,7 +11,7 @@ const baseComment: Comment = {
   createdAt: "2026-04-20T10:00:00.000Z",
 };
 
-describe("CommentItem — workflow badges", () => {
+describe("CommentItem — workflow badges (V10)", () => {
   it("renders plain comment body", () => {
     renderWithProviders(
       <CommentItem comment={baseComment} isAuthor={false} isTaskOwner={false} />,
@@ -21,35 +19,11 @@ describe("CommentItem — workflow badges", () => {
     expect(screen.getByText(/Ahoj, tady je komentář/)).toBeInTheDocument();
   });
 
-  it("flip + statusAfter=ON_CLIENT_SITE shows 'Přehozeno klientovi'", () => {
+  it("flip with resolveName shows 'Přehozeno na <name>' badge", () => {
     const c: Comment = {
       ...baseComment,
       workflowAction: "flip",
-      statusAfter: "ON_CLIENT_SITE",
-    };
-    renderWithProviders(
-      <CommentItem comment={c} isAuthor={false} isTaskOwner={false} />,
-    );
-    expect(screen.getByText(/Přehozeno klientovi/)).toBeInTheDocument();
-  });
-
-  it("flip + statusAfter=ON_PM_SITE shows 'Přehozeno architektovi'", () => {
-    const c: Comment = {
-      ...baseComment,
-      workflowAction: "flip",
-      statusAfter: "ON_PM_SITE",
-    };
-    renderWithProviders(
-      <CommentItem comment={c} isAuthor={false} isTaskOwner={false} />,
-    );
-    expect(screen.getByText(/Přehozeno projektantovi/)).toBeInTheDocument();
-  });
-
-  it("legacy flip (assigneeAfter) uses resolveName for the badge", () => {
-    const c: Comment = {
-      ...baseComment,
-      workflowAction: "flip",
-      statusAfter: "Otázka",  // legacy value → mapped
+      statusAfter: "OPEN",
       assigneeAfter: "u-peer",
     };
     renderWithProviders(
@@ -74,9 +48,7 @@ describe("CommentItem — workflow badges", () => {
     );
     expect(screen.getByText(/Uzavřeno/)).toBeInTheDocument();
   });
-});
 
-describe("CommentItem — author actions", () => {
   it("author sees Edit + Delete buttons", () => {
     renderWithProviders(
       <CommentItem
@@ -99,3 +71,6 @@ describe("CommentItem — author actions", () => {
     expect(screen.queryByRole("button", { name: /Smazat/i })).not.toBeInTheDocument();
   });
 });
+
+// Silences unused-import complaint when running in strict mode.
+void vi;

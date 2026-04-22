@@ -121,7 +121,7 @@ describe("convertNapadToOtazka", () => {
     expect(newDoc.type).toBe("otazka");
     expect(newDoc.title).toBe(source.title);
     expect(newDoc.linkedTaskId).toBe("n1");
-    expect(newDoc.status).toBe("Otázka");
+    expect(newDoc.status).toBe("OPEN");
 
     // 2) source nápad was patched with linkedTaskIds + legacy linkedTaskId
     const src = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;

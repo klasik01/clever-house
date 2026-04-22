@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Check, CornerDownLeft, Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, CornerDownLeft, Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
 import { isSupportedImage } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useT } from "@/i18n/useT";
@@ -17,10 +17,19 @@ export interface StagedImage {
   previewUrl: string;
 }
 
+interface Peer {
+  uid: string;
+  displayName: string;
+}
+
 interface Props {
   disabled?: boolean;
   submitting?: boolean;
   offline?: boolean;
+  /**
+   * V10 — onSubmit may carry an optional `targetUid` when `action === "flip"`,
+   * to route the ball to a specific workspace user.
+   */
   onSubmit: (
     input: {
       body: string;
@@ -28,17 +37,19 @@ interface Props {
       linkUrls: string[];
       mentionedUids: string[];
     },
-    action?: "flip" | "close" | null
+    action?: "flip" | "close" | null,
+    targetUid?: string | null,
   ) => Promise<void> | void;
   /**
-   * V4 — enable workflow actions (flip / close) as additional send buttons.
-   * When present, 3-button row is rendered; otherwise single Send.
+   * V10 — workflow now needs the peer list so the primary flip button can
+   * render "Poslat {name}" and open a picker to switch target. The
+   * `defaultPeerUid` seeds the initial selection (recommended: the person who
+   * last handed the task to the current user).
    */
   workflow?: {
-    flipLabel: string;
     closeLabel: string;
-    /** Disable flip button (e.g. no peer assignable). */
-    flipDisabled?: boolean;
+    peers: Peer[];
+    defaultPeerUid: string | null;
   };
 }
 
@@ -66,6 +77,16 @@ export default function CommentComposer({
   const [links, setLinks] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
+  // V10 — which peer the user is about to send to. Seeded from workflow and
+  // updated when they pick someone else from the dropdown.
+  const [selectedPeerUid, setSelectedPeerUid] = useState<string | null>(
+    workflow?.defaultPeerUid ?? null,
+  );
+  // Re-sync if the task changes (e.g. parent remounts).
+  useEffect(() => {
+    setSelectedPeerUid(workflow?.defaultPeerUid ?? null);
+  }, [workflow?.defaultPeerUid]);
+  const [peerMenuOpen, setPeerMenuOpen] = useState(false);
 
   const { user } = useAuth();
   const { users } = useUsers(Boolean(user));
@@ -147,12 +168,13 @@ export default function CommentComposer({
     if (!canSend) return;
     try {
       const trimmed = body.trim();
+      const targetUid = action === "flip" ? selectedPeerUid : null;
       await onSubmit({
         body: trimmed,
         imageFiles: stagedImages.map((s) => s.file),
         linkUrls: links,
         mentionedUids: extractMentionedUids(trimmed),
-      }, action);
+      }, action, targetUid);
       // Reset
       stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
       setStagedImages([]);
@@ -321,15 +343,59 @@ export default function CommentComposer({
                 <Check aria-hidden size={12} />
                 {workflow.closeLabel}
               </button>
-              <button
-                type="button"
-                onClick={() => handleSubmit("flip")}
-                disabled={!canSend || Boolean(workflow.flipDisabled)}
-                className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
-              >
-                <CornerDownLeft aria-hidden size={12} />
-                {submitting ? t("composer.saving") : workflow.flipLabel}
-              </button>
+              <div className="relative inline-flex">
+                <button
+                  type="button"
+                  onClick={() => handleSubmit("flip")}
+                  disabled={!canSend || !selectedPeerUid}
+                  className="inline-flex items-center gap-1 h-8 rounded-l-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+                >
+                  <CornerDownLeft aria-hidden size={12} />
+                  {submitting
+                    ? t("composer.saving")
+                    : t("comments.flipTo", {
+                        name:
+                          workflow.peers.find((p) => p.uid === selectedPeerUid)?.displayName ?? "?",
+                      })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeerMenuOpen((v) => !v)}
+                  disabled={workflow.peers.length === 0}
+                  aria-label={t("comments.pickPeer")}
+                  aria-expanded={peerMenuOpen}
+                  aria-haspopup="listbox"
+                  className="inline-flex items-center justify-center h-8 w-7 rounded-r-md bg-accent text-accent-on hover:bg-accent-hover border-l border-accent-on/30 disabled:opacity-40"
+                >
+                  <ChevronDown aria-hidden size={12} />
+                </button>
+                {peerMenuOpen && (
+                  <ul
+                    role="listbox"
+                    className="absolute right-0 top-full z-20 mt-1 max-h-60 min-w-[12rem] overflow-y-auto rounded-md border border-line bg-surface shadow-lg"
+                  >
+                    {workflow.peers.map((peer) => (
+                      <li key={peer.uid}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selectedPeerUid === peer.uid}
+                          onClick={() => {
+                            setSelectedPeerUid(peer.uid);
+                            setPeerMenuOpen(false);
+                          }}
+                          className={[
+                            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-bg-subtle",
+                            selectedPeerUid === peer.uid ? "bg-bg-subtle font-medium" : "",
+                          ].join(" ")}
+                        >
+                          {peer.displayName}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </>
           ) : (
             <button

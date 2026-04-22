@@ -28,7 +28,7 @@
     "saving": "Ukládám…",
     "typeToggleLabel": "Typ záznamu",
     "typeNapad": "Nápad",
-    "typeOtazka": "Otázka",
+    "typeOtazka": "Úkol",
     "placeholderOtazka": "Na co se chceš zeptat Projektanta?",
     "attachPreview": "Náhled připojeného obrázku",
     "removeAttachment": "Odebrat přílohu",
@@ -118,7 +118,7 @@
     "author": "Autor",
     "typeLabel": "Typ",
     "typeNapad": "Nápad",
-    "typeOtazka": "Otázka",
+    "typeOtazka": "Úkol",
     "categoryLabel": "Kategorie",
     "categoryNone": "Bez kategorie",
     "categoryPick": "Vyber kategorii",
@@ -146,7 +146,7 @@
     "needMoreInfo": "Potřebuji doplnit",
     "needMoreInfoBanner": "Projektant čeká na doplnění — uprav otázku a pošli znovu.",
     "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi.",
-    "convertToOtazka": "Převést na otázku pro Projektanta",
+    "convertToOtazka": "Vytvořit úkol z nápadu",
     "convertConfirm": "Vytvořit otázku pro Projektanta s tímto obsahem? Původní nápad zůstane.",
     "linkedOtazkaTitle": "Vytvořená otázka",
     "linkedNapadTitle": "Vzniklo z nápadu",
@@ -156,7 +156,7 @@
     "titlePlaceholderV2": "Krátký název…",
     "noTitle": "(bez názvu)",
     "linkedOtazkyTitle": "Vytvořené otázky",
-    "convertToOtazkaAgain": "Převést na další otázku",
+    "convertToOtazkaAgain": "Vytvořit další úkol",
     "editorLoading": "Načítám editor…",
     "assignee": "Řeší",
     "assigneeChange": "Změnit řešitele",
@@ -192,14 +192,7 @@
     "DONE": "Hotovo"
   },
   "statusOtazka": {
-    "ON_CLIENT_SITE": {
-      "owner": "K vyjádření",
-      "pm": "Čeká na klienta"
-    },
-    "ON_PM_SITE": {
-      "owner": "Na projektantovi",
-      "pm": "K řešení"
-    },
+    "OPEN": "Otevřený",
     "BLOCKED": "Blokováno",
     "CANCELED": "Zrušeno",
     "DONE": "Hotovo"
@@ -213,6 +206,9 @@
     "filterPriorityAll": "Všechny priority",
     "filterStatus": "Stav",
     "filterStatusAll": "Všechny stavy",
+    "filterOwnerAria": "Čí úkoly",
+    "ownerMine": "Moje",
+    "ownerAll": "Všechny",
     "sectionBallOnMe": "Na tobě",
     "sectionOther": "Ostatní"
   },
@@ -340,7 +336,7 @@
     "imagePreview": "Náhled obrázku",
     "openImagePreview": "Otevřít náhled",
     "typeNapad": "Typ: Nápad",
-    "typeOtazka": "Typ: Otázka",
+    "typeOtazka": "Typ: Úkol",
     "hasImage": "Obsahuje obrázek",
     "hasLink": "Obsahuje odkaz",
     "toastRegion": "Oznámení",
@@ -395,6 +391,8 @@
     "sendAndClose": "Poslat a uzavřít",
     "flipToClient": "Poslat klientovi",
     "flipToPm": "Poslat projektantovi",
+    "flipTo": "Poslat {name}",
+    "pickPeer": "Vybrat příjemce",
     "workflowFlipBadge": "→ Přehozeno na {name}",
     "workflowFlipBadgeToClient": "→ Přehozeno klientovi",
     "workflowFlipBadgeToPm": "→ Přehozeno projektantovi",

@@ -62,6 +62,9 @@ export async function createTask(
 ): Promise<string> {
   const ref = await addDoc(collection(db, TASKS), {
     ...data,
+    // V10: all new úkoly get the creator as first assignee. Nápady leave
+    // assigneeUid null (not applicable).
+    assigneeUid: data.type === "otazka" ? uid : null,
     categoryId: null,
     locationId: null,
     linkedTaskId: null,
@@ -197,7 +200,10 @@ export async function convertNapadToOtazka(
     type: "otazka",
     title: source.title,
     body: source.body,
-    status: "Otázka",
+    // V10: new úkoly start OPEN, with the creator as first solver. They can
+    // flip to someone else from the comment thread once they open the detail.
+    status: "OPEN",
+    assigneeUid: uid,
     categoryId: source.categoryId ?? null,
     locationId: source.locationId ?? null,
     linkedTaskId: source.id,
