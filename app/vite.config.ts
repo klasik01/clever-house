@@ -16,6 +16,19 @@ export default defineConfig({
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
   },
   plugins: [
+    // V12.2 — emit dist/version.json so the running app can poll for new
+    // deploys and force-reload when it detects a version mismatch.
+    {
+      name: "emit-version-json",
+      apply: "build",
+      generateBundle() {
+        this.emitFile({
+          type: "asset",
+          fileName: "version.json",
+          source: JSON.stringify({ version: pkg.version, built: new Date().toISOString() }) + "\n",
+        });
+      },
+    },
     react(),
     VitePWA({
       registerType: "autoUpdate",

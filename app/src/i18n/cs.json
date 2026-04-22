@@ -337,9 +337,12 @@
     "installNow": "Instalovat teď"
   },
   "update": {
-    "title": "Nová verze",
-    "body": "Je dostupná aktualizace aplikace.",
-    "reload": "Obnovit"
+    "title": "K dispozici je nová verze",
+    "body": "Aplikace byla mezitím aktualizována. Aby všechno fungovalo správně, je potřeba ji obnovit.",
+    "bodyWithVersion": "Máš verzi {mine}, nová je {latest}. Pro správné fungování je potřeba ji obnovit.",
+    "unsavedHint": "Pokud něco píšeš, dopiš to a klikni mimo — autosave proběhne. Při obnovení se ztratí neuložené rozepsané změny.",
+    "reload": "Obnovit aplikaci",
+    "reloading": "Obnovuji…"
   },
   "common": {
     "save": "Uložit",
