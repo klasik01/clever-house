@@ -1,7 +1,7 @@
-name: Deploy · GitHub Pages (staging, develop)
+name: Deploy · GitHub Pages (staging — develop + release/*)
 
-# Manual staging deploy to GitHub Pages. Only runs from the `develop`
-# branch. Main → Netlify (production) is in deploy-netlify.yml.
+# Manual staging deploy to GitHub Pages. Runs from the `develop` branch or
+# any `release/*` branch. Main → Netlify (production) is in deploy-netlify.yml.
 on:
   workflow_dispatch:
 
@@ -16,15 +16,21 @@ concurrency:
 
 jobs:
   guard:
-    name: Guard (develop only)
+    name: Guard (develop + release/*)
     runs-on: ubuntu-latest
     steps:
-      - name: Refuse if not on develop
+      - name: Refuse if not on an allowed branch
+        # Allowed: refs/heads/develop  OR  refs/heads/release/<anything>
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/develop" ]; then
-            echo "::error::GitHub Pages deploy can only be dispatched from the 'develop' branch (current: ${{ github.ref }})"
-            exit 1
-          fi
+          ref="${{ github.ref }}"
+          case "$ref" in
+            refs/heads/develop)        echo "ok — develop" ;;
+            refs/heads/release/*)      echo "ok — $ref" ;;
+            *)
+              echo "::error::GitHub Pages deploy only from 'develop' or 'release/*' (current: $ref)"
+              exit 1
+              ;;
+          esac
 
   build:
     name: Build

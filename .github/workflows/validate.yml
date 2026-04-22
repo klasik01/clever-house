@@ -5,9 +5,9 @@ name: Validate (build · lint · test)
 # the commits this workflow blessed.
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, "release/**"]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "release/**"]
   workflow_dispatch:
 
 concurrency:
