@@ -254,7 +254,7 @@ export default function TaskDetail() {
   async function handleLinkEdit(index: number) {
     if (state.status !== "ready") return;
     const current = index >= 0 ? (state.task.attachmentLinks?.[index] ?? "") : "https://";
-    const input = window.prompt(t("composer.linkPromptTitle"), current || "https://");
+    const input = window.prompt(t("composer.linkPromptTitle"), current || "");
     if (input === null) return;
     const normalized = input.trim() ? normalizeUrl(input) : null;
     if (input.trim() && !normalized) {

@@ -116,10 +116,12 @@ describe("convertNapadToOtazka", () => {
 
     const newId = await convertNapadToOtazka(source, "owner");
 
-    // 1) new otazka doc exists, with the source id as parent link
+    // 1) new otazka doc exists, with the source id as parent link.
+    //    V12.1: title/body start empty — user fills the ask fresh.
     const newDoc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
     expect(newDoc.type).toBe("otazka");
-    expect(newDoc.title).toBe(source.title);
+    expect(newDoc.title).toBe("");
+    expect(newDoc.body).toBe("");
     expect(newDoc.linkedTaskId).toBe("n1");
     expect(newDoc.status).toBe("OPEN");
 

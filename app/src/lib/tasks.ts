@@ -198,8 +198,11 @@ export async function convertNapadToOtazka(
 
   batch.set(newRef, {
     type: "otazka",
-    title: source.title,
-    body: source.body,
+    // V12.1: don't inherit title/body from the napad — users want the new úkol
+    // to start blank so they can phrase the ask fresh, referencing the parent
+    // napad via the linkedTaskId below.
+    title: "",
+    body: "",
     // V10: new úkoly start OPEN, with the creator as first solver. They can
     // flip to someone else from the comment thread once they open the detail.
     status: "OPEN",

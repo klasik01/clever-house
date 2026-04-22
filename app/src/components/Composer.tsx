@@ -95,7 +95,7 @@ export default function Composer({ onSave, lockedType }: Props) {
   }
 
   function promptForLink() {
-    const input = window.prompt(t("composer.linkPromptTitle"), "https://");
+    const input = window.prompt(t("composer.linkPromptTitle"), "");
     if (input === null) return;
     if (!input.trim()) return;
     const normalized = normalizeUrl(input);

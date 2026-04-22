@@ -149,7 +149,7 @@ export default function CommentComposer({
       setError(t("comments.maxLinks"));
       return;
     }
-    const input = window.prompt(t("composer.linkPromptTitle"), "https://");
+    const input = window.prompt(t("composer.linkPromptTitle"), "");
     if (!input) return;
     const normalized = normalizeUrl(input);
     if (!normalized) {
