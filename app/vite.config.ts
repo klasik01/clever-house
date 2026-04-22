@@ -2,10 +2,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
+import { readFileSync } from "node:fs";
+
+// Pull the package.json version once at config load and expose it to the app
+// via `import.meta.env.VITE_APP_VERSION`. Avoids importing package.json into
+// the runtime bundle.
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf8"));
 
 export default defineConfig({
   // Base path for sub-directory hosting (GitHub Pages). Defaults to / for Netlify / local dev.
   base: process.env.VITE_BASE_PATH || "/",
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({

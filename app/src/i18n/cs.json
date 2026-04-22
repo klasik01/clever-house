@@ -69,7 +69,9 @@
   "settings": {
     "title": "Nastavení",
     "account": "Účet",
+    "name": "Jméno",
     "email": "E-mail",
+    "role": "Role",
     "signOut": "Odhlásit",
     "version": "Verze",
     "themeLabel": "Téma",
@@ -274,7 +276,9 @@
   "role": {
     "missingTitle": "Účet není plně nastaven",
     "missingBody": "Tvůj účet nemá přiřazenou roli. Kontaktuj správce, aby tě přidal do workspace.",
-    "signOut": "Odhlásit"
+    "signOut": "Odhlásit",
+    "OWNER": "Majitel",
+    "PROJECT_MANAGER": "Projektant"
   },
   "export": {
     "pageTitle": "Export pro Projektanta",

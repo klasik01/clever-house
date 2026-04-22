@@ -12,6 +12,14 @@ export default function Settings() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
+  // Prefer the Firestore profile.displayName (user-editable in future); fall
+  // back to the Firebase Auth displayName; finally to "—".
+  const profileName =
+    roleState.status === "ready" ? roleState.profile.displayName ?? null : null;
+  const displayName = profileName?.trim() || user?.displayName?.trim() || "—";
+  // Resolve role → localised label (Klient / Projektant).
+  const roleLabel =
+    roleState.status === "ready" ? t(`role.${roleState.profile.role}`) : "—";
 
   async function handleSignOut() {
     await signOut();
@@ -25,7 +33,9 @@ export default function Settings() {
       <h1 className="sr-only">{t("settings.title")}</h1>
 
       <SettingsGroup title={t("settings.account")}>
+        <Row label={t("settings.name")} value={displayName} />
         <Row label={t("settings.email")} value={user?.email ?? "—"} />
+        <Row label={t("settings.role")} value={roleLabel} />
       </SettingsGroup>
 
       {!isPm && (
@@ -60,7 +70,7 @@ export default function Settings() {
       </div>
 
       <p className="mt-8 text-center text-xs text-ink-subtle">
-        {t("settings.version")}: 0.14.0 (S14)
+        {t("settings.version")}: {import.meta.env.VITE_APP_VERSION ?? "dev"}
       </p>
     </section>
   );
