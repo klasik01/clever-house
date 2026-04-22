@@ -12,7 +12,10 @@
     "emulators": "firebase emulators:start --only firestore,auth",
     "storage:deploy": "firebase deploy --only storage",
     "postbuild": "cp dist/index.html dist/404.html",
-    "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build"
+    "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",
@@ -40,6 +43,11 @@
     "typescript": "^5.4.5",
     "vite": "^5.2.13",
     "@types/pdfmake": "^0.2.9",
-    "vite-plugin-pwa": "^0.20.0"
+    "vite-plugin-pwa": "^0.20.0",
+    "vitest": "^2.1.8",
+    "jsdom": "^25.0.1",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@testing-library/jest-dom": "^6.6.3"
   }
 }

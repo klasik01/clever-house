@@ -1,0 +1,375 @@
+
+> chytry-dum-na-vsi@0.15.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /Users/klasik/Workspace/Vlastní projekt/Chytrý dům na vsi/Chytrý dům na vsi/app
+
+ ✓ src/lib/filters.test.ts (16 tests) 3ms
+ ✓ src/lib/prehled.test.ts (8 tests) 2ms
+ ✓ src/lib/tasks.test.ts (7 tests) 3ms
+ ✓ src/lib/mentions.test.ts (21 tests) 4ms
+ ✓ src/lib/categories.test.ts (7 tests) 3ms
+ ✓ src/lib/deadline.test.ts (17 tests) 5ms
+ ✓ src/lib/status.test.ts (15 tests) 5ms
+ ✓ src/lib/locations.test.ts (16 tests) 11ms
+ ✓ src/lib/comments.test.ts (5 tests) 3ms
+ ❯ src/components/CommentItem.test.tsx (7 tests | 1 failed) 87ms
+   × CommentItem — workflow badges > flip + statusAfter=ON_PM_SITE shows 'Přehozeno architektovi' 9ms
+     → Unable to find an element with the text: /Přehozeno architektovi/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<article[39m
+      [33maria-label[39m=[32m"Uživatel — před 1 d"[39m
+      [33mclass[39m=[32m"flex gap-2.5 rounded-md p-2.5 border border-l-4"[39m
+      [33mstyle[39m=[32m"background: var(--color-comment-other-bg); border-left-color: var(--color-status-otazka-border); border-top-color: var(--color-border-default); border-right-color: var(--color-border-default); border-bottom-color: var(--color-border-default);"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33maria-label[39m=[32m"Uživatel"[39m
+        [33mclass[39m=[32m"inline-grid place-items-center rounded-full font-semibold text-white select-none shrink-0 size-6 text-[0.6rem] "[39m
+        [33mrole[39m=[32m"img"[39m
+        [33mstyle[39m=[32m"background: linear-gradient(135deg, var(--avatar-4-from), var(--avatar-4-to));"[39m
+        [33mtitle[39m=[32m"Uživatel"[39m
+      [36m>[39m
+        [0m?[0m
+      [36m</span>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"min-w-0 flex-1"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"flex items-center gap-2 text-xs"[39m
+        [36m>[39m
+          [36m<strong[39m
+            [33mclass[39m=[32m"font-semibold text-ink truncate"[39m
+          [36m>[39m
+            [0mUživatel[0m
+          [36m</strong>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-ink-subtle"[39m
+          [36m>[39m
+            [0mpřed 1 d[0m
+          [36m</span>[39m
+        [36m</header>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"mt-1.5 inline-flex items-center gap-1 rounded-pill border px-2 py-0.5 text-xs font-medium"[39m
+          [33mstyle[39m=[32m"background: var(--color-status-otazka-bg); color: var(--color-status-otazka-fg); border-color: var(--color-status-otazka-border);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-corner-down-left"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"9 10 4 15 9 20"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M20 4v7a4 4 0 0 1-4 4H4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [0m→ Přehozeno projektantovi[0m
+        [36m</span>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2.5 pb-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-ink"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mAhoj, tady je komentář[0m
+          [36m</span>[39m
+        [36m</p>[39m
+      [36m</div>[39m
+    [36m</article>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ✓ src/components/CategoryPicker.test.tsx (4 tests) 145ms
+ ✓ src/components/NapadCard.test.tsx (4 tests) 29ms
+ ✓ src/components/CommentComposer.test.tsx (4 tests) 178ms
+ ✓ src/lib/links.test.ts (10 tests) 3ms
+ ✓ src/lib/id.test.ts (3 tests) 2ms
+ ✓ src/components/DeadlineChip.test.tsx (4 tests) 18ms
+ ✓ src/components/DeadlinePicker.test.tsx (3 tests) 22ms
+ ✓ src/components/PriorityBadge.test.tsx (3 tests) 21ms
+ ❯ src/components/StatusBadge.test.tsx (5 tests | 1 failed) 33ms
+   × StatusBadge > normalises legacy Otázka → ON_PM_SITE label 5ms
+     → Unable to find an element with the text: Na architektovi. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<span[39m
+      [33mclass[39m=[32m"inline-flex items-center gap-1.5 rounded-pill font-medium px-2 py-0.5 text-xs"[39m
+      [33mstyle[39m=[32m"background-color: var(--color-status-otazka-bg); color: var(--color-status-otazka-fg);"[39m
+    [36m>[39m
+      [36m<span[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33mclass[39m=[32m"inline-flex items-center"[39m
+        [33mstyle[39m=[32m"color: var(--color-status-otazka-fg);"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-circle-help"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"11"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"11"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<circle[39m
+            [33mcx[39m=[32m"12"[39m
+            [33mcy[39m=[32m"12"[39m
+            [33mr[39m=[32m"10"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M12 17h.01"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+      [36m</span>[39m
+      [0mNa projektantovi[0m
+    [36m</span>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ✓ src/components/PrioritySelect.test.tsx (3 tests) 60ms
+ ✓ src/components/LocationPicker.test.tsx (3 tests) 51ms
+ ❯ src/components/StatusSelect.test.tsx (4 tests | 1 failed) 75ms
+   × StatusSelect > normalises legacy otazka value when rendering 8ms
+     → Unable to find an element with the text: Na architektovi. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33maria-label[39m=[32m"Stav"[39m
+      [33mclass[39m=[32m"flex flex-wrap gap-1.5"[39m
+      [33mrole[39m=[32m"radiogroup"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-checked[39m=[32m"true"[39m
+        [33mclass[39m=[32m"inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus border-2 shadow-sm "[39m
+        [33mrole[39m=[32m"radio"[39m
+        [33mstyle[39m=[32m"background-color: var(--color-status-otazka-bg); color: var(--color-status-otazka-fg); border-color: var(--color-status-otazka-fg);"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-check shrink-0"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"14"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"14"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M20 6 9 17l-5-5"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex items-center"[39m
+          [33mstyle[39m=[32m"color: var(--color-status-otazka-fg);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-circle-help"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"12"[39m
+              [33mcy[39m=[32m"12"[39m
+              [33mr[39m=[32m"10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M12 17h.01"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</span>[39m
+        [0mNa projektantovi[0m
+      [36m</button>[39m
+      [36m<button[39m
+        [33maria-checked[39m=[32m"false"[39m
+        [33mclass[39m=[32m"inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus border hover:bg-bg-subtle "[39m
+        [33mrole[39m=[32m"radio"[39m
+        [33mstyle[39m=[32m"background-color: transparent; color: var(--color-text-muted); border-color: var(--color-border-default);"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex items-center"[39m
+          [33mstyle[39m=[32m"color: var(--color-text-subtle);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-inbox"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<polyline[39m
+              [33mpoints[39m=[32m"22 12 16 12 14 15 10 15 8 12 2 12"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</span>[39m
+        [0mK vyjádření[0m
+      [36m</button>[39m
+      [36m<button[39m
+        [33maria-checked[39m=[32m"false"[39m
+        [33mclass[39m=[32m"inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus border hover:bg-bg-subtle "[39m
+        [33mrole[39m=[32m"radio"[39m
+        [33mstyle[39m=[32m"background-color: transparent; color: var(--color-text-muted); border-color: var(--color-border-default);"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex items-center"[39m
+          [33mstyle[39m=[32m"color: var(--color-text-subtle);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-circle-slash"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"9"[39m
+              [33mx2[39m=[32m"15"[39m
+              [33my1[39m=[32m"15"[39m
+              [33my2[39m=[32m"9"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"12"[39m
+              [33mcy[39m=[32m"12"[39m
+              [33mr[39m=[32m"10"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</span>[39m
+        [0mBlokováno[0m
+      [36m</button>[39m
+      [36m<button[39m
+        [33maria-checked[39m=[32m"false"[39m
+        [33mclass[39m=[32m"inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus border hover:bg-bg-subtle "[39m
+        [33mrole[39m=[32m"radio"[39m
+        [33mstyle[39m=[32m"background-color: transparent; color: var(--color-text-muted); border-color: var(--color-border-default);"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex items-center"[39m
+          [33mstyle[39m=[32m"color: var(--color-text-subtle);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-circle-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"12"[39m
+              [33mcy[39m=[32m"12"[39m
+              [33mr[39m=[32m"10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m15 9-6 6"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m9 9 6 6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</span>[39m
+        [0mZrušeno[0m
+      [36m</button>[39m
+      [36m<button[39m
+        [33maria-checked[39m=[32m"false"[39m
+        [33mclass[39m=[32m"inline-flex items-center gap-1.5 shrink-0 min-h-tap rounded-pill px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus border hover:bg-bg-subtle "[39m
+        [33mrole[39m=[32m"radio"[39m
+        [33mstyle[39m=[32m"background-color: transparent; color: var(--color-text-muted); border-color: var(--color-border-default);"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"inline-flex items-center"[39m
+          [33mstyle[39m=[32m"color: var(--color-text-subtle);"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-check-check"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"11"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"11"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 7 17l-5-5"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m22 10-7.5 7.5L13 16"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</span>[39m
+        [0mHotovo[0m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+ Test Files  3 failed | 19 passed (22)
+      Tests  3 failed | 166 passed (169)
+   Start at  09:10:28
+   Duration  2.01s (transform 556ms, setup 3.28s, collect 2.31s, tests 762ms, environment 10.66s, prepare 1.46s)
+
