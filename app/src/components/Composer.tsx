@@ -20,19 +20,31 @@ interface Props {
   ) => Promise<void> | void;
   /**
    * When set, the type toggle is hidden and every save uses this type.
-   * Used by PM's /novy flow — PM can only create úkoly, never nápady.
+   * Single-type hard lock — still supported for backward compatibility, but
+   * `allowedTypes` is preferred because V14 PM can create two types.
    */
   lockedType?: TaskType;
+  /**
+   * V14 — restrict which pill options render. Order is preserved as visual
+   * order. Default: ["napad", "otazka", "ukol"] for OWNER. PM gets
+   * ["otazka", "ukol"] so they can pick but can't capture a nápad (nápady are
+   * the OWNER's thought capture — PM doesn't author them).
+   * Ignored when `lockedType` is set.
+   */
+  allowedTypes?: TaskType[];
 }
 
 const MAX_COMPOSER_IMAGES = 10;
 
-export default function Composer({ onSave, lockedType }: Props) {
+export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
+  const types: TaskType[] = allowedTypes && allowedTypes.length > 0
+    ? allowedTypes
+    : ["napad", "otazka", "ukol"];
   const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState<string>(() => loadDraft());
-  const [type, setType] = useState<TaskType>(lockedType ?? "napad");
+  const [type, setType] = useState<TaskType>(lockedType ?? types[0]);
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
   const [linkUrls, setLinkUrls] = useState<string[]>([]);
   const [lastReturnAt, setLastReturnAt] = useState<number>(0);
@@ -119,7 +131,7 @@ export default function Composer({ onSave, lockedType }: Props) {
       await onSave(trimmed, type, stagedImages.map((s) => s.file), linkUrls);
       setValue("");
       saveDraft("");
-      setType(lockedType ?? "napad");
+      setType(lockedType ?? types[0]);
       clearAllImages();
       setLinkUrls([]);
       setJustSaved(true);
@@ -157,19 +169,35 @@ export default function Composer({ onSave, lockedType }: Props) {
   }
 
   const placeholder =
-    type === "napad" ? t("composer.placeholder") : t("composer.placeholderOtazka");
+    type === "napad"
+      ? t("composer.placeholder")
+      : type === "ukol"
+      ? t("composer.placeholderUkol")
+      : t("composer.placeholderOtazka");
 
   return (
     <section aria-label={t("aria.quickCapture")} className="mx-auto max-w-xl px-4 pt-3 pb-2">
       <div className="rounded-lg bg-surface shadow-sm ring-1 ring-line focus-within:ring-line-focus transition-colors">
-        {!lockedType && (
+        {!lockedType && types.length > 1 && (
           <div
             role="group"
             aria-label={t("composer.typeToggleLabel")}
             className="flex items-center gap-1 border-b border-line bg-bg-subtle/60 p-1 rounded-t-lg"
           >
-            <TypePill active={type === "napad"} onClick={() => setType("napad")} label={t("composer.typeNapad")} />
-            <TypePill active={type === "otazka"} onClick={() => setType("otazka")} label={t("composer.typeOtazka")} />
+            {types.map((tp) => (
+              <TypePill
+                key={tp}
+                active={type === tp}
+                onClick={() => setType(tp)}
+                label={t(
+                  tp === "napad"
+                    ? "composer.typeNapad"
+                    : tp === "otazka"
+                    ? "composer.typeOtazka"
+                    : "composer.typeUkol"
+                )}
+              />
+            ))}
           </div>
         )}
 

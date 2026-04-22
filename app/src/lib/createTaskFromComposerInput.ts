@@ -27,12 +27,18 @@ export async function createTaskFromComposerInput(opts: {
   const parsedTitle = firstLine.slice(0, 120);
   const parsedBody = rest || (firstLine.length > 120 ? firstLine : "");
 
+  // V14 — seed status by type.
+  //   nápad  → "Nápad" (legacy label, still canonical for this type)
+  //   otázka → "OPEN"  (V10 canonical)
+  //   úkol   → "OPEN"  (V14 canonical, same set as otázka)
+  const seedStatus =
+    type === "napad" ? "Nápad" : "OPEN";
   const taskId = await createTask(
     {
       type,
       title: parsedTitle,
       body: parsedBody,
-      status: type === "otazka" ? "Otázka" : "Nápad",
+      status: seedStatus,
     },
     uid
   );

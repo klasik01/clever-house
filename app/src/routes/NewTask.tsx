@@ -21,9 +21,9 @@ export default function NewTask() {
   const isPm =
     roleState.status === "ready" &&
     roleState.profile.role === "PROJECT_MANAGER";
-  // V10 — PM may only create úkoly. Lock the composer type so the toggle
-  // disappears entirely for PM.
-  const lockedType: TaskType | undefined = isPm ? "otazka" : undefined;
+  // V14 — PM picks between otázka and úkol (OWNER still sees all three via
+  // the default. The toggle hides entirely when only one type is allowed).
+  const allowedTypes: TaskType[] | undefined = isPm ? ["otazka", "ukol"] : undefined;
   const { show: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -68,7 +68,7 @@ export default function NewTask() {
       <p className="mb-4 text-sm text-ink-muted">
         {t(isPm ? "novy.pageHintPm" : "novy.pageHint")}
       </p>
-      <Composer onSave={onSave} lockedType={lockedType} />
+      <Composer onSave={onSave} allowedTypes={allowedTypes} />
     </section>
   );
 }

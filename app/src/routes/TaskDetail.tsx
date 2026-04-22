@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, HelpCircle, MapPin, Notebook, Tag, Trash2 } from "lucide-react";
+import { ArrowLeft, HelpCircle, MapPin, Notebook, Tag, Target, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
-import { convertNapadToOtazka, deleteTask, updateTask } from "@/lib/tasks";
+import { convertNapadToOtazka, convertNapadToUkol, deleteTask, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import StatusSelect from "@/components/StatusSelect";
@@ -16,7 +16,8 @@ import DeadlinePicker from "@/components/DeadlinePicker";
 import StatusBadge, { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
-import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Sparkles, X as XIcon } from "lucide-react";
+import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, X as XIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { getLocation } from "@/lib/locations";
@@ -27,6 +28,93 @@ import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus, statusLabel } from 
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
+
+// ---------- LinkedList (V14.1) ----------
+
+type LinkedItem = { lid?: string; ot?: import("@/types").Task };
+
+function LinkedList({
+  items,
+  headingId,
+  heading,
+  forceIcon,
+  isPm,
+  t,
+}: {
+  items: LinkedItem[];
+  headingId: string;
+  heading: string;
+  /** Icon rendered for every row — keeps list visually homogeneous. */
+  forceIcon: LucideIcon;
+  /** Unused fallback retained for API symmetry with forceIcon; kept for
+   *  future cases where we need a per-row override. */
+  fallbackIcon?: LucideIcon;
+  isPm: boolean;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+}) {
+  if (items.length === 0) return null;
+  const Icon = forceIcon;
+  return (
+    <section className="mt-4" aria-labelledby={headingId}>
+      <h2
+        id={headingId}
+        className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+      >
+        {heading}
+      </h2>
+      <ul className="flex flex-col gap-2">
+        {items.map(({ lid, ot }) => {
+          const title =
+            ot?.title?.trim() ||
+            ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
+            t("detail.noTitle");
+          const c = ot
+            ? statusColors(
+                (ot.type === "otazka" || ot.type === "ukol")
+                  ? mapLegacyOtazkaStatus(ot.status)
+                  : ot.status,
+              )
+            : null;
+          return (
+            <li key={lid ?? ot?.id}>
+              <Link
+                to={`/t/${lid ?? ot?.id ?? ""}`}
+                className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
+                style={{
+                  borderLeftColor: c ? c.border : "var(--color-border-default)",
+                  borderTopColor: "var(--color-border-default)",
+                  borderRightColor: "var(--color-border-default)",
+                  borderBottomColor: "var(--color-border-default)",
+                }}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <Icon aria-hidden size={18} className="text-accent-visual shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-ink truncate">{title}</p>
+                    {ot && c && (
+                      <span
+                        className="mt-1 inline-flex items-center gap-1.5 text-xs"
+                        style={{ color: c.fg }}
+                      >
+                        <span
+                          aria-hidden
+                          className="inline-block size-1.5 rounded-full"
+                          style={{ background: c.dot }}
+                        />
+                        {statusLabel(t as unknown as (k: string) => string, ot.status, { isPm, type: ot.type })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 /** V6.2 — autosave timing. We no longer save on every keystroke; we wait
  *  until the user blurs the title or body editor, then pause for a short
@@ -49,9 +137,13 @@ export default function TaskDetail() {
   // snapshots to avoid fighting the user's keystrokes (last-write-wins is fine for this MVP).
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  // V14 — nápad-only "Výstup" markdown (resolution summary).
+  const [vystup, setVystup] = useState("");
+  // V14 — úkol-only free-text dependency ("Hotové před …").
+  const [dependencyText, setDependencyText] = useState("");
   const initializedRef = useRef(false);
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const pendingRef = useRef<{ id: string; title: string; body: string } | null>(null);
+  const pendingRef = useRef<{ id: string; title: string; body: string; vystup: string } | null>(null);
   // V6.2 — schedule id for the blur-driven autosave timer. Any re-focus or
   // fresh blur cancels+reschedules; unmount flushes immediately.
   const blurSaveTimerRef = useRef<number | null>(null);
@@ -63,11 +155,17 @@ export default function TaskDetail() {
   const [attachError, setAttachError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [converting, setConverting] = useState(false);
+  const [convertingUkol, setConvertingUkol] = useState(false);
+  // V14.1 — Výstup section is collapsed by default. User explicitly opens it
+  // via the toggle or via the "Doplň výstup" banner CTA. Reset on route change.
+  const [vystupExpanded, setVystupExpanded] = useState(false);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
       setTitle(state.task.title);
       setBody(state.task.body);
+      setVystup(state.task.vystup ?? "");
+      setDependencyText(state.task.dependencyText ?? "");
       initializedRef.current = true;
       setHasInitialized(true);
     }
@@ -83,8 +181,27 @@ export default function TaskDetail() {
   // in-flight flag like `converting` would otherwise leak into the next task.
   useEffect(() => {
     setConverting(false);
+    setConvertingUkol(false);
     setSaving(false);
     setAttachError(null);
+    setVystupExpanded(false);
+    // V14.3 — clear any carryover form state from the previously-viewed
+    // task so the new task's blank values (especially after convert) show
+    // correctly while the fresh snapshot loads. Skeleton hides this anyway,
+    // but this keeps the transient state consistent.
+    setTitle("");
+    setBody("");
+    setVystup("");
+    setDependencyText("");
+    pendingRef.current = null;
+    initializedRef.current = false;
+    setHasInitialized(false);
+    // Land at the top of the new task — convert buttons sit deep on the page
+    // and without this the user keeps their old scroll position on the fresh
+    // detail.
+    if (typeof window !== "undefined") {
+      try { window.scrollTo({ top: 0, behavior: "auto" }); } catch { /* ignore */ }
+    }
   }, [id]);
 
   // Auto-resize title textarea to fit content (grows on wrap).
@@ -95,19 +212,21 @@ export default function TaskDetail() {
     el.style.height = el.scrollHeight + "px";
   }, [title]);
 
-  // V6.2 — track a pending diff (nothing more). Actual persistence is
-  // triggered on blur (or unmount / page hide) — typing alone never writes.
+  // V6.2 + V14 — track a pending diff for title/body/vystup (nápad resolution
+  // summary). Dependency text on úkol has its own blur-save handler and is
+  // intentionally NOT carried through this generic path.
   useEffect(() => {
     if (state.status !== "ready" || !initializedRef.current) {
       return;
     }
     const orig = state.task;
-    if (title === orig.title && body === orig.body) {
+    const origVystup = orig.vystup ?? "";
+    if (title === orig.title && body === orig.body && vystup === origVystup) {
       pendingRef.current = null;
     } else {
-      pendingRef.current = { id: orig.id, title, body };
+      pendingRef.current = { id: orig.id, title, body, vystup };
     }
-  }, [title, body, state]);
+  }, [title, body, vystup, state]);
 
   // Flush any pending edit on unmount (browser back, route change) and on page hide
   // (mobile background / tab switch). Fire-and-forget — component is going away.
@@ -121,7 +240,7 @@ export default function TaskDetail() {
       const p = pendingRef.current;
       if (!p) return;
       pendingRef.current = null;
-      updateTask(p.id, { title: p.title, body: p.body }).catch((e) =>
+      updateTask(p.id, { title: p.title, body: p.body, vystup: p.vystup }).catch((e) =>
         console.error("flush on hide/unmount failed", e)
       );
     }
@@ -137,7 +256,7 @@ export default function TaskDetail() {
     };
   }, []);
 
-  async function persist(patch: { title: string; body: string }) {
+  async function persist(patch: { title: string; body: string; vystup: string }) {
     if (state.status !== "ready") return;
     setSaving(true);
     try {
@@ -167,7 +286,7 @@ export default function TaskDetail() {
       blurSaveTimerRef.current = null;
       const p = pendingRef.current;
       if (!p) return;
-      persist({ title: p.title, body: p.body });
+      persist({ title: p.title, body: p.body, vystup: p.vystup });
       pendingRef.current = null;
     }, BLUR_SAVE_DELAY_MS);
   }
@@ -193,6 +312,36 @@ export default function TaskDetail() {
     } catch (e) {
       console.error("convert failed", e);
       setConverting(false);
+    }
+  }
+
+  async function handleConvertToUkol() {
+    if (state.status !== "ready" || !user) return;
+    if (state.task.type !== "napad") return;
+    if (!window.confirm(t("detail.convertConfirmUkol"))) return;
+    setConvertingUkol(true);
+    try {
+      const newId = await convertNapadToUkol(state.task, user.uid);
+      navigate(`/t/${newId}`);
+    } catch (e) {
+      console.error("convert to úkol failed", e);
+      setConvertingUkol(false);
+    }
+  }
+
+  async function handleDependencyBlur() {
+    if (state.status !== "ready") return;
+    const next = dependencyText.trim();
+    const current = (state.task.dependencyText ?? "").trim();
+    if (next === current) return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, { dependencyText: next.length ? next : null });
+      flashSaved();
+    } catch (e) {
+      console.error("dependency update failed", e);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -430,7 +579,12 @@ export default function TaskDetail() {
   }
 
   const task = state.task;
-  const TypeIcon = task.type === "otazka" ? HelpCircle : Notebook;
+  const TypeIcon =
+    task.type === "otazka"
+      ? HelpCircle
+      : task.type === "ukol"
+      ? Target
+      : Notebook;
 
   // ---------- PM view: read-only question + answer form ----------
   if (isPm) {
@@ -537,80 +691,131 @@ export default function TaskDetail() {
             </ul>
           )}
 
-          {/* Linked otázky — PM sees only ones assigned to themselves. */}
+          {/* Linked otázky + úkoly — PM sees only ones assigned to themselves. */}
           {(() => {
-            const pmLinked = (task.linkedTaskIds ?? [])
-              .map((otazkaId) => {
-                const ot = allTasks.find((x) => x.id === otazkaId);
-                return { otazkaId, ot };
-              })
+            const pmLinkedAll = (task.linkedTaskIds ?? [])
+              .map((lid) => ({ lid, ot: allTasks.find((x) => x.id === lid) }))
               .filter(({ ot }) => ot && ot.assigneeUid === user?.uid);
-            if (pmLinked.length === 0) return null;
+            if (pmLinkedAll.length === 0) return null;
+            const pmOtazky = pmLinkedAll.filter(({ ot }) => ot?.type !== "ukol");
+            const pmUkoly = pmLinkedAll.filter(({ ot }) => ot?.type === "ukol");
             return (
-              <section className="mt-6" aria-labelledby="pm-linked-otazky-heading">
-                <h2
-                  id="pm-linked-otazky-heading"
-                  className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
-                >
-                  {t("detail.linkedOtazkyTitle")}
-                </h2>
-                <ul className="flex flex-col gap-2">
-                  {pmLinked.map(({ otazkaId, ot }) => {
-                    const title =
-                      ot?.title?.trim() ||
-                      ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
-                      t("detail.noTitle");
-                    const c = ot ? statusColors(ot.type === "otazka" ? mapLegacyOtazkaStatus(ot.status) : ot.status) : null;
-                    return (
-                      <li key={otazkaId}>
-                        <Link
-                          to={`/t/${otazkaId}`}
-                          className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
-                          style={{
-                            borderLeftColor: c ? c.border : "var(--color-border-default)",
-                            borderTopColor: "var(--color-border-default)",
-                            borderRightColor: "var(--color-border-default)",
-                            borderBottomColor: "var(--color-border-default)",
-                          }}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <HelpCircleIcon aria-hidden size={18} className="text-accent-visual shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-medium text-ink truncate">{title}</p>
-                              {ot && c && (
-                                <span className="mt-1 inline-flex items-center gap-1.5 text-xs" style={{ color: c.fg }}>
-                                  <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: c.dot }} />
-                                  {statusLabel(t, ot.status, { isPm, type: ot.type })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
+              <>
+                <LinkedList
+                  items={pmOtazky}
+                  headingId="pm-linked-otazky-heading"
+                  heading={t("detail.linkedOtazkyTitle")}
+                  fallbackIcon={HelpCircleIcon}
+                  forceIcon={HelpCircleIcon}
+                  isPm={true}
+                  t={t}
+                />
+                <LinkedList
+                  items={pmUkoly}
+                  headingId="pm-linked-ukoly-heading"
+                  heading={t("detail.linkedUkolyTitle")}
+                  fallbackIcon={Target}
+                  forceIcon={Target}
+                  isPm={true}
+                  t={t}
+                />
+              </>
             );
           })()}
 
-          {/* V10 — PM can convert an owner nápad into a new úkol (becomes assignee). */}
-          <div className="mt-6">
+          {/* V14 — PM can convert an owner nápad into either a new otázka
+              (clarification) or a new úkol (actionable). They become the
+              assignee on whichever they create. */}
+          <div className="mt-6 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleConvert}
-              disabled={converting || saving}
+              disabled={converting || convertingUkol || saving}
               className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
             >
-              <Sparkles aria-hidden size={16} className="text-accent-visual" />
+              <HelpCircle aria-hidden size={16} className="text-accent-visual" />
               {converting
                 ? t("detail.converting")
-                : (task.linkedTaskIds?.length ?? 0) > 0
+                : (task.linkedTaskIds ?? []).some(
+                    (lid) => allTasks.find((x) => x.id === lid)?.type === "otazka",
+                  )
                 ? t("detail.convertToOtazkaAgain")
                 : t("detail.convertToOtazka")}
             </button>
+            <button
+              type="button"
+              onClick={handleConvertToUkol}
+              disabled={converting || convertingUkol || saving}
+              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              <Target aria-hidden size={16} className="text-accent-visual" />
+              {convertingUkol
+                ? t("detail.convertingUkol")
+                : (task.linkedTaskIds ?? []).some(
+                    (lid) => allTasks.find((x) => x.id === lid)?.type === "ukol",
+                  )
+                ? t("detail.convertToUkolAgain")
+                : t("detail.convertToUkol")}
+            </button>
           </div>
+
+          {/* V14.2 — PM sees Výstup read-only. Same collapsible UX as OWNER so
+              the detail layout stays consistent between roles. */}
+          <section id="vystup-section" className="mt-6" aria-labelledby="vystup-heading-pm">
+            <button
+              type="button"
+              onClick={() => setVystupExpanded((v) => !v)}
+              aria-expanded={vystupExpanded}
+              aria-controls="vystup-content-pm"
+              className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left hover:bg-bg-subtle transition-colors"
+            >
+              <span className="flex items-center gap-2 min-w-0">
+                <span
+                  id="vystup-heading-pm"
+                  className="text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+                >
+                  {t("detail.vystupLabel")}
+                </span>
+                <span className="text-xs text-ink-subtle">
+                  {(task.vystup ?? "").trim()
+                    ? t("detail.vystupFilledHint")
+                    : t("detail.vystupEmptyHint")}
+                </span>
+              </span>
+              <span aria-hidden className="shrink-0 text-xs text-ink-subtle">
+                {vystupExpanded ? "▾" : "▸"}
+              </span>
+              <span className="sr-only">
+                {vystupExpanded ? t("detail.vystupHide") : t("detail.vystupShow")}
+              </span>
+            </button>
+            {vystupExpanded && (
+              <div id="vystup-content-pm" className="mt-2">
+                {(task.vystup ?? "").trim() ? (
+                  <Suspense
+                    fallback={
+                      <div
+                        className="min-h-[8rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
+                        aria-busy="true"
+                        role="status"
+                      >
+                        {t("detail.editorLoading")}
+                      </div>
+                    }
+                  >
+                    <RichTextEditor
+                      value={task.vystup ?? ""}
+                      onChange={() => {}}
+                      disabled
+                      ariaLabel={t("detail.vystupLabel")}
+                    />
+                  </Suspense>
+                ) : (
+                  <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
+                )}
+              </div>
+            )}
+          </section>
 
           <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
             <CommentThread task={task} />
@@ -742,7 +947,26 @@ export default function TaskDetail() {
     );
   }
 
-  const typeLabel = task.type === "otazka" ? t("detail.typeOtazka") : t("detail.typeNapad");
+  const typeLabel =
+    task.type === "otazka"
+      ? t("detail.typeOtazka")
+      : task.type === "ukol"
+      ? t("detail.typeUkol")
+      : t("detail.typeNapad");
+  // V14 — both otázka and úkol use the same rich meta layout (deadline,
+  // priority, assignee). Nápad gets the simpler layout + Výstup section.
+  const isActionable = task.type === "otazka" || task.type === "ukol";
+  // Banner on nápad: "Doplň výstup" when nápad is in a closing status yet
+  // the vystup field is still empty. Encourage summarising before it drops
+  // off the radar. Statuses that count as "closing": Rozhodnuto / Ve stavbě /
+  // Hotovo.
+  const needsVystup =
+    task.type === "napad" &&
+    task.createdBy === user?.uid &&
+    !(task.vystup ?? "").trim() &&
+    (task.status === "Rozhodnuto" ||
+      task.status === "Ve stavbě" ||
+      task.status === "Hotovo");
   const created = new Date(task.createdAt);
   const updated = new Date(task.updatedAt);
 
@@ -764,6 +988,37 @@ export default function TaskDetail() {
           <span aria-hidden>&nbsp;</span>
         )}
       </div>
+
+      {needsVystup && (
+        <div
+          role="status"
+          className="mt-2 flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm"
+          style={{
+            background: "var(--color-priority-p1-bg)",
+            color: "var(--color-priority-p1-fg)",
+            borderColor: "var(--color-priority-p1-border)",
+          }}
+        >
+          <div className="min-w-0">
+            <p className="font-semibold">{t("detail.vystupBannerTitle")}</p>
+            <p className="mt-0.5 text-xs opacity-90">{t("detail.vystupBannerBody")}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setVystupExpanded(true);
+              // Defer so the expanded editor is in the DOM before we scroll.
+              setTimeout(() => {
+                const el = document.getElementById("vystup-section");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 0);
+            }}
+            className="shrink-0 min-h-tap rounded-md border border-current px-3 py-1 text-xs font-semibold hover:bg-black/5 transition-colors"
+          >
+            {t("detail.vystupBannerCta")}
+          </button>
+        </div>
+      )}
 
       <label htmlFor="detail-title" className="sr-only">
         {t("detail.titlePrimary")}
@@ -845,7 +1100,7 @@ export default function TaskDetail() {
         />
       </section>
 
-      {task.type === "otazka" ? (
+      {isActionable ? (
         <>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <section aria-labelledby="loc-heading">
@@ -897,6 +1152,25 @@ export default function TaskDetail() {
               />
             </section>
           </div>
+
+          {/* V14 — úkol-only dependency free-text. Intentionally OWNER-only
+             (createdBy === me) for parity with priority + deadline. */}
+          {task.type === "ukol" && task.createdBy === user?.uid && (
+            <section className="mt-4" aria-labelledby="dep-heading">
+              <h2 id="dep-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+                {t("detail.dependencyLabel")}
+              </h2>
+              <input
+                type="text"
+                value={dependencyText}
+                onChange={(e) => setDependencyText(e.target.value)}
+                onBlur={handleDependencyBlur}
+                placeholder={t("detail.dependencyPlaceholder")}
+                disabled={saving}
+                className="block w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none focus:ring-1 focus:ring-line-focus disabled:opacity-60"
+              />
+            </section>
+          )}
         </>
       ) : (
         <section className="mt-4" aria-labelledby="loc-heading">
@@ -1065,63 +1339,40 @@ export default function TaskDetail() {
       </section>
 
 
-      {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (
-        <section className="mt-4" aria-labelledby="linked-otazky-heading">
-          <h2
-            id="linked-otazky-heading"
-            className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle"
-          >
-            {t("detail.linkedOtazkyTitle")}
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {task.linkedTaskIds!.map((otazkaId) => {
-              const ot = allTasks.find((x) => x.id === otazkaId);
-              const title =
-                ot?.title?.trim() ||
-                ot?.body?.split("\n")[0]?.trim().slice(0, 80) ||
-                t("detail.noTitle");
-              const c = ot ? statusColors(ot.type === "otazka" ? mapLegacyOtazkaStatus(ot.status) : ot.status) : null;
-              return (
-                <li key={otazkaId}>
-                  <Link
-                    to={`/t/${otazkaId}`}
-                    className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
-                    style={{
-                      borderLeftColor: c ? c.border : "var(--color-border-default)",
-                      borderTopColor: "var(--color-border-default)",
-                      borderRightColor: "var(--color-border-default)",
-                      borderBottomColor: "var(--color-border-default)",
-                    }}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <HelpCircleIcon aria-hidden size={18} className="text-accent-visual shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink truncate">{title}</p>
-                        {ot && c && (
-                          <span
-                            className="mt-1 inline-flex items-center gap-1.5 text-xs"
-                            style={{ color: c.fg }}
-                          >
-                            <span
-                              aria-hidden
-                              className="inline-block size-1.5 rounded-full"
-                              style={{ background: c.dot }}
-                            />
-                            {statusLabel(t, ot.status, { isPm, type: ot.type })}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (() => {
+        // V14.1 — split linked children into Otázky / Úkoly lists so the
+        // user sees both flows at a glance. An unknown-typed link (orphan)
+        // falls into the otázka bucket to stay visible.
+        const resolved = (task.linkedTaskIds ?? [])
+          .map((lid) => ({ lid, ot: allTasks.find((x) => x.id === lid) }))
+          .filter((x) => x.ot);
+        const otazkaLinks = resolved.filter(({ ot }) => ot?.type !== "ukol");
+        const ukolLinks = resolved.filter(({ ot }) => ot?.type === "ukol");
+        return (
+          <>
+            <LinkedList
+              items={otazkaLinks}
+              headingId="linked-otazky-heading"
+              heading={t("detail.linkedOtazkyTitle")}
+              fallbackIcon={HelpCircleIcon}
+              forceIcon={HelpCircleIcon}
+              isPm={isPm}
+              t={t}
+            />
+            <LinkedList
+              items={ukolLinks}
+              headingId="linked-ukoly-heading"
+              heading={t("detail.linkedUkolyTitle")}
+              fallbackIcon={Target}
+              forceIcon={Target}
+              isPm={isPm}
+              t={t}
+            />
+          </>
+        );
+      })()}
 
-      {task.type === "otazka" && task.linkedTaskId && (() => {
+      {(task.type === "otazka" || task.type === "ukol") && task.linkedTaskId && (() => {
         const parent = allTasks.find((x) => x.id === task.linkedTaskId);
         const parentTitle =
           parent?.title?.trim() ||
@@ -1147,22 +1398,96 @@ export default function TaskDetail() {
       })()}
 
       {task.type === "napad" && (
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleConvert}
-            disabled={converting || saving}
+            disabled={converting || convertingUkol || saving}
             className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
           >
-            <Sparkles aria-hidden size={16} className="text-accent-visual" />
+            <HelpCircle aria-hidden size={16} className="text-accent-visual" />
             {converting
               ? t("detail.converting")
-              : (task.linkedTaskIds?.length ?? 0) > 0
+              : (task.linkedTaskIds ?? []).some(
+                  (lid) => allTasks.find((x) => x.id === lid)?.type === "otazka",
+                )
               ? t("detail.convertToOtazkaAgain")
               : t("detail.convertToOtazka")}
           </button>
+          <button
+            type="button"
+            onClick={handleConvertToUkol}
+            disabled={converting || convertingUkol || saving}
+            className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+          >
+            <Target aria-hidden size={16} className="text-accent-visual" />
+            {convertingUkol
+              ? t("detail.convertingUkol")
+              : (task.linkedTaskIds ?? []).some(
+                  (lid) => allTasks.find((x) => x.id === lid)?.type === "ukol",
+                )
+              ? t("detail.convertToUkolAgain")
+              : t("detail.convertToUkol")}
+          </button>
         </div>
       )}
+
+      {task.type === "napad" && task.createdBy === user?.uid && (
+        <section id="vystup-section" className="mt-6" aria-labelledby="vystup-heading">
+          <button
+            type="button"
+            onClick={() => setVystupExpanded((v) => !v)}
+            aria-expanded={vystupExpanded}
+            aria-controls="vystup-content"
+            className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left hover:bg-bg-subtle transition-colors"
+          >
+            <span className="flex items-center gap-2 min-w-0">
+              <span
+                id="vystup-heading"
+                className="text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+              >
+                {t("detail.vystupLabel")}
+              </span>
+              <span className="text-xs text-ink-subtle">
+                {(task.vystup ?? "").trim()
+                  ? t("detail.vystupFilledHint")
+                  : t("detail.vystupEmptyHint")}
+              </span>
+            </span>
+            <span aria-hidden className="shrink-0 text-xs text-ink-subtle">
+              {vystupExpanded ? "▾" : "▸"}
+            </span>
+            <span className="sr-only">
+              {vystupExpanded ? t("detail.vystupHide") : t("detail.vystupShow")}
+            </span>
+          </button>
+          {vystupExpanded && (
+            <div id="vystup-content" className="mt-2">
+              <Suspense
+                fallback={
+                  <div
+                    className="min-h-[8rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
+                    aria-busy="true"
+                    role="status"
+                  >
+                    {t("detail.editorLoading")}
+                  </div>
+                }
+              >
+                <RichTextEditor
+                  value={vystup}
+                  onChange={setVystup}
+                  onBlur={flushOnBlur}
+                  onFocus={handleEditorFocus}
+                  placeholder={t("detail.vystupPlaceholder")}
+                  ariaLabel={t("detail.vystupLabel")}
+                />
+              </Suspense>
+            </div>
+          )}
+        </section>
+      )}
+
       <Suspense fallback={<div className="mt-6 h-40 rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
         <CommentThread task={task} />
       </Suspense>

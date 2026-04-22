@@ -71,7 +71,7 @@ service cloud.firestore {
       // CREATE — must set createdBy to self, sensible type + status.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.type in ['napad', 'otazka']
+                    && request.resource.data.type in ['napad', 'otazka', 'ukol']
                     && request.resource.data.status is string;
 
       // UPDATE — author can edit anything; PM can flip legacy V2 fields;
@@ -79,7 +79,7 @@ service cloud.firestore {
       // from createComment succeed regardless of who authored the task.
       allow update: if isTaskAuthor()
                     || (isProjectManager()
-                        && resource.data.type == 'otazka'
+                        && resource.data.type in ['otazka', 'ukol']
                         && pmAllowedFields())
                     || (isSignedIn() && isCommentSideEffect());
 

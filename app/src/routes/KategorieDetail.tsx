@@ -47,7 +47,8 @@ export default function KategorieDetail() {
     return ids.includes(id);
   });
   const napady = forCategory.filter((tk) => tk.type === "napad" && tk.status !== "Hotovo");
-  const otazky = forCategory.filter((tk) => tk.type === "otazka" && tk.status !== "Hotovo");
+  // V14 — surface both otázka and úkol under Kategorie (both actionable).
+  const otazky = forCategory.filter((tk) => (tk.type === "otazka" || tk.type === "ukol") && tk.status !== "Hotovo");
 
   const tabTasks = tab === "napady" ? napady : otazky;
 

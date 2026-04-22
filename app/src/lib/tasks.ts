@@ -62,9 +62,9 @@ export async function createTask(
 ): Promise<string> {
   const ref = await addDoc(collection(db, TASKS), {
     ...data,
-    // V10: all new úkoly get the creator as first assignee. Nápady leave
-    // assigneeUid null (not applicable).
-    assigneeUid: data.type === "otazka" ? uid : null,
+    // V10 + V14: otázka and úkol both pin the creator as first assignee.
+    // Nápady leave assigneeUid null (not applicable to OWNER thought capture).
+    assigneeUid: (data.type === "otazka" || data.type === "ukol") ? uid : null,
     categoryId: null,
     locationId: null,
     linkedTaskId: null,
@@ -85,7 +85,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithPm">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithPm" | "dependencyText" | "vystup">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -134,6 +134,8 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     assigneeUid: data.assigneeUid ?? null,
     commentCount: typeof data.commentCount === "number" ? data.commentCount : 0,
     sharedWithPm: data.sharedWithPm === true,
+    dependencyText: typeof data.dependencyText === "string" ? data.dependencyText : null,
+    vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
@@ -234,6 +236,53 @@ export async function convertNapadToOtazka(
 }
 
 
+/**
+ * V14: Create a new úkol (type=ukol) linked to an existing nápad. Mirrors
+ * convertNapadToOtazka but produces a type=ukol. Copies only display-only
+ * attachment refs (image URL + link URL) so the original nápad keeps owning
+ * actual storage paths. Úkol starts OPEN with creator assigned — identical
+ * to a fresh standalone úkol, just with linkedTaskId pointing at the parent.
+ */
+export async function convertNapadToUkol(
+  source: import("@/types").Task,
+  uid: string
+): Promise<string> {
+  const newRef = doc(collection(db, TASKS));
+  const batch = writeBatch(db);
+
+  batch.set(newRef, {
+    type: "ukol",
+    // Blank title/body — user phrases the úkol fresh in the child detail.
+    title: "",
+    body: "",
+    status: "OPEN",
+    assigneeUid: uid,
+    categoryId: source.categoryId ?? null,
+    locationId: source.locationId ?? null,
+    linkedTaskId: source.id,
+    projektantAnswer: null,
+    projektantAnswerAt: null,
+    linkedTaskIds: [],
+    attachmentImageUrl: source.attachmentImageUrl ?? null,
+    attachmentImagePath: null,
+    attachmentLinkUrl: source.attachmentLinkUrl ?? null,
+    createdBy: uid,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  const existingLinked = source.linkedTaskIds ?? (source.linkedTaskId ? [source.linkedTaskId] : []);
+  batch.update(doc(db, TASKS, source.id), {
+    linkedTaskIds: [...existingLinked, newRef.id],
+    linkedTaskId: newRef.id,
+    updatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+  return newRef.id;
+}
+
+
 /** Bridge legacy single-image fields to the S24 array shape. Returns an array. */
 function bridgeImages(data: Record<string, unknown>): import("@/types").ImageAttachment[] {
   const arr = (data.attachmentImages as import("@/types").ImageAttachment[] | undefined) ?? [];
@@ -287,7 +336,8 @@ function bridgeCategoryIds(data: Record<string, unknown>): string[] {
 function bridgePriority(data: Record<string, unknown>): import("@/types").TaskPriority | undefined {
   const p = data.priority;
   if (p === "P1" || p === "P2" || p === "P3") return p;
-  if (data.type === "otazka") return "P2";
+  // V14 — default P2 applies to otázka + úkol (both actionable).
+  if (data.type === "otazka" || data.type === "ukol") return "P2";
   return undefined;
 }
 

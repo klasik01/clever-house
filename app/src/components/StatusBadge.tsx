@@ -18,7 +18,8 @@ interface Props {
  */
 export default function StatusBadge({ status, size = "sm", type }: Props) {
   const t = useT();
-  const display: TaskStatus = type === "otazka" ? mapLegacyOtazkaStatus(status) : (isKnownStatus(status) ? status : "Nápad");
+  // V14 — úkol shares the otázka mapper.
+  const display: TaskStatus = (type === "otazka" || type === "ukol") ? mapLegacyOtazkaStatus(status) : (isKnownStatus(status) ? status : "Nápad");
   const { bg, fg, dot } = statusColors(display);
 
   return (

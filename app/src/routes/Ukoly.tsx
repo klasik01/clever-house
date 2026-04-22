@@ -55,6 +55,22 @@ export default function Ukoly() {
     setQuery(next);
     try { sessionStorage.setItem("filter:ukoly:q", next); } catch { /* ignore */ }
   }
+  // V14 — "Otázky / Úkoly / Vše" type pill. Default "all" so both types are
+  // visible on first load; user can narrow via pill.
+  type TypeMode = "otazka" | "ukol" | "all";
+  const [typeMode, setTypeMode] = useState<TypeMode>(() => {
+    try {
+      const v = sessionStorage.getItem("filter:ukoly:type");
+      if (v === "otazka" || v === "ukol" || v === "all") return v;
+      return "all";
+    } catch {
+      return "all";
+    }
+  });
+  function setTypeModePersist(next: TypeMode) {
+    setTypeMode(next);
+    try { sessionStorage.setItem("filter:ukoly:type", next); } catch { /* ignore */ }
+  }
   // V10 — "Moje / Všechny" filter. Defaults to "mine" so the tab feels like
   // a personal inbox; user can flip to "all" for cross-workspace view.
   const [ownerMode, setOwnerMode] = useState<"mine" | "all">(() => {
@@ -76,6 +92,7 @@ export default function Ukoly() {
     priority !== null ||
     status !== null ||
     ownerMode !== "mine" ||
+    typeMode !== "all" ||
     query.trim() !== "";
 
   function handleReset() {
@@ -84,14 +101,17 @@ export default function Ukoly() {
     setPriority(null);
     setStatus(null);
     setOwnerModePersist("mine");
+    setTypeModePersist("all");
     setQueryPersist("");
     clearAllFilters(KEY);
   }
 
-  // 1. Narrow to otázky, optionally constrained to "mine" (assigned to me
-  //    or — for legacy records without assigneeUid — created by me).
-  const otazky = tasks.filter((tk) => {
-    if (tk.type !== "otazka") return false;
+  // 1. Narrow to actionable items (otázky + úkoly, V14). Honor "Moje"
+  //    (assigned to me OR created by me for legacy records without assignee).
+  //    Type pill below further narrows to a specific kind.
+  const actionable = tasks.filter((tk) => {
+    if (tk.type !== "otazka" && tk.type !== "ukol") return false;
+    if (typeMode !== "all" && tk.type !== typeMode) return false;
     if (ownerMode === "mine") {
       const assigned = tk.assigneeUid ?? tk.createdBy;
       return assigned === user?.uid;
@@ -99,10 +119,10 @@ export default function Ukoly() {
     return true;
   });
 
-  // 2. Apply status (V5 canonical; legacy Otázka/Čekám mapped on the fly).
+  // 2. Apply status (V10 canonical; legacy Otázka/Čekám mapped on the fly).
   const byStatus = status
-    ? otazky.filter((tk) => mapLegacyOtazkaStatus(tk.status) === status)
-    : otazky;
+    ? actionable.filter((tk) => mapLegacyOtazkaStatus(tk.status) === status)
+    : actionable;
 
   // 3. Apply priority.
   const byPriority = priority
@@ -150,6 +170,7 @@ export default function Ukoly() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
         <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
         <StatusFilterChip value={status} onChange={setStatus} />
         <PriorityFilterChip value={priority} onChange={setPriority} />
@@ -238,6 +259,48 @@ function OwnerModeChip({
       >
         {t("ukoly.ownerAll")}
       </button>
+    </div>
+  );
+}
+
+
+/**
+ * V14 — type pill: Otázky / Úkoly / Vše. Mirrors OwnerModeChip visually so
+ * the filter row reads as one consistent control group.
+ */
+function TypeModeChip({
+  value,
+  onChange,
+}: {
+  value: "otazka" | "ukol" | "all";
+  onChange: (next: "otazka" | "ukol" | "all") => void;
+}) {
+  const t = useT();
+  const opts: Array<{ v: "otazka" | "ukol" | "all"; label: string }> = [
+    { v: "all", label: t("ukoly.typeAll") },
+    { v: "otazka", label: t("ukoly.typeOtazky") },
+    { v: "ukol", label: t("ukoly.typeUkoly") },
+  ];
+  return (
+    <div role="radiogroup" aria-label={t("ukoly.filterTypeAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
+      {opts.map((o, i) => (
+        <button
+          key={o.v}
+          type="button"
+          role="radio"
+          aria-checked={value === o.v}
+          onClick={() => onChange(o.v)}
+          className={[
+            "min-h-tap px-3 py-1.5 text-sm font-medium",
+            i > 0 ? "border-l border-line" : "",
+            value === o.v
+              ? "bg-accent text-accent-on"
+              : "bg-transparent text-ink-muted hover:text-ink",
+          ].join(" ")}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -30,7 +30,7 @@
     "saving": "Ukládám…",
     "typeToggleLabel": "Typ záznamu",
     "typeNapad": "Nápad",
-    "typeOtazka": "Úkol",
+    "typeOtazka": "Otázka",
     "placeholderOtazka": "Co je potřeba řešit?",
     "attachPreview": "Náhled připojeného obrázku",
     "removeAttachment": "Odebrat přílohu",
@@ -39,7 +39,9 @@
     "linkPromptTitle": "Vlož odkaz (URL)",
     "linkInvalid": "Neplatná URL. Zkus to znovu.",
     "linkAttached": "Odkaz připojen",
-    "maxImages": "Maximálně {n} obrázků"
+    "maxImages": "Maximálně {n} obrázků",
+    "typeUkol": "Úkol",
+    "placeholderUkol": "Co je potřeba udělat?"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
@@ -125,7 +127,7 @@
     "author": "Autor",
     "typeLabel": "Typ",
     "typeNapad": "Nápad",
-    "typeOtazka": "Úkol",
+    "typeOtazka": "Otázka",
     "categoryLabel": "Kategorie",
     "categoryNone": "Bez kategorie",
     "categoryPick": "Vyber kategorii",
@@ -153,17 +155,17 @@
     "needMoreInfo": "Potřebuji doplnit",
     "needMoreInfoBanner": "Projektant čeká na doplnění — uprav otázku a pošli znovu.",
     "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi.",
-    "convertToOtazka": "Vytvořit úkol z nápadu",
-    "convertConfirm": "Vytvořit otázku pro Projektanta s tímto obsahem? Původní nápad zůstane.",
-    "linkedOtazkaTitle": "Vytvořená otázka",
+    "convertToOtazka": "Nová otázka z nápadu",
+    "convertConfirm": "Vytvořit otázku navázanou na tento nápad? Původní nápad zůstane.",
+    "linkedOtazkaTitle": "Navázaná otázka",
     "linkedNapadTitle": "Vzniklo z nápadu",
     "linkedOpen": "Otevřít",
     "converting": "Vytvářím otázku…",
     "titlePrimary": "Název",
     "titlePlaceholderV2": "Krátký název…",
     "noTitle": "(bez názvu)",
-    "linkedOtazkyTitle": "Vytvořené otázky",
-    "convertToOtazkaAgain": "Vytvořit další úkol",
+    "linkedOtazkyTitle": "Navázané otázky",
+    "convertToOtazkaAgain": "Další otázka",
     "editorLoading": "Načítám editor…",
     "assignee": "Řeší",
     "assigneeChange": "Změnit řešitele",
@@ -174,7 +176,25 @@
     "shareOn": "Sdíleno",
     "shareOff": "Nesdíleno",
     "bodyEmpty": "Bez popisu.",
-    "ballOnMe": "K vyjádření"
+    "ballOnMe": "K vyjádření",
+    "typeUkol": "Úkol",
+    "convertToUkol": "Nový úkol z nápadu",
+    "convertToUkolAgain": "Další úkol",
+    "convertingUkol": "Vytvářím úkol…",
+    "convertConfirmUkol": "Vytvořit úkol navázaný na tento nápad? Původní nápad zůstane.",
+    "vystupLabel": "Výstup",
+    "vystupPlaceholder": "Sem sepiš, co jste se dohodli a co se z toho udělá. Zůstane to u nápadu jako trvalý záznam.",
+    "vystupBannerTitle": "Doplň výstup",
+    "vystupBannerBody": "Nápad je hotový, ale Výstup je zatím prázdný. Sepiš krátký závěr, ať to nezapadne.",
+    "vystupBannerCta": "Vyplnit",
+    "dependencyLabel": "Hotové před",
+    "dependencyPlaceholder": "Např. před omítkami, před kolaudací…",
+    "linkedUkolyTitle": "Navázané úkoly",
+    "linkedUkolTitle": "Navázaný úkol",
+    "vystupShow": "Zobrazit výstup",
+    "vystupHide": "Skrýt výstup",
+    "vystupEmptyHint": "(zatím prázdný)",
+    "vystupFilledHint": "(vyplněno)"
   },
   "editor": {
     "toolbar": "Formátování",
@@ -206,7 +226,7 @@
   },
   "ukoly": {
     "pageTitle": "Úkoly",
-    "pageHint": "Všechny otázky a úkoly na jednom místě.",
+    "pageHint": "Otázky i úkoly na jednom místě. Přepni typ, ať vidíš jen jedno.",
     "emptyTitle": "Zatím nic",
     "emptyBody": "Žádný úkol neodpovídá filtrům.",
     "filterPriority": "Priorita",
@@ -217,7 +237,11 @@
     "ownerMine": "Moje",
     "ownerAll": "Všechny",
     "sectionBallOnMe": "Na tobě",
-    "sectionOther": "Ostatní"
+    "sectionOther": "Ostatní",
+    "filterTypeAria": "Typ položky",
+    "typeOtazky": "Otázky",
+    "typeUkoly": "Úkoly",
+    "typeAll": "Vše"
   },
   "harmonogram": {
     "pageTitle": "Harmonogram prací",
@@ -359,7 +383,7 @@
     "imagePreview": "Náhled obrázku",
     "openImagePreview": "Otevřít náhled",
     "typeNapad": "Typ: Nápad",
-    "typeOtazka": "Typ: Úkol",
+    "typeOtazka": "Typ: Otázka",
     "hasImage": "Obsahuje obrázek",
     "hasLink": "Obsahuje odkaz",
     "toastRegion": "Oznámení",
@@ -367,7 +391,8 @@
     "lokaceNapadyList": "Seznam nápadů v této lokaci",
     "lokaceOtazkyList": "Seznam otázek v této lokaci",
     "lokaceTabs": "Přepínač typů",
-    "categoriesGrid": "Mřížka kategorií"
+    "categoriesGrid": "Mřížka kategorií",
+    "typeUkol": "Typ: Úkol"
   },
   "toast": {
     "saved": "Uloženo",
@@ -467,7 +492,7 @@
     "pageTitle": "Nový záznam",
     "pageTitlePm": "Nový úkol",
     "pageHint": "Zapiš nápad nebo úkol. Po uložení doplníš detaily.",
-    "pageHintPm": "Zapiš úkol pro tým. Po uložení doplníš detaily."
+    "pageHintPm": "Zapiš otázku pro klienta nebo úkol pro tým. Po uložení doplníš detaily."
   },
   "home": {
     "viewToggleLabel": "Přepnout zobrazení"

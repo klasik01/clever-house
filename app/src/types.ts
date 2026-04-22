@@ -1,4 +1,16 @@
-export type TaskType = "napad" | "otazka";
+/**
+ * V14 — three task kinds:
+ *   "napad"  — OWNER's captured thought / watch-out. Container; can embed a
+ *              "výstup" summary when it resolves.
+ *   "otazka" — clarification ping-pong with PM. Short-lived.
+ *   "ukol"   — actionable work item with deadline + dependency text. Longer-
+ *              lived. Can be standalone or linked to a nápad.
+ *
+ * Both "otazka" and "ukol" share the V10 canonical status set + assignee +
+ * comment thread; they differ mostly in what shows on the card and in the
+ * TaskDetail meta block.
+ */
+export type TaskType = "napad" | "otazka" | "ukol";
 
 /**
  * Union of every status a Task can have. Historically role-based values
@@ -98,6 +110,13 @@ export interface Task {
   commentCount?: number;
   /** V3-polish: OWNER can opt-in to share a nápad with PM (read-only for PM). */
   sharedWithPm?: boolean;
+  /** V14 — free-text dependency on an úkol ("před omítkami"). No structured
+   *  phase reference; users type whatever makes sense. Null for other types. */
+  dependencyText?: string | null;
+  /** V14 — "Výstup" markdown summary attached to a nápad. Owner fills this in
+   *  when the nápad resolves; it's the durable record of what was decided.
+   *  Shown in detail as a second editor below the body. Null for other types. */
+  vystup?: string | null;
   createdAt: string;
   updatedAt: string;
   createdBy: string;

@@ -14,7 +14,8 @@ export function computePrehledGroups(
   now = Date.now()
 ): Record<PrehledFilterId, Task[]> {
   const stuckThresholdMs = STUCK_DAYS * 24 * 60 * 60 * 1000;
-  const onlyOtazky = tasks.filter((t) => t.type === "otazka");
+  // V14 — Přehled covers both otázka and úkol (both are actionable).
+  const onlyOtazky = tasks.filter((t) => t.type === "otazka" || t.type === "ukol");
 
   return {
     "waiting-me": onlyOtazky.filter((t) => {

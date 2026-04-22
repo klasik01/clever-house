@@ -33,14 +33,15 @@ export default function StatusSelect({ value, onChange, disabled, type, isPm = f
   const t = useT();
 
   // Normalise legacy otazka values to canonical before comparing / rendering.
-  const current: TaskStatus = type === "otazka" ? mapLegacyOtazkaStatus(value) : value;
+  // V14 — úkol shares the same canonical status mapper as otázka.
+  const current: TaskStatus = (type === "otazka" || type === "ukol") ? mapLegacyOtazkaStatus(value) : value;
 
   const options: TaskStatus[] =
     type === "napad"
       ? (NAPAD_STATUSES as TaskStatus[])
-      : type === "otazka"
+      : (type === "otazka" || type === "ukol")
       ? (OTAZKA_STATUSES as TaskStatus[])
-      : // No type context — fall back to a broad union (napad + canonical otazka)
+      : // No type context — fall back to a broad union (napad + canonical otazka/úkol)
         [...(NAPAD_STATUSES as TaskStatus[]), ...(OTAZKA_STATUSES as TaskStatus[])];
 
   return (

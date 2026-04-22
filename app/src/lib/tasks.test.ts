@@ -10,6 +10,7 @@ import {
   deleteTask,
   getTask,
   convertNapadToOtazka,
+  convertNapadToUkol,
 } from "./tasks";
 import type { Task } from "@/types";
 
@@ -173,6 +174,74 @@ describe("convertNapadToOtazka — V10 defaults", () => {
     const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
     expect(doc.status).toBe("OPEN");
     expect(doc.assigneeUid).toBe("converter");
+  });
+});
+
+// ---------- V14 — ukol type + dependencyText + vystup + convertNapadToUkol ----------
+
+describe("V14 — createTask ukol", () => {
+  it("seeds ukol with creator as assignee (parallels otazka)", async () => {
+    const id = await createTask(
+      { type: "ukol", title: "Vyrobit kuchyň", body: "", status: "OPEN" },
+      "owner-1",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.type).toBe("ukol");
+    expect(stored.assigneeUid).toBe("owner-1");
+    expect(stored.status).toBe("OPEN");
+  });
+
+  it("napad still leaves assigneeUid null", async () => {
+    const id = await createTask(
+      { type: "napad", title: "N", body: "", status: "Nápad" },
+      "owner-1",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBeNull();
+  });
+});
+
+describe("V14 — updateTask whitelist allows dependencyText + vystup", () => {
+  it("persists dependencyText patch", async () => {
+    __firestoreState.store.set("tasks/u1", { title: "t", body: "b" });
+    await updateTask("u1", { dependencyText: "před omítkami" });
+    const merged = __firestoreState.store.get("tasks/u1") as Record<string, unknown>;
+    expect(merged.dependencyText).toBe("před omítkami");
+  });
+
+  it("persists vystup patch (nápad resolution summary)", async () => {
+    __firestoreState.store.set("tasks/n1", { title: "t", body: "b" });
+    await updateTask("n1", { vystup: "Dohodnuto: Stiebel WPL 17" });
+    const merged = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;
+    expect(merged.vystup).toBe("Dohodnuto: Stiebel WPL 17");
+  });
+});
+
+describe("V14 — convertNapadToUkol", () => {
+  it("creates type=ukol linked back to source, creator assigned", async () => {
+    const src: Task = {
+      id: "napad-1",
+      type: "napad",
+      title: "Topení",
+      body: "myslim na TČ",
+      status: "Nápad",
+      categoryId: "c1",
+      locationId: "l1",
+      createdBy: "owner",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    };
+    __firestoreState.store.set("tasks/napad-1", { ...src });
+    const newId = await convertNapadToUkol(src, "owner");
+    const stored = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(stored.type).toBe("ukol");
+    expect(stored.status).toBe("OPEN");
+    expect(stored.assigneeUid).toBe("owner");
+    expect(stored.linkedTaskId).toBe("napad-1");
+    expect(stored.title).toBe("");
+    expect(stored.body).toBe("");
+    const parent = __firestoreState.store.get("tasks/napad-1") as Record<string, unknown>;
+    expect(parent.linkedTaskIds).toContain(newId);
   });
 });
 

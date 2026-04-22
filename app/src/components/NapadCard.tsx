@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertTriangle, HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Paperclip, Tag } from "lucide-react";
+import { AlertTriangle, Flag, HelpCircle, Image as ImageIcon, Link as LinkIcon, MapPin, Notebook, Paperclip, Tag, Target } from "lucide-react";
 import type { Category, Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
 import StatusBadge from "./StatusBadge";
@@ -24,14 +24,20 @@ export default function NapadCard({ task, categories }: Props) {
   //       accent border, regardless of role. Fallback to createdBy for legacy
   //       records without assigneeUid.
   const isBallOnMe = isBallOnMeV10(task, user?.uid);
-  const deadlineStateNow = task.type === "otazka"
+  // V14 — deadline renders on otázka + úkol. Nápady never carry a deadline.
+  const deadlineStateNow = (task.type === "otazka" || task.type === "ukol")
     ? deadlineState(task.deadline)
     : null;
   const isOverdue = deadlineStateNow === "overdue";
   const { byUid } = useUsers(Boolean(user));
   const assignee = task.assigneeUid ? byUid.get(task.assigneeUid) : undefined;
   const created = new Date(task.createdAt);
-  const TypeIcon = task.type === "otazka" ? HelpCircle : Notebook;
+  const TypeIcon =
+    task.type === "otazka"
+      ? HelpCircle
+      : task.type === "ukol"
+      ? Target
+      : Notebook;
   const categoryIds = task.categoryIds?.length
     ? task.categoryIds
     : task.categoryId ? [task.categoryId] : [];
@@ -55,7 +61,13 @@ export default function NapadCard({ task, categories }: Props) {
   return (
     <Link
       to={`/t/${task.id}`}
-      aria-label={`${task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")} · ${titleDisplay}`}
+      aria-label={`${
+        task.type === "otazka"
+          ? t("aria.typeOtazka")
+          : task.type === "ukol"
+          ? t("aria.typeUkol")
+          : t("aria.typeNapad")
+      } · ${titleDisplay}`}
       className={`block rounded-md bg-surface px-4 py-3 shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-visible:ring-2 focus-visible:ring-line-focus ${isOverdue ? "border-l-4" : isBallOnMe ? "border-l-4 border-accent" : ""}`}
       style={isOverdue ? { borderLeftColor: "var(--color-status-danger-fg)" } : undefined}
     >
@@ -63,13 +75,17 @@ export default function NapadCard({ task, categories }: Props) {
         <div className="flex items-start gap-3">
           <span className="shrink-0 mt-1">
             <span className="sr-only">
-              {task.type === "otazka" ? t("aria.typeOtazka") : t("aria.typeNapad")}
+              {task.type === "otazka"
+                ? t("aria.typeOtazka")
+                : task.type === "ukol"
+                ? t("aria.typeUkol")
+                : t("aria.typeNapad")}
             </span>
             <TypeIcon
               aria-hidden
               size={18}
               className={
-                task.type === "otazka"
+                (task.type === "otazka" || task.type === "ukol")
                   ? "text-accent-visual"
                   : "text-ink-subtle"
               }
@@ -89,11 +105,20 @@ export default function NapadCard({ task, categories }: Props) {
               {titleDisplay}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {task.type === "otazka" && task.priority && (
+              {(task.type === "otazka" || task.type === "ukol") && task.priority && (
                 <PriorityBadge priority={task.priority} />
               )}
-              {task.type === "otazka" && task.deadline && (
+              {(task.type === "otazka" || task.type === "ukol") && task.deadline && (
                 <DeadlineChip deadline={task.deadline} />
+              )}
+              {task.type === "ukol" && task.dependencyText && task.dependencyText.trim() && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted"
+                  title={task.dependencyText}
+                >
+                  <Flag aria-hidden size={11} />
+                  <span className="truncate max-w-[9rem]">{task.dependencyText}</span>
+                </span>
               )}
               <StatusBadge status={task.status} />
               {visibleCategories.map((c) => (

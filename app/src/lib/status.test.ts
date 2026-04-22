@@ -128,3 +128,58 @@ describe("isBallOnMe (V10 — assignee-driven)", () => {
     expect(isBallOnMe(mk({ assigneeUid: "me", status: "ON_PM_SITE" }), "me")).toBe(true);
   });
 });
+
+// ---------- V14 — úkol shares canonical pipeline with otázka ----------
+
+describe("V14 — canonicalStatus respects úkol", () => {
+  it("normalises úkol statuses like otázka", () => {
+    expect(canonicalStatus("ukol", "OPEN")).toBe("OPEN");
+    expect(canonicalStatus("ukol", "Otázka")).toBe("OPEN");
+    expect(canonicalStatus("ukol", "ON_PM_SITE")).toBe("OPEN");
+    expect(canonicalStatus("ukol", "Hotovo")).toBe("DONE");
+    expect(canonicalStatus("ukol", "BLOCKED")).toBe("BLOCKED");
+  });
+});
+
+describe("V14 — statusLabel respects úkol", () => {
+  it("úkol maps to statusOtazka.* like otázka", () => {
+    expect(statusLabel(identT, "OPEN", { type: "ukol" })).toBe("statusOtazka.OPEN");
+    expect(statusLabel(identT, "DONE", { type: "ukol" })).toBe("statusOtazka.DONE");
+    expect(statusLabel(identT, "BLOCKED", { type: "ukol" })).toBe("statusOtazka.BLOCKED");
+  });
+});
+
+describe("V14 — isBallOnMe extends to úkol", () => {
+  function mk(overrides: Partial<Task> = {}): Task {
+    return {
+      id: overrides.id ?? "t",
+      type: overrides.type ?? "ukol",
+      title: "",
+      body: "",
+      status: overrides.status ?? "OPEN",
+      createdBy: overrides.createdBy ?? "author",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+      ...overrides,
+    } as Task;
+  }
+
+  it("true for úkol OPEN assigned to me", () => {
+    expect(isBallOnMe(mk({ assigneeUid: "me" }), "me")).toBe(true);
+  });
+
+  it("false for úkol DONE/BLOCKED/CANCELED even when assignee matches", () => {
+    for (const s of ["DONE", "BLOCKED", "CANCELED"] as TaskStatus[]) {
+      expect(isBallOnMe(mk({ assigneeUid: "me", status: s }), "me")).toBe(false);
+    }
+  });
+
+  it("falls back to createdBy for legacy úkol without assigneeUid", () => {
+    expect(isBallOnMe(mk({ createdBy: "me" }), "me")).toBe(true);
+  });
+
+  it("still false for napad even when assigneeUid matches (type gate)", () => {
+    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me" }), "me")).toBe(false);
+  });
+});
+

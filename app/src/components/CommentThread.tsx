@@ -39,10 +39,11 @@ export default function CommentThread({ task }: Props) {
     return u?.displayName || u?.email?.split("@")[0] || uid.slice(0, 6);
   };
 
-  // V10 — workflow is active on otázka while still OPEN. Closed / cancelled /
-  // blocked úkoly don’t offer flip; use StatusSelect to re-open.
-  const current = task.type === "otazka" ? mapLegacyOtazkaStatus(task.status) : task.status;
-  const workflowEnabled = task.type === "otazka" && current === "OPEN" && Boolean(user);
+  // V10 + V14 — workflow active on otázka OR úkol while OPEN. Closed /
+  // cancelled / blocked úkoly don’t offer flip; use StatusSelect to re-open.
+  const isActionable = task.type === "otazka" || task.type === "ukol";
+  const current = isActionable ? mapLegacyOtazkaStatus(task.status) : task.status;
+  const workflowEnabled = isActionable && current === "OPEN" && Boolean(user);
 
   // Peers = every other workspace user. Sorted alphabetically for predictable
   // dropdown ordering.

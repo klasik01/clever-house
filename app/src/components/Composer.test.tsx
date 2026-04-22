@@ -54,3 +54,39 @@ describe("Composer (V11 lockedType)", () => {
     expect(btn).toBeDisabled();
   });
 });
+
+describe("Composer (V14 allowedTypes + 3-way toggle)", () => {
+  beforeEach(() => {
+    try { localStorage.clear(); } catch { /* jsdom */ }
+  });
+
+  it("renders all three pills by default (Nápad + Otázka + Úkol)", () => {
+    renderWithProviders(<Composer onSave={vi.fn()} />);
+    expect(screen.getByText("Nápad")).toBeInTheDocument();
+    expect(screen.getByText("Otázka")).toBeInTheDocument();
+    expect(screen.getByText("Úkol")).toBeInTheDocument();
+  });
+
+  it("allowedTypes restricts the pill set — PM gets Otázka + Úkol, no Nápad", () => {
+    renderWithProviders(<Composer onSave={vi.fn()} allowedTypes={["otazka", "ukol"]} />);
+    expect(screen.queryByText("Nápad")).not.toBeInTheDocument();
+    expect(screen.getByText("Otázka")).toBeInTheDocument();
+    expect(screen.getByText("Úkol")).toBeInTheDocument();
+  });
+
+  it("default active type is the first allowedTypes entry", async () => {
+    const fn = vi.fn();
+    renderWithProviders(<Composer onSave={fn} allowedTypes={["ukol", "otazka"]} />);
+    await userEvent.type(screen.getByRole("textbox"), "něco");
+    await userEvent.click(screen.getByRole("button", { name: /Uložit/i }));
+    expect(fn.mock.calls[0][1]).toBe("ukol");
+  });
+
+  it("hides the toggle when allowedTypes has a single entry", () => {
+    renderWithProviders(<Composer onSave={vi.fn()} allowedTypes={["ukol"]} />);
+    expect(screen.queryByText("Nápad")).not.toBeInTheDocument();
+    expect(screen.queryByText("Otázka")).not.toBeInTheDocument();
+    expect(screen.queryByText("Úkol")).not.toBeInTheDocument();
+  });
+});
+
