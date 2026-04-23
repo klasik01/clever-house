@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, CornerDownLeft, Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
 import { isSupportedImage } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
+import LinkFavicon from "./LinkFavicon";
 import { useT } from "@/i18n/useT";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
@@ -277,7 +278,7 @@ export default function CommentComposer({
         <ul className="mt-3 flex flex-col gap-1 border-t border-line pt-2">
           {links.map((url, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">
-              <LinkIcon aria-hidden size={14} className="text-accent-visual" />
+              <LinkFavicon url={url} size={14} className="text-accent-visual" />
               <span className="truncate flex-1 text-ink">{parseDomain(url) ?? url}</span>
               <button
                 type="button"

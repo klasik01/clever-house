@@ -16,6 +16,11 @@ type Props = {
   placeholder?: string;
   ariaLabel?: string;
   disabled?: boolean;
+  /** V14.12 — drop the bordered editor shell. Used for read-only preview
+   *  contexts (e.g. Výstup peek on the Záznamy card) where the editor is
+   *  already sitting inside a styled panel and another frame would look
+   *  double-boxed. Implies `disabled` is typical but not required. */
+  frameless?: boolean;
 };
 
 /**
@@ -34,6 +39,7 @@ export default function RichTextEditor({
   placeholder,
   ariaLabel,
   disabled = false,
+  frameless = false,
 }: Props) {
   const t = useT();
 
@@ -97,7 +103,6 @@ export default function RichTextEditor({
     if (value === current) return;
     editor.commands.setContent(value || "", false);
     lastEmittedRef.current = value;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
   useEffect(() => {
@@ -106,9 +111,16 @@ export default function RichTextEditor({
   }, [disabled, editor]);
 
   if (!editor) {
+    // V14.13 — in frameless mode we're embedded in a styled panel already;
+    // skip the border/min-height so the peek panel doesn't flash a big boxy
+    // placeholder before Tiptap finishes mounting.
     return (
       <div
-        className="mt-3 min-h-[17rem] rounded-md border border-line bg-surface"
+        className={
+          frameless
+            ? "min-h-[2rem]"
+            : "mt-3 min-h-[17rem] rounded-md border border-line bg-surface"
+        }
         aria-busy="true"
       />
     );
@@ -164,7 +176,9 @@ export default function RichTextEditor({
       <EditorContent
         editor={editor}
         className={
-          disabled
+          frameless
+            ? "bg-transparent"
+            : disabled
             ? "rounded-md border border-line bg-surface"
             : "rounded-b-md border border-line bg-surface focus-within:border-line-focus"
         }

@@ -55,7 +55,7 @@ describe("matchTaskQuery", () => {
     expect(matchTaskQuery(task, "elektro zahrada")).toBe(false);
   });
 
-  it("no match when query doesn\'t appear", () => {
+  it("no match when query doesn't appear", () => {
     expect(matchTaskQuery(mk({ title: "Kuchyň", body: "" }), "zahrada")).toBe(false);
   });
 });

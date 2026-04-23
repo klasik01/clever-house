@@ -171,3 +171,26 @@
   float: left;
   height: 0;
 }
+
+/* --- iOS Safari zoom-on-focus fix ---
+ * Mobile Safari zooms the viewport in when the user taps any form control
+ * whose computed font-size is < 16px. The zoom survives blur, breaks our
+ * layout math, and feels like a visual glitch. Enforce 16px on every text
+ * input surface below the sm breakpoint where this behaviour triggers.
+ *
+ * !important is required so Tailwind utilities (text-sm / text-xs) on
+ * individual fields can't accidentally reintroduce the problem. Desktop
+ * (>= 640px) keeps whatever sizing the component chose — no touch, no zoom.
+ *
+ * Scope: input (skip checkbox/radio — they're not zoomed by Safari),
+ *        textarea, select, and anything rendered as a rich-text surface
+ *        (contenteditable or role=textbox — e.g. Tiptap). */
+@media (max-width: 639.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select,
+  [contenteditable="true"],
+  [role="textbox"] {
+    font-size: 16px !important;
+  }
+}

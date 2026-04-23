@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Check, CornerDownLeft, ExternalLink, Link as LinkIcon, Pencil, Trash2, X } from "lucide-react";
+import { Check, CornerDownLeft, ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import AvatarCircle from "./AvatarCircle";
 import { statusColors } from "./StatusBadge";
 import { mapLegacyOtazkaStatus } from "@/lib/status";
 import ReactionBar from "./ReactionBar";
 import { useT, formatRelative } from "@/i18n/useT";
 import { parseDomain } from "@/lib/links";
+import LinkFavicon from "./LinkFavicon";
 import { splitBodyByMentions } from "@/lib/mentions";
 import type { Comment, UserProfile } from "@/types";
 
@@ -237,7 +238,7 @@ export default function CommentItem({
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 text-xs text-ink hover:underline"
                 >
-                  <LinkIcon aria-hidden size={12} className="text-accent-visual shrink-0" />
+                  <LinkFavicon url={url} size={12} className="text-accent-visual shrink-0" />
                   <span className="truncate">{parseDomain(url) ?? url}</span>
                   <ExternalLink aria-hidden size={10} className="text-ink-subtle shrink-0" />
                 </a>

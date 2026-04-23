@@ -147,7 +147,7 @@ describe("createTask — V10 assigneeUid defaults", () => {
     expect(stored.assigneeUid).toBe("owner-1");
   });
 
-  it("new napad has no assignee (concept doesn\'t apply)", async () => {
+  it("new napad has no assignee (concept doesn't apply)", async () => {
     const id = await createTask(
       { type: "napad", title: "Rekonstrukce", body: "", status: "Nápad" },
       "owner-1",

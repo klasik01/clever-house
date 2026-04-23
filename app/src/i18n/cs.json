@@ -55,7 +55,9 @@
     "hoursAgo": "před {n} h",
     "daysAgo": "před {n} d",
     "delete": "Smazat",
-    "confirmDelete": "Smazat tento nápad?"
+    "confirmDelete": "Smazat tento nápad?",
+    "expandVystup": "Zobrazit výstup",
+    "collapseVystup": "Skrýt výstup"
   },
   "auth": {
     "title": "Přihlášení",
@@ -155,7 +157,7 @@
     "needMoreInfo": "Potřebuji doplnit",
     "needMoreInfoBanner": "Projektant čeká na doplnění — uprav otázku a pošli znovu.",
     "readOnlyAsPm": "Jako Projektant vidíš jen otázku a pole odpovědi.",
-    "convertToOtazka": "Nová otázka z nápadu",
+    "convertToOtazka": "Nová otázka",
     "convertConfirm": "Vytvořit otázku navázanou na tento nápad? Původní nápad zůstane.",
     "linkedOtazkaTitle": "Navázaná otázka",
     "linkedNapadTitle": "Vzniklo z nápadu",
@@ -178,7 +180,7 @@
     "bodyEmpty": "Bez popisu.",
     "ballOnMe": "K vyjádření",
     "typeUkol": "Úkol",
-    "convertToUkol": "Nový úkol z nápadu",
+    "convertToUkol": "Nový úkol",
     "convertToUkolAgain": "Další úkol",
     "convertingUkol": "Vytvářím úkol…",
     "convertConfirmUkol": "Vytvořit úkol navázaný na tento nápad? Původní nápad zůstane.",
@@ -241,7 +243,10 @@
     "filterTypeAria": "Typ položky",
     "typeOtazky": "Otázky",
     "typeUkoly": "Úkoly",
-    "typeAll": "Vše"
+    "typeAll": "Vše",
+    "stateActive": "Aktivní",
+    "stateAll": "Vše",
+    "filterStateAria": "Aktivní vs zavřené"
   },
   "harmonogram": {
     "pageTitle": "Harmonogram prací",

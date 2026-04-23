@@ -31,31 +31,34 @@ describe("NapadCard (V10)", () => {
 
   it("applies ball-on-me border when assigneeUid === current user", () => {
     const { container } = renderWithProviders(<NapadCard task={base} />);
-    const link = container.querySelector("a");
-    expect(link?.className).toMatch(/border-l-4/);
-    expect(link?.className).toMatch(/border-accent/);
+    // V14.10 — card chrome (border + overdue style) moved from the inner
+    // <Link> onto the outer wrapper <div> so the peek panel can live as a
+    // sibling without being nested inside the navigable link.
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).toMatch(/border-l-4/);
+    expect(outer.className).toMatch(/border-accent/);
   });
 
   it("no ball-on-me border when assigneeUid is someone else", () => {
     const other = { ...base, assigneeUid: "someone-else" } as Task;
     const { container } = renderWithProviders(<NapadCard task={other} />);
-    const link = container.querySelector("a");
-    expect(link?.className).not.toMatch(/border-accent/);
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).not.toMatch(/border-accent/);
   });
 
   it("applies the danger border when the úkol is overdue", () => {
     const yesterday = Date.now() - 2 * 24 * 60 * 60 * 1000;
     const overdue = { ...base, deadline: yesterday } as Task;
     const { container } = renderWithProviders(<NapadCard task={overdue} />);
-    const link = container.querySelector("a");
-    expect(link?.className).toMatch(/border-l-4/);
-    expect(link?.getAttribute("style") ?? "").toContain("color-status-danger-fg");
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).toMatch(/border-l-4/);
+    expect(outer.getAttribute("style") ?? "").toContain("color-status-danger-fg");
   });
 
   it("no border when type=napad", () => {
     const napad = { ...base, type: "napad", status: "Nápad" } as Task;
     const { container } = renderWithProviders(<NapadCard task={napad} />);
-    const link = container.querySelector("a");
-    expect(link?.className).not.toMatch(/border-accent/);
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).not.toMatch(/border-accent/);
   });
 });

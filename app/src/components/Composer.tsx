@@ -4,6 +4,7 @@ import { useT } from "@/i18n/useT";
 import { loadDraft, saveDraft } from "@/lib/storage";
 import { isSupportedImage } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
+import LinkFavicon from "./LinkFavicon";
 import type { TaskType } from "@/types";
 
 interface StagedImage {
@@ -243,7 +244,7 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
               const domain = parseDomain(url) ?? url;
               return (
                 <span key={i} className="inline-flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-sm text-ink-muted">
-                  <LinkIcon aria-hidden size={14} />
+                  <LinkFavicon url={url} size={14} />
                   <span className="max-w-[10rem] truncate">{domain}</span>
                   <button
                     type="button"

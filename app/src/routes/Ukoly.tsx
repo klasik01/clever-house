@@ -55,6 +55,22 @@ export default function Ukoly() {
     setQuery(next);
     try { sessionStorage.setItem("filter:ukoly:q", next); } catch { /* ignore */ }
   }
+  // V14.9 — default view hides closed tasks (DONE + CANCELED). User can
+  // flip to "Vše" to include them. This is the pill that most filters the
+  // list in practice, so it goes first in the chip row.
+  type StateMode = "active" | "all";
+  const [stateMode, setStateMode] = useState<StateMode>(() => {
+    try {
+      const v = sessionStorage.getItem("filter:ukoly:state");
+      return v === "all" ? "all" : "active";
+    } catch {
+      return "active";
+    }
+  });
+  function setStateModePersist(next: StateMode) {
+    setStateMode(next);
+    try { sessionStorage.setItem("filter:ukoly:state", next); } catch { /* ignore */ }
+  }
   // V14 — "Otázky / Úkoly / Vše" type pill. Default "all" so both types are
   // visible on first load; user can narrow via pill.
   type TypeMode = "otazka" | "ukol" | "all";
@@ -93,6 +109,7 @@ export default function Ukoly() {
     status !== null ||
     ownerMode !== "mine" ||
     typeMode !== "all" ||
+    stateMode !== "active" ||
     query.trim() !== "";
 
   function handleReset() {
@@ -102,6 +119,7 @@ export default function Ukoly() {
     setStatus(null);
     setOwnerModePersist("mine");
     setTypeModePersist("all");
+    setStateModePersist("active");
     setQueryPersist("");
     clearAllFilters(KEY);
   }
@@ -119,9 +137,18 @@ export default function Ukoly() {
     return true;
   });
 
-  // 2. Apply status (V10 canonical; legacy Otázka/Čekám mapped on the fly).
+  // 2. Apply status + stateMode (V14.9).
+  //    - Explicit StatusFilterChip wins: if user picks one, that's the
+  //      absolute truth (even "Hotovo" forced view works).
+  //    - Otherwise stateMode drives the visibility. Default "active" keeps
+  //      OPEN + BLOCKED visible; "all" includes DONE + CANCELED too.
   const byStatus = status
     ? actionable.filter((tk) => mapLegacyOtazkaStatus(tk.status) === status)
+    : stateMode === "active"
+    ? actionable.filter((tk) => {
+        const s = mapLegacyOtazkaStatus(tk.status);
+        return s === "OPEN" || s === "BLOCKED";
+      })
     : actionable;
 
   // 3. Apply priority.
@@ -170,6 +197,7 @@ export default function Ukoly() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <StateModeChip value={stateMode} onChange={setStateModePersist} />
         <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
         <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
         <StatusFilterChip value={status} onChange={setStatus} />
@@ -304,3 +332,52 @@ function TypeModeChip({
     </div>
   );
 }
+
+/**
+ * V14.9 — active/all pill. Hides DONE + CANCELED by default so closed
+ * tasks vanish from the main list as soon as they're resolved. User flips
+ * to "Vše" when they want to see the archive / follow up on a cancelled
+ * task. Mirrors OwnerModeChip / TypeModeChip visually for consistency.
+ */
+function StateModeChip({
+  value,
+  onChange,
+}: {
+  value: "active" | "all";
+  onChange: (next: "active" | "all") => void;
+}) {
+  const t = useT();
+  return (
+    <div role="radiogroup" aria-label={t("ukoly.filterStateAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value === "active"}
+        onClick={() => onChange("active")}
+        className={[
+          "min-h-tap px-3 py-1.5 text-sm font-medium",
+          value === "active"
+            ? "bg-accent text-accent-on"
+            : "bg-transparent text-ink-muted hover:text-ink",
+        ].join(" ")}
+      >
+        {t("ukoly.stateActive")}
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={value === "all"}
+        onClick={() => onChange("all")}
+        className={[
+          "min-h-tap px-3 py-1.5 text-sm font-medium border-l border-line",
+          value === "all"
+            ? "bg-accent text-accent-on"
+            : "bg-transparent text-ink-muted hover:text-ink",
+        ].join(" ")}
+      >
+        {t("ukoly.stateAll")}
+      </button>
+    </div>
+  );
+}
+

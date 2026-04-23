@@ -19,6 +19,7 @@ import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attach
 import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, X as XIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
+import LinkFavicon from "@/components/LinkFavicon";
 import { useCategories } from "@/hooks/useCategories";
 import { getLocation } from "@/lib/locations";
 import { useAuth } from "@/hooks/useAuth";
@@ -683,7 +684,7 @@ export default function TaskDetail() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
                   >
-                    <LinkIconLc size={14} />
+                    <LinkFavicon url={url} size={14} />
                     <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
                   </a>
                 </li>
@@ -928,7 +929,7 @@ export default function TaskDetail() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
                 >
-                  <LinkIconLc size={14} />
+                  <LinkFavicon url={url} size={14} />
                   <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
                 </a>
               </li>
