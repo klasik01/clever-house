@@ -20,10 +20,15 @@
 #                                                 └──► deploy-prod-rules
 #
 # Branch rules:
-#   main       → full pipeline (install → validate → build → deploy dev &
-#                 prod, both manual via env approval).
-#   develop    → install → validate → build → deploy dev only.
+#   main       → install → validate → build → deploy PROD only (manual via
+#                 env approval). Dev deploy jobs se zde skipují.
+#   develop    → install → validate → build → deploy DEV only (manual via
+#                 env approval). Prod deploy jobs se zde skipují.
 #   everything → install → validate → build. No deploys.
+#
+#   Rules deploy (dev-rules + prod-rules) je momentálně DISABLED v pipelině.
+#   Nasazuj lokálně:
+#     cd app && firebase use <dev|prod> && npm run rules:deploy
 #
 # Secrets (reused from existing GitHub secrets):
 #   Dev:
@@ -61,10 +66,8 @@ on:
           - all
           - dev-frontend
           - dev-functions
-          - dev-rules
           - prod-frontend
           - prod-functions
-          - prod-rules
 
 permissions:
   contents: write   # needed by deploy-prod-frontend to push the version tag
@@ -314,7 +317,8 @@ jobs:
     name: deploy · dev frontend (GitHub Pages)
     runs-on: ubuntu-latest
     needs: build-frontend-dev
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    # Dev deploy běží jen z develop branche — ne z main (tam jezdí prod).
+    if: github.ref == 'refs/heads/develop'
     environment:
       name: dev-frontend
       url: ${{ steps.pages.outputs.page_url }}
@@ -337,7 +341,8 @@ jobs:
     name: deploy · dev Firebase Functions
     runs-on: ubuntu-latest
     needs: build-functions
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    # Dev deploy běží jen z develop branche — ne z main (tam jezdí prod).
+    if: github.ref == 'refs/heads/develop'
     environment:
       name: dev-functions
     steps:
@@ -374,7 +379,13 @@ jobs:
     name: deploy · dev Firestore + Storage rules
     runs-on: ubuntu-latest
     needs: install
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    # Dev deploy běží jen z develop branche — ne z main (tam jezdí prod).
+    # DISABLED — rules deploy přes CI dělá víc starostí než užitku
+    # (IAM permissions + Eventarc quirks). Když potřebuješ rules
+    # nasadit, udělej to lokálně:
+    #   firebase use <dev|prod> && npm run rules:deploy
+    # Zpátky zapneš tím, že vrátíš původní `if: github.ref == ...`.
+    if: false
     environment:
       name: dev-rules
     steps:
@@ -511,7 +522,12 @@ jobs:
     name: deploy · prod Firestore + Storage rules
     runs-on: ubuntu-latest
     needs: install
-    if: github.ref == 'refs/heads/main'
+    # DISABLED — rules deploy přes CI dělá víc starostí než užitku
+    # (IAM permissions + Eventarc quirks). Když potřebuješ rules
+    # nasadit, udělej to lokálně:
+    #   firebase use <dev|prod> && npm run rules:deploy
+    # Zpátky zapneš tím, že vrátíš původní `if: github.ref == ...`.
+    if: false
     environment:
       name: prod-rules
     steps:
