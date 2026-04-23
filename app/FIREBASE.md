@@ -189,16 +189,24 @@ npm run functions:deploy
 
 ### Firestore + Storage rules
 
-Žádná CI pipeline — jen ručně:
+| Cíl       | Pipeline                        | Kde spouštíš                                              |
+|-----------|---------------------------------|-----------------------------------------------------------|
+| **Dev**   | `deploy-rules-dev.yml`          | GitHub → Actions → "Deploy · Firestore + Storage rules (dev)" → Run workflow (libovolná branch) |
+| **Prod**  | `deploy-rules.yml`              | GitHub → Actions → "Deploy · Firestore + Storage rules (prod)" → Run workflow (main only) |
+
+Workflow nasadí **obě** sady (`firestore.rules` + `storage.rules`) v
+jednom běhu. Jsou to malé soubory, deploy trvá pár vteřin.
+
+**Lokální alternativa** (rychlejší pro ad-hoc testy na dev):
 
 ```bash
-firebase use dev                  # nebo prod
+firebase use dev
 npm run rules:deploy              # firestore.rules
 npm run storage:deploy            # storage.rules
 ```
 
-Pokud bys chtěl i rules přes CI, dej vědět — udělám `deploy-rules.yml`
-se stejným patternem (dev + prod varianty).
+Lokální prod deploy bych nedoporučil — nic ti nebrání v tom, ale CI má
+audit trail a tight main-only guard.
 
 ---
 
@@ -210,10 +218,7 @@ rules}, tohle je správné pořadí:
 1. **Commit + push na main.** GitHub Actions `validate` proběhne
    automaticky — pokud spadne, neposouvej se dál.
 2. **Deploy rules** (pokud se měnily):
-   ```bash
-   firebase use prod
-   npm run rules:deploy
-   ```
+   - Actions → **Deploy · Firestore + Storage rules (prod)** → Run workflow.
 3. **Deploy functions** (pokud se měnily):
    - Actions → **Deploy · Firebase Functions (prod)** → Run workflow.
 4. **Deploy frontend** (pokud se měnil):

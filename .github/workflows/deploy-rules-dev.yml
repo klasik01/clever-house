@@ -1,0 +1,53 @@
+name: Deploy · Firestore + Storage rules (dev)
+
+# DEV deploy of Firestore + Storage rules. Any branch, no guard — dev
+# project is for experimenting; lock yourself out and you just flip a
+# rule, not a disaster.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-rules-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy rules to dev
+    runs-on: ubuntu-latest
+    environment:
+      name: staging-firebase-rules
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Write service-account credentials
+        run: |
+          SA_PATH="$RUNNER_TEMP/firebase-sa.json"
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "$SA_PATH"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_PATH" >> "$GITHUB_ENV"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy Firestore + Storage rules
+        working-directory: ./app
+        run: |
+          npx firebase-tools deploy \
+            --only firestore:rules,storage \
+            --non-interactive \
+            --force \
+            --project "$PROJECT_ID"
+        env:
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+      - name: Scrub credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS" || true
