@@ -41,6 +41,6 @@ export const helloPing = onRequest((req, res) => {
   res.status(200).json({ ok: true, ts: Date.now() });
 });
 
-// Event triggers (N-7, N-8) will be re-exported here:
-//   export { onTaskWrite } from "./triggers/onTaskWrite";
-//   export { onCommentCreate } from "./triggers/onCommentCreate";
+// ---- Event triggers (V15 push pipeline) ----
+export { onTaskCreated, onTaskUpdated } from "./triggers/onTaskWrite";
+// onCommentCreate lands in N-8.

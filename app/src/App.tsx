@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { useRegisterFcm } from "./hooks/useRegisterFcm";
+import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
@@ -70,6 +71,9 @@ function ProtectedLayout() {
   // Only acts if Notification.permission === "granted"; the initial
   // permission request is driven by the banner / Settings (slice N-3).
   useRegisterFcm(user?.uid ?? null);
+  // V15/N-5 — bridge SW NAVIGATE messages (from notification click) into
+  // React Router so deep links soft-navigate instead of full-reloading.
+  useSwNavigate();
 
   if (loading || (user && roleState.status === "loading")) {
     return <Splash message={t("app.loading")} />;
