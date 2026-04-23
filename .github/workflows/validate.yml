@@ -1,13 +1,10 @@
 name: Validate (build · lint · test)
 
-# Runs automatically on every push to main + develop and every PR targeting
-# them. This is the gatekeeper: deploys only trigger on a green build from
-# the commits this workflow blessed.
+# Runs automatically on every push + PR on any branch. Solo-dev mode — we
+# don't filter by branch; every commit is fair game for lint + test + build.
 on:
   push:
-    branches: [main, develop, "release/**"]
   pull_request:
-    branches: [main, develop, "release/**"]
   workflow_dispatch:
 
 concurrency:
