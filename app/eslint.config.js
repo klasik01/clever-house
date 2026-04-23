@@ -11,12 +11,20 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default tseslint.config(
   // Don't lint build output, node_modules, or config files themselves.
+  //
+  // Cloud Functions live in `functions/` as a separate CommonJS package
+  // with its own tsconfig + test setup. Linting it from here fails
+  // because the compiled `lib/` output uses `require()` / `exports`,
+  // which the root config (ESM + strict) rejects. Functions has its own
+  // `npm run typecheck` — that's plenty.
   {
     ignores: [
       "dist",
       "node_modules",
       "coverage",
       "public",
+      "functions",
+      "functions/**",
       "*.config.js",
       "*.config.ts",
       "*.config.mjs",
@@ -72,6 +80,7 @@ export default tseslint.config(
             "statusIcon",     // StatusBadge — helper used across routes
             "avatarSeed",     // AvatarCircle — hash helper
             "useToast",       // Toast — hook co-located with provider
+            "linkBrand",      // LinkFavicon — detect helper (hostname → brand)
           ],
         },
       ],
