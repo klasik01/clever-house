@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
 import InstallHelper from "@/components/InstallHelper";
+import NotificationPrefsForm from "@/components/NotificationPrefsForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useT } from "@/i18n/useT";
@@ -58,13 +59,16 @@ export default function Settings() {
         </div>
       </SettingsGroup>
 
+      <SettingsGroup title={t("notifikace.sectionTitle")}>
+        <NotificationPrefsForm />
+      </SettingsGroup>
+
       <SettingsGroup title={t("settings.todoTitle")}>
         <p className="px-4 py-3 text-xs text-ink-subtle">
           {t("settings.todoHint")}
         </p>
         <TodoRow label={t("settings.todoRozpocet")} />
         <TodoRow label={t("settings.todoHarmonogram")} />
-        <TodoRow label={t("settings.todoNotifikace")} />
       </SettingsGroup>
 
       <div className="mt-6">

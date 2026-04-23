@@ -111,8 +111,25 @@ export async function requestPermissionAndRegister(
 
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
     if (!vapidKey) {
-      console.warn("VITE_FIREBASE_VAPID_KEY is missing — push disabled");
+      console.warn(
+        "[FCM] VITE_FIREBASE_VAPID_KEY is missing. Firebase Console → Project " +
+        "settings → Cloud Messaging → Web Push certificates → Key pair → copy " +
+        "the public key into .env.local and restart the dev server.",
+      );
       return { status: "unsupported" };
+    }
+    // VAPID public keys are base64url-encoded ~88-char strings. This check
+    // catches common paste mistakes (quoted value, trailing whitespace,
+    // wrong key type — e.g. the legacy "Server key" is ~152 chars) before
+    // the browser throws a cryptic InvalidAccessError on subscribe.
+    const trimmed = String(vapidKey).trim().replace(/^"|"$/g, "");
+    if (trimmed.length < 80 || trimmed.length > 100) {
+      console.warn(
+        `[FCM] VITE_FIREBASE_VAPID_KEY looks wrong (length=${trimmed.length}, ` +
+        `expected ~88). Make sure you copied the "Key pair" public key from ` +
+        `Firebase Console → Cloud Messaging → Web Push certificates (not the ` +
+        `legacy Server key nor the Web API key).`,
+      );
     }
 
     // Get (or refresh) the FCM token. Passing the existing SW registration
@@ -121,7 +138,7 @@ export async function requestPermissionAndRegister(
       "/firebase-messaging-sw.js",
     );
     const token = await getToken(messaging, {
-      vapidKey,
+      vapidKey: trimmed,
       serviceWorkerRegistration: swReg,
     });
     if (!token) return { status: "no_token" };

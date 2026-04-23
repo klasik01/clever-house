@@ -7,6 +7,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useAuth } from "@/hooks/useAuth";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
+import NotificationPermissionBanner from "./NotificationPermissionBanner";
 
 interface Props {
   children: ReactNode;
@@ -17,6 +18,7 @@ export default function Shell({ children, role }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <OfflineBanner />
+      <NotificationPermissionBanner />
       <Header />
       <main
         id="main"

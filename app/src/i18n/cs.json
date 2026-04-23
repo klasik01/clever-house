@@ -505,5 +505,37 @@
   "zaznamy": {
     "pageTitle": "Záznamy",
     "typeToggleLabel": "Typ záznamu"
+  },
+  "notifikace": {
+    "sectionTitle": "Notifikace",
+    "sectionHintDefault": "Zapni si upozornění na nové komentáře, přiřazení a zmínky. Přijdou přímo na tvůj telefon.",
+    "sectionHintGranted": "Push notifikace jsou aktivní. Můžeš si níže vybrat, co přesně chceš dostávat.",
+    "sectionHintDenied": "Notifikace máš v iOS zakázané. Otevři na iPhonu Nastavení → Aplikace → Chytrý dům → Notifikace a povol Allow Notifications.",
+    "sectionHintUnsupported": "Tento prohlížeč push notifikace nepodporuje. Zkus si app přidat na plochu na iPhone s iOS 16.4+ nebo použij Chrome na desktopu.",
+    "enableCta": "Povolit notifikace",
+    "enableLoading": "Připojuji…",
+    "master": "Posílat notifikace",
+    "masterHint": "Hlavní vypínač — přepne všechno najednou.",
+    "events": {
+      "heading": "Co chceš dostávat",
+      "mention": "Zmínky",
+      "mentionHint": "Někdo mě zmínil v komentáři",
+      "assigned": "Přiřazení",
+      "assignedHint": "Někdo mi přiřadil otázku nebo úkol",
+      "comment_on_mine": "Komentář v mé položce",
+      "comment_on_mineHint": "Komentář k tomu, co jsem založil",
+      "comment_on_thread": "Komentář v diskuzi",
+      "comment_on_threadHint": "Nový komentář v diskuzi, kde jsem už přispěl",
+      "shared_with_pm": "Sdílený nápad s PM",
+      "shared_with_pmHint": "OWNER sdílel nápad — PM dostane notifikaci"
+    },
+    "banner": {
+      "title": "Zapni si notifikace",
+      "body": "Upozorním tě na nové komentáře, přiřazené úkoly a zmínky. Bez nich si ničeho nevšimneš, dokud appku neotevřeš.",
+      "cta": "Povolit",
+      "dismiss": "Později",
+      "deniedTitle": "Notifikace jsou zakázané",
+      "deniedBody": "Otevři na iPhonu Nastavení → Chytrý dům → Notifikace a zapni Allow Notifications."
+    }
   }
 }
