@@ -87,121 +87,62 @@ env:
 
 jobs:
   # ==========================================================================
-  # STAGE 1 — install
-  # Primes the npm download cache. Subsequent jobs re-run `npm ci` but hit
-  # the cache and finish in seconds.
+  # STAGE 1 — validate (single job)
+  # Běh 5 kroků v jednom runneru místo 5 paralelních jobů. Startup overhead
+  # 5×30s se smrští na 1×30s. Sekvenční provádění uvnitř jobu je fine —
+  # každý krok (lint → test → typecheck × app + functions) trvá ~20-30s,
+  # total stále kolem 2 min.
   # ==========================================================================
-  install:
-    name: install
+  validate:
+    name: validate (lint · test · typecheck)
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: |
-            app/package-lock.json
-            app/functions/package-lock.json
-      - name: npm ci (app)
-        working-directory: ./app
-        run: npm ci
-      - name: npm ci (functions)
-        working-directory: ./app/functions
-        run: npm ci
 
-  # ==========================================================================
-  # STAGE 2 — validate (parallel)
-  # ==========================================================================
-  lint:
-    name: validate · lint (app)
-    runs-on: ubuntu-latest
-    needs: install
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      # ---- App (Node 24) ----
+      - name: Setup Node (app)
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
           cache-dependency-path: app/package-lock.json
+
       - name: npm ci (app)
         working-directory: ./app
         run: npm ci
-      - name: Lint
+
+      - name: Lint (app)
         working-directory: ./app
         run: npm run lint
 
-  test-app:
-    name: validate · test (app)
-    runs-on: ubuntu-latest
-    needs: install
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: app/package-lock.json
-      - name: npm ci (app)
-        working-directory: ./app
-        run: npm ci
-      - name: Test
-        working-directory: ./app
-        run: npm test
-
-  typecheck-app:
-    name: validate · typecheck (app)
-    runs-on: ubuntu-latest
-    needs: install
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: app/package-lock.json
-      - name: npm ci (app)
-        working-directory: ./app
-        run: npm ci
-      - name: Typecheck
+      - name: Typecheck (app)
         working-directory: ./app
         run: npm run typecheck
 
-  test-functions:
-    name: validate · test (functions)
-    runs-on: ubuntu-latest
-    needs: install
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Test (app)
+        working-directory: ./app
+        run: npm test
+
+      # ---- Functions (Node 20 — runtime match) ----
+      - name: Setup Node (functions)
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.FUNCTIONS_NODE_VERSION }}
           cache: "npm"
           cache-dependency-path: app/functions/package-lock.json
-      - name: npm ci (functions)
-        working-directory: ./app/functions
-        run: npm ci
-      - name: Test
-        working-directory: ./app/functions
-        run: npm test
 
-  typecheck-functions:
-    name: validate · typecheck (functions)
-    runs-on: ubuntu-latest
-    needs: install
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.FUNCTIONS_NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: app/functions/package-lock.json
       - name: npm ci (functions)
         working-directory: ./app/functions
         run: npm ci
-      - name: Typecheck
+
+      - name: Typecheck (functions)
         working-directory: ./app/functions
         run: npm run typecheck
+
+      - name: Test (functions)
+        working-directory: ./app/functions
+        run: npm test
 
   # ==========================================================================
   # STAGE 3 — build
@@ -214,7 +155,15 @@ jobs:
   build-frontend-dev:
     name: build · frontend (dev)
     runs-on: ubuntu-latest
-    needs: [lint, test-app, typecheck-app]
+    needs: validate
+    # Dev frontend build běží jen na develop branche — deploy-dev-frontend
+    # tam taky běží jen z develop. Na main / feature branchich nemá komu
+    # sloužit, tak ušetříme CI minuty.
+    if: |
+      github.ref == 'refs/heads/develop'
+      && (github.event_name != 'workflow_dispatch'
+          || inputs.deploy-target == 'all'
+          || inputs.deploy-target == 'dev-frontend')
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -247,7 +196,7 @@ jobs:
   build-frontend-prod:
     name: build · frontend (prod / OPE)
     runs-on: ubuntu-latest
-    needs: [lint, test-app, typecheck-app]
+    needs: validate
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -281,7 +230,7 @@ jobs:
   build-functions:
     name: build · functions
     runs-on: ubuntu-latest
-    needs: [test-functions, typecheck-functions]
+    needs: validate
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -378,7 +327,7 @@ jobs:
   deploy-dev-rules:
     name: deploy · dev Firestore + Storage rules
     runs-on: ubuntu-latest
-    needs: install
+    needs: validate
     # Dev deploy běží jen z develop branche — ne z main (tam jezdí prod).
     # DISABLED — rules deploy přes CI dělá víc starostí než užitku
     # (IAM permissions + Eventarc quirks). Když potřebuješ rules
@@ -521,7 +470,7 @@ jobs:
   deploy-prod-rules:
     name: deploy · prod Firestore + Storage rules
     runs-on: ubuntu-latest
-    needs: install
+    needs: validate
     # DISABLED — rules deploy přes CI dělá víc starostí než užitku
     # (IAM permissions + Eventarc quirks). Když potřebuješ rules
     # nasadit, udělej to lokálně:
