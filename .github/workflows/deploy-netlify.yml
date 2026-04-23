@@ -107,6 +107,7 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.OPE_VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.OPE_VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.OPE_VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ secrets.OPE_VITE_FIREBASE_VAPID_KEY }}
 
       - name: Deploy to Netlify (production)
         id: netlify

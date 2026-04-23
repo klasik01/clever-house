@@ -150,4 +150,48 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   displayName?: string | null;
+  /** V15 — push notification preferences. Undefined = legacy record;
+   *  readers merge with DEFAULT_PREFS (see lib/notifications.ts). */
+  notificationPrefs?: NotificationPrefs;
+}
+
+// ==================== V15 — Push notifications ====================
+
+/**
+ * Event keys that can trigger a push notification. Order defines the
+ * priority used for deduplication when a single actor action makes a
+ * recipient eligible for multiple events (e.g. a @mention inside a
+ * comment on their own task — mention wins).
+ */
+export type NotificationEventKey =
+  | "mention"
+  | "assigned"
+  | "comment_on_mine"
+  | "comment_on_thread"
+  | "shared_with_pm";
+
+/** Per-user notification preferences, stored on the user profile doc. */
+export interface NotificationPrefs {
+  /** Master switch — when false, no pushes regardless of event toggles. */
+  enabled: boolean;
+  /** Per-event opt-in/out. Default all true until the user flips. */
+  events: Record<NotificationEventKey, boolean>;
+}
+
+/**
+ * A browser/device registration for push delivery. Lives in
+ * users/{uid}/devices/{deviceId}. A single user may have multiple (iPhone
+ * PWA + desktop Chrome). deviceId is a stable client-generated UUID held
+ * in localStorage so page reloads don't spawn duplicates.
+ */
+export interface NotificationDevice {
+  id: string;
+  /** FCM registration token — changes on browser reset or permission flip. */
+  token: string;
+  /** Low-res platform hint for debugging / future split logic. */
+  platform: "ios" | "android" | "desktop";
+  userAgent: string;
+  createdAt: string;
+  /** Bumped on every app load so stale devices can be swept quarterly. */
+  lastSeen: string;
 }

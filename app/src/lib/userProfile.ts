@@ -1,5 +1,6 @@
 import { collection, doc, onSnapshot } from "firebase/firestore";
 import { db } from "./firebase";
+import { mergePrefsWithDefaults } from "./notifications";
 import type { UserProfile, UserRole } from "@/types";
 
 /** Subscribe to /users/{uid} — source of truth for role. */
@@ -22,6 +23,7 @@ export function subscribeUserProfile(
         email: data.email ?? "",
         role,
         displayName: data.displayName ?? null,
+        notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
       });
     },
     (err) => onError(err)
@@ -48,6 +50,7 @@ export function subscribeUsers(
           email: data.email ?? "",
           role,
           displayName: data.displayName ?? null,
+          notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
         };
       });
       onChange(users);

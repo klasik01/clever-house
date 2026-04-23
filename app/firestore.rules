@@ -48,8 +48,26 @@ service cloud.firestore {
     // V3: any authenticated user can list users (for mention autocomplete + assignee dropdown).
     match /users/{uid} {
       allow read: if isSignedIn();
-      // Write via Firebase Admin SDK (manual setup), not from client.
-      allow write: if false;
+
+      // V15 — user may self-update only the notificationPrefs field. Role /
+      // email / displayName stay Admin-SDK only. We gate by diff so any
+      // attempt to change sensitive fields is rejected even when wrapped
+      // in the same patch.
+      allow update: if isSignedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['notificationPrefs']);
+
+      // Create / delete via Admin SDK only.
+      allow create, delete: if false;
+
+      // ------ Devices (FCM registrations, V15) ------
+      // Each user owns their own devices subcollection. Nobody else can
+      // read or write — tokens are effectively credentials for push
+      // delivery, they don't leave the owning account.
+      match /devices/{deviceId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
     }
 
     // ------ Tasks ------

@@ -23,16 +23,17 @@ if (!config.apiKey) {
   );
 }
 
-let app: FirebaseApp;
+let firebaseApp: FirebaseApp;
 if (getApps().length) {
-  app = getApps()[0]!;
+  firebaseApp = getApps()[0]!;
 } else {
-  app = initializeApp(config);
+  firebaseApp = initializeApp(config);
 }
 
-export const auth: Auth = getAuth(app);
-export const db: Firestore = getFirestore(app);
-export const storage: FirebaseStorage = getStorage(app);
+export const app: FirebaseApp = firebaseApp;
+export const auth: Auth = getAuth(firebaseApp);
+export const db: Firestore = getFirestore(firebaseApp);
+export const storage: FirebaseStorage = getStorage(firebaseApp);
 
 setPersistence(auth, browserLocalPersistence).catch((e) =>
   console.error("auth persistence failed", e)

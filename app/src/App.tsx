@@ -7,6 +7,7 @@ import {
   Outlet,
 } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
@@ -65,6 +66,10 @@ function ProtectedLayout() {
   const t = useT();
 
   const roleState = useUserRole(user?.uid);
+  // V15 — keep FCM token in Firestore aligned with the signed-in user.
+  // Only acts if Notification.permission === "granted"; the initial
+  // permission request is driven by the banner / Settings (slice N-3).
+  useRegisterFcm(user?.uid ?? null);
 
   if (loading || (user && roleState.status === "loading")) {
     return <Splash message={t("app.loading")} />;
