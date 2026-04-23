@@ -1,0 +1,11 @@
+# Build output
+lib/
+
+# Dependencies
+node_modules/
+
+# Firebase Admin SDK service account (never commit!)
+.runtimeconfig.json
+service-account.json
+.env
+.env.local

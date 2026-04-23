@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "rules:deploy": "firebase deploy --only firestore:rules",
-    "emulators": "firebase emulators:start --only firestore,auth",
+    "emulators": "firebase emulators:start --only firestore,auth,functions",
     "storage:deploy": "firebase deploy --only storage",
     "postbuild": "cp dist/index.html dist/404.html",
     "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build",
@@ -20,7 +20,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "firebase": "firebase",
+    "functions:install": "npm --prefix functions install",
+    "functions:build": "npm --prefix functions run build",
+    "functions:deploy": "firebase deploy --only functions"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",
@@ -59,7 +63,8 @@
     "typescript-eslint": "^8.18.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.16",
-    "globals": "^15.14.0"
+    "globals": "^15.14.0",
+    "firebase-tools": "^13.29.0"
   },
   "overrides": {
     "react": "^19.2.0",
