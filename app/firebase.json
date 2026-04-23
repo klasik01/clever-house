@@ -15,7 +15,9 @@
         ".git",
         "*.log",
         "src",
-        "tsconfig.json"
+        "tsconfig.json",
+        "src/**/*.test.ts",
+        "vitest.config.ts"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run build"
@@ -23,11 +25,22 @@
     }
   ],
   "emulators": {
-    "firestore": { "port": 8080 },
-    "auth":      { "port": 9099 },
-    "storage":   { "port": 9199 },
-    "functions": { "port": 5001 },
-    "ui":        { "enabled": true, "port": 4000 },
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "storage": {
+      "port": 9199
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
     "singleProjectMode": true
   }
 }

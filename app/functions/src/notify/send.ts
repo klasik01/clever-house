@@ -1,41 +1,12 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { renderPayload } from "./copy";
+import { normalisePrefs } from "./prefs";
 import type {
   NotificationDevice,
   NotificationPrefs,
   NotifyInput,
-  NotificationEventKey,
 } from "./types";
-
-/**
- * Default preferences for users who don't yet have a notificationPrefs
- * field. Mirrors DEFAULT_PREFS on the client (app/src/lib/notifications.ts)
- * so both sides agree on the "new account" behaviour.
- */
-const DEFAULT_PREFS: NotificationPrefs = {
-  enabled: true,
-  events: {
-    mention: true,
-    assigned: true,
-    comment_on_mine: true,
-    comment_on_thread: true,
-    shared_with_pm: true,
-  },
-};
-
-function normalisePrefs(raw: unknown): NotificationPrefs {
-  if (!raw || typeof raw !== "object") return { ...DEFAULT_PREFS, events: { ...DEFAULT_PREFS.events } };
-  const r = raw as { enabled?: unknown; events?: unknown };
-  const enabled = typeof r.enabled === "boolean" ? r.enabled : DEFAULT_PREFS.enabled;
-  const rawEvents = (r.events && typeof r.events === "object") ? (r.events as Record<string, unknown>) : {};
-  const events = { ...DEFAULT_PREFS.events };
-  (Object.keys(events) as NotificationEventKey[]).forEach((k) => {
-    const v = rawEvents[k];
-    if (typeof v === "boolean") events[k] = v;
-  });
-  return { enabled, events };
-}
 
 /**
  * Fetch all devices registered for a user. Returns an empty array when

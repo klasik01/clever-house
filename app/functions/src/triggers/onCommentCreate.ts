@@ -1,10 +1,10 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { buildRecipientMap } from "../notify/dedupe";
 import { resolveActorName, sendNotification } from "../notify/send";
 import type {
   CommentDoc,
-  NotificationEventKey,
   NotifyInput,
   TaskDoc,
 } from "../notify/types";
@@ -29,15 +29,6 @@ import type {
  */
 
 const REGION = "europe-west1";
-
-/** Priority-ordered list of event keys for dedupe. Lower index = higher
- *  priority. Matches the comment in DISCOVERY.md; duplicated here to keep
- *  functions independent of the app's client-side module. */
-const EVENT_PRIORITY: NotificationEventKey[] = [
-  "mention",
-  "comment_on_mine",
-  "comment_on_thread",
-];
 
 export const onCommentCreate = onDocumentCreated(
   {
@@ -67,43 +58,10 @@ export const onCommentCreate = onDocumentCreated(
     }
     const task = taskSnap.data() as TaskDoc;
 
-    // 2) Derive recipients + their winning event.
-    //    We build a Map<recipientUid, NotificationEventKey> where we only
-    //    overwrite if the new event has higher priority than what's there.
-    const recipients = new Map<string, NotificationEventKey>();
-    const maybeSet = (uid: string | undefined, event: NotificationEventKey) => {
-      if (!uid) return;
-      if (uid === actorUid) return; // redundant with self-filter below, but
-                                    // saves a Firestore read per skip
-      const current = recipients.get(uid);
-      if (!current) {
-        recipients.set(uid, event);
-        return;
-      }
-      // Keep the higher-priority event (lower index in EVENT_PRIORITY).
-      const currentIdx = EVENT_PRIORITY.indexOf(current);
-      const nextIdx = EVENT_PRIORITY.indexOf(event);
-      if (nextIdx < currentIdx) {
-        recipients.set(uid, event);
-      }
-    };
-
-    // 2a) mentions — highest priority.
-    for (const uid of comment.mentionedUids ?? []) {
-      maybeSet(uid, "mention");
-    }
-
-    // 2b) task creator → comment_on_mine.
-    if (task.createdBy) {
-      maybeSet(task.createdBy, "comment_on_mine");
-    }
-
-    // 2c) prior commenters → comment_on_thread.
-    //     Pull the whole thread and skip the just-created comment in
-    //     memory. Threads are small (low tens on a house-build log) so
-    //     paging isn't worth the complexity. Using `!=` on documentId
-    //     in the query layer can hit index quirks depending on project
-    //     setup — client-side filter is safer + equivalent cost here.
+    // 2) Pull prior commenter uids (distinct authors of older comments).
+    //    Uses a full scan + client-side skip: threads are small (<100
+    //    comments on a house-build log) and `!=` on documentId in the
+    //    query layer has index quirks that aren't worth debugging.
     const priorSnap = await taskRef.collection("comments").get();
     const priorAuthors = new Set<string>();
     priorSnap.docs.forEach((d) => {
@@ -113,7 +71,14 @@ export const onCommentCreate = onDocumentCreated(
         priorAuthors.add(authorUid);
       }
     });
-    priorAuthors.forEach((uid) => maybeSet(uid, "comment_on_thread"));
+
+    // 3) Derive the final recipient map (pure function — unit tested).
+    const recipients = buildRecipientMap({
+      actorUid,
+      mentionedUids: comment.mentionedUids ?? [],
+      taskCreatorUid: task.createdBy,
+      priorCommenterUids: Array.from(priorAuthors),
+    });
 
     if (recipients.size === 0) {
       logger.debug("no recipients after dedupe", { taskId, commentId });
