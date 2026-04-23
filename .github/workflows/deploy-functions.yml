@@ -1,84 +1,11 @@
-name: Deploy · Firebase Functions (production / OPE)
-
-# Manual deploy of Cloud Functions. Runs only from `main` (same guard as
-# Netlify deploys). Functions live in app/functions/ and target the
-# production project defined by FIREBASE_PROJECT_ID secret.
-#
-# Auth: we use a service account JSON. Create one in GCP console:
-#   IAM → Service Accounts → Create
-#     roles: "Firebase Admin SDK Administrator Service Agent"
-#            + "Cloud Functions Admin"
-#            + "Service Account User"
-#   Keys → Add key → JSON → download
-# Store that JSON blob as the GitHub secret OPE_FIREBASE_SERVICE_ACCOUNT.
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: deploy-functions-prod
-  cancel-in-progress: false
-
+# Archived 2026-04-23 — nahrazeno pipeline.yml.
+# Plná verze je v .github/workflows-archive/deploy-functions.yml pro případ obnovy.
+# Tento stub má žádný trigger, takže GitHub Actions ho neuvidí.
+name: "[archived] deploy-functions.yml"
+on: []
 jobs:
-  guard:
-    name: Guard (main only)
+  archived:
     runs-on: ubuntu-latest
+    if: false
     steps:
-      - name: Refuse if not on main
-        run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "::error::Functions deploy can only run from 'main' (current: ${{ github.ref }})"
-            exit 1
-          fi
-
-  deploy:
-    name: Build + deploy
-    needs: guard
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          # Functions runtime is 20; we build with 20 too so @types match.
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: app/functions/package-lock.json
-
-      - name: Install
-        working-directory: ./app/functions
-        run: npm install
-
-      - name: Typecheck
-        working-directory: ./app/functions
-        run: npm run typecheck
-
-      - name: Build
-        working-directory: ./app/functions
-        run: npm run build
-
-      - name: Write service account credentials
-        run: |
-          mkdir -p "$RUNNER_TEMP"
-          echo "$SA_JSON" > "$RUNNER_TEMP/sa.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
-        env:
-          SA_JSON: ${{ secrets.OPE_FIREBASE_SERVICE_ACCOUNT }}
-
-      - name: Deploy
-        working-directory: ./app
-        # --non-interactive + --project kills all prompts.
-        run: npx firebase-tools deploy --only functions --non-interactive --project "$PROJECT_ID"
-        env:
-          PROJECT_ID: ${{ secrets.OPE_FIREBASE_PROJECT_ID }}
-
-      - name: Scrub credentials
-        if: always()
-        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+      - run: "echo archived"

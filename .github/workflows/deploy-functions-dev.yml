@@ -1,75 +1,11 @@
-name: Deploy · Firebase Functions (dev)
-
-# DEV deploy of Cloud Functions — any branch, no guard. Targets the dev
-# Firebase project via FIREBASE_SERVICE_ACCOUNT + FIREBASE_PROJECT_ID
-# secrets. Mirror of deploy-functions.yml (prod), just with different
-# secrets and looser triggers.
-#
-# Use this to smoke-test trigger changes against the dev project before
-# cutting a production deploy.
-on:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: deploy-functions-dev
-  cancel-in-progress: false
-
+# Archived 2026-04-23 — nahrazeno pipeline.yml.
+# Plná verze je v .github/workflows-archive/deploy-functions-dev.yml pro případ obnovy.
+# Tento stub má žádný trigger, takže GitHub Actions ho neuvidí.
+name: "[archived] deploy-functions-dev.yml"
+on: []
 jobs:
-  deploy:
-    name: Build + deploy to dev
+  archived:
     runs-on: ubuntu-latest
-    environment:
-      name: staging-firebase-functions
-
+    if: false
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: app/functions/package-lock.json
-
-      - name: Install functions deps
-        working-directory: ./app/functions
-        run: npm ci
-
-      - name: Typecheck
-        working-directory: ./app/functions
-        run: npm run typecheck
-
-      - name: Test (functions unit suite)
-        working-directory: ./app/functions
-        run: npm test
-
-      - name: Build
-        working-directory: ./app/functions
-        run: npm run build
-
-      - name: Write service-account credentials
-        run: |
-          SA_PATH="$RUNNER_TEMP/firebase-sa.json"
-          echo "$FIREBASE_SERVICE_ACCOUNT" > "$SA_PATH"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_PATH" >> "$GITHUB_ENV"
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
-      - name: Deploy to Firebase (dev)
-        working-directory: ./app
-        run: |
-          npx firebase-tools deploy \
-            --only functions \
-            --non-interactive \
-            --force \
-            --project "$PROJECT_ID"
-        env:
-          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-
-      - name: Scrub credentials
-        if: always()
-        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS" || true
+      - run: "echo archived"

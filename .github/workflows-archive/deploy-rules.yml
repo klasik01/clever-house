@@ -1,0 +1,75 @@
+name: Deploy · Firestore + Storage rules (production / OPE)
+
+# Manual deploy of Firestore + Storage security rules to production.
+# Bundled into one workflow because they change together (schema change
+# → often touches both) and the deploy itself is cheap (seconds).
+#
+# main-only guard mirrors deploy-functions.yml + deploy-netlify.yml:
+# rules govern who can read/write in prod, so we keep the tight review
+# window.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-rules-prod
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: Guard (main only)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse if not on main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Rules deploy can only run from 'main' (current: ${{ github.ref }})"
+            exit 1
+          fi
+
+  deploy:
+    name: Deploy rules
+    needs: guard
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Node version here only governs the firebase-tools CLI runtime.
+          # Rules deploy doesn't build anything; 20 is fine and matches
+          # the other deploy workflows.
+          node-version: "20"
+
+      - name: Write service-account credentials
+        run: |
+          SA_PATH="$RUNNER_TEMP/firebase-sa.json"
+          echo "$OPE_FIREBASE_SERVICE_ACCOUNT" > "$SA_PATH"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$SA_PATH" >> "$GITHUB_ENV"
+        env:
+          OPE_FIREBASE_SERVICE_ACCOUNT: ${{ secrets.OPE_FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy Firestore + Storage rules
+        working-directory: ./app
+        # `--only firestore:rules,storage` bundles both rule sets in one
+        # deploy. firebase-tools picks up firestore.rules + storage.rules
+        # via app/firebase.json.
+        run: |
+          npx firebase-tools deploy \
+            --only firestore:rules,storage \
+            --non-interactive \
+            --force \
+            --project "$PROJECT_ID"
+        env:
+          PROJECT_ID: ${{ secrets.OPE_FIREBASE_PROJECT_ID }}
+
+      - name: Scrub credentials
+        if: always()
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS" || true
