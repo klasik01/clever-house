@@ -52,6 +52,19 @@ on:
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      deploy-target:
+        type: choice
+        description: "Which deploy to run (skips other deploys + their builds). 'all' runs the full pipeline as usual."
+        default: all
+        options:
+          - all
+          - dev-frontend
+          - dev-functions
+          - dev-rules
+          - prod-frontend
+          - prod-functions
+          - prod-rules
 
 permissions:
   contents: write   # needed by deploy-prod-frontend to push the version tag
