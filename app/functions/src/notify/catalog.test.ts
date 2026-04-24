@@ -105,8 +105,34 @@ describe("eventPriorityList + NOTIFICATION_EVENT_KEYS", () => {
     );
   });
 
-  it("mention je první (nejvyšší priorita dedupe)", () => {
-    expect(NOTIFICATION_EVENT_KEYS[0]).toBe("mention");
+  it("assigned_with_comment má vůbec nejnižší dedupePriority (vyhrává nad vším)", () => {
+    // V17.5 — assigned_with_comment musí beat všechno ostatní pro nového
+    // assignee, aby dostal JEDNU merged notifikaci místo dvou.
+    const awc = NOTIFICATION_CATALOG["assigned_with_comment"].dedupePriority;
+    for (const k of NOTIFICATION_EVENT_KEYS) {
+      if (k === "assigned_with_comment") continue;
+      expect(awc).toBeLessThan(NOTIFICATION_CATALOG[k].dedupePriority);
+    }
+  });
+
+  it("mention má nejnižší prioritu v rámci comment-path eventů", () => {
+    const commentPathEvents = [
+      "mention",
+      "comment_on_mine",
+      "comment_on_thread",
+    ] as const;
+    const mentionPrio = NOTIFICATION_CATALOG["mention"].dedupePriority;
+    expect(mentionPrio).toBeLessThan(
+      NOTIFICATION_CATALOG["comment_on_mine"].dedupePriority,
+    );
+    expect(mentionPrio).toBeLessThan(
+      NOTIFICATION_CATALOG["comment_on_thread"].dedupePriority,
+    );
+    // Sanity: mention je v komunit-path trojici nejnižší.
+    const priorities = commentPathEvents.map(
+      (k) => NOTIFICATION_CATALOG[k].dedupePriority,
+    );
+    expect(mentionPrio).toBe(Math.min(...priorities));
   });
 });
 
@@ -357,7 +383,10 @@ describe("assigned_with_comment — V17.5 merged event", () => {
     expect(title).toContain("přiřadil");
     expect(title).toContain("komentář");
     expect(title).toContain("Topení");
-    expect(body).toBe("Zkontroluj to prosím");
+    // commentPreview odděluje jen na ". " / "? " / "! " (trailing period
+    // na konci věty zůstává — nemá za sebou mezeru). Fine, na notifikaci
+    // se čte přirozeně.
+    expect(body).toBe("Zkontroluj to prosím.");
     expect(deepLink).toBe("/t/task-1#comment-c-42");
   });
 

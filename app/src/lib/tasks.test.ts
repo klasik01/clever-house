@@ -188,6 +188,7 @@ describe("V14 — createTask ukol", () => {
     const id = await createTask(
       { type: "ukol", title: "Vyrobit kuchyň", body: "", status: "OPEN" },
       "owner-1",
+      "OWNER",
     );
     const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
     expect(stored.type).toBe("ukol");
@@ -199,6 +200,7 @@ describe("V14 — createTask ukol", () => {
     const id = await createTask(
       { type: "napad", title: "N", body: "", status: "Nápad" },
       "owner-1",
+      "OWNER",
     );
     const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
     expect(stored.assigneeUid).toBeNull();
@@ -236,7 +238,7 @@ describe("V14 — convertNapadToUkol", () => {
       updatedAt: "2026-01-01T00:00:00Z",
     };
     __firestoreState.store.set("tasks/napad-1", { ...src });
-    const newId = await convertNapadToUkol(src, "owner");
+    const newId = await convertNapadToUkol(src, "owner", "OWNER");
     const stored = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
     expect(stored.type).toBe("ukol");
     expect(stored.status).toBe("OPEN");
