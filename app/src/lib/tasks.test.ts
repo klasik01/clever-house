@@ -345,7 +345,7 @@ describe("convertNapadToOtazka / convertNapadToUkol — V17.1 authorRole + V17.2
 });
 
 describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
-  it("legacy task bez authorRole → čte se jako OWNER", async () => {
+  it("V17.8 — legacy task bez authorRole → field zůstává undefined (resolve je volající práce)", async () => {
     __firestoreState.store.set("tasks/legacy", {
       type: "napad",
       title: "Starý záznam",
@@ -357,7 +357,7 @@ describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
       // žádný authorRole field
     });
     const out = await getTask("legacy");
-    expect(out?.authorRole).toBe("OWNER");
+    expect(out?.authorRole).toBeUndefined();
   });
 
   it("task s explicitním authorRole=PROJECT_MANAGER se zachová", async () => {
@@ -375,7 +375,7 @@ describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
     expect(out?.authorRole).toBe("PROJECT_MANAGER");
   });
 
-  it("unknown authorRole value (data corruption) → fallback OWNER", async () => {
+  it("V17.8 — unknown authorRole value (data corruption) → undefined (resolve job)", async () => {
     __firestoreState.store.set("tasks/bogus", {
       type: "napad",
       title: "T",
@@ -387,6 +387,6 @@ describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
       updatedAt: "2026-04-20T00:00:00Z",
     });
     const out = await getTask("bogus");
-    expect(out?.authorRole).toBe("OWNER");
+    expect(out?.authorRole).toBeUndefined();
   });
 });

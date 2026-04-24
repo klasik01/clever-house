@@ -11,9 +11,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "rules:deploy": "firebase deploy --only firestore:rules",
     "emulators": "firebase emulators:start --only firestore,auth,functions",
-    "storage:deploy": "firebase deploy --only storage",
     "postbuild": "cp dist/index.html dist/404.html",
     "build:pages": "VITE_BASE_PATH=/clever-house/ npm run build",
     "test": "vitest run",
@@ -23,8 +21,7 @@
     "lint:fix": "eslint . --fix",
     "firebase": "firebase",
     "functions:install": "npm --prefix functions install",
-    "functions:build": "npm --prefix functions run build",
-    "functions:deploy": "firebase deploy --only functions"
+    "functions:build": "npm --prefix functions run build"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.18",

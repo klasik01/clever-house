@@ -15,19 +15,24 @@ import type { Task, UserRole } from "@/types";
  */
 
 export interface CanEditInput {
-  task: Pick<Task, "createdBy" | "authorRole">;
+  task: Pick<Task, "createdBy">;
+  /** V17.8 — role autora tasku, rozhodnutá callerem (buď přímo z task.authorRole,
+   *  nebo — pokud field chybí — resolveAuthorRole() přes user lookup). */
+  taskAuthorRole: UserRole | undefined;
   currentUserUid: string | null | undefined;
   currentUserRole: UserRole | null | undefined;
 }
 
 export function canEditTask(input: CanEditInput): boolean {
-  const { task, currentUserUid, currentUserRole } = input;
+  const { task, taskAuthorRole, currentUserUid, currentUserRole } = input;
   if (!currentUserUid) return false;
   if (task.createdBy === currentUserUid) return true;
 
-  // Legacy fallback: neuložený authorRole → předpokládáme OWNER (historicky
-  // PM neexistoval jako tvůrce).
-  const taskAuthorRole: UserRole = task.authorRole ?? "OWNER";
+  // V17.8 — když nevíme roli autora (field chybí a user lookup není k
+  //   dispozici), NEDOVOLÍME cross-OWNER edit. Je to konzervativní — legacy
+  //   PM-vytvořené tasky před V17.1 deploy nebudou OWNERi moci editovat
+  //   dokud migrace nepoběží (viz scripts/migrate-authorRole.mjs).
+  if (!taskAuthorRole) return false;
   if (taskAuthorRole === "OWNER" && currentUserRole === "OWNER") {
     return true;
   }

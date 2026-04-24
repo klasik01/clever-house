@@ -51,7 +51,9 @@ out/
 # dotenv environment variable files
 .env
 .env.local
-**/scripts/**.json
+# Service account keys (firebase-admin) — never commit
+**/scripts/permission.json
+**/scripts/*.json
 .env.*.local
 
 # npm cache directory

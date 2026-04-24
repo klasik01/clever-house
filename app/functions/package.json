@@ -1,6 +1,6 @@
 {
   "name": "chytry-dum-functions",
-  "description": "Cloud Functions for Chytr\u00fd d\u016fm na vsi (push notifications)",
+  "description": "Cloud Functions for Chytrý dům na vsi (push notifications)",
   "private": true,
   "type": "commonjs",
   "engines": {
@@ -12,12 +12,21 @@
     "watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions,firestore",
     "shell": "npm run build && firebase functions:shell",
-    "deploy": "npm run build && firebase deploy --only functions",
     "logs": "firebase functions:log",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "deploy:dev": "node scripts/deploy.mjs dev",
+    "deploy:ope": "node scripts/deploy.mjs ope",
+    "deploy:dev:dry": "node scripts/deploy.mjs dev --dry-run",
+    "deploy:ope:dry": "node scripts/deploy.mjs ope --dry-run",
+    "rules:deploy:dev": "node scripts/firebase-deploy.mjs dev firestore:rules",
+    "rules:deploy:ope": "node scripts/firebase-deploy.mjs ope firestore:rules",
+    "storage:deploy:dev": "node scripts/firebase-deploy.mjs dev storage",
+    "storage:deploy:ope": "node scripts/firebase-deploy.mjs ope storage",
+    "functions:deploy:dev": "node scripts/firebase-deploy.mjs dev functions",
+    "functions:deploy:ope": "node scripts/firebase-deploy.mjs ope functions"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",

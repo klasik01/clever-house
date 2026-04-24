@@ -1,0 +1,6 @@
+# Pending migrations — zde žijí skripty které ještě nebyly nasazené.
+# Orchestrátor (scripts/deploy.mjs) je při nasazení vezme, spustí,
+# po úspěchu přesune do ../archive/ + doplní README tabulku.
+#
+# Naming: YYYY-MM-DD-V{verze}-{popis}.mjs
+# Header JSDoc: @migration, @date, @description

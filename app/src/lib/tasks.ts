@@ -141,12 +141,13 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     dependencyText: typeof data.dependencyText === "string" ? data.dependencyText : null,
     vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",
-    // V17.1 — legacy tasky neměly authorRole; fallback na "OWNER" (historicky
-    //   v drtivé většině, PM teprve nedávno dostal schopnost create).
+    // V17.1/V17.8 — authorRole je snapshot role autora při create. Pokud
+    //   chybí (legacy task před V17.1 deploy), necháme undefined; volající
+    //   si ho doplní přes lib/authorRole.resolveAuthorRole({task, usersByUid}).
     authorRole:
       data.authorRole === "PROJECT_MANAGER" || data.authorRole === "OWNER"
         ? data.authorRole
-        : "OWNER",
+        : undefined,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
   };

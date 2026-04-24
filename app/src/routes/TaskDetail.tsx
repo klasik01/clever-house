@@ -8,6 +8,7 @@ import { convertNapadToOtazka, convertNapadToUkol, deleteTask, updateTask } from
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import { canEditTask } from "@/lib/permissions";
+import { resolveAuthorRole } from "@/lib/authorRole";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
@@ -582,10 +583,17 @@ export default function TaskDetail() {
   }
 
   const task = state.task;
-  // V17.1/V17.2 — canEdit logika je pure helper v lib/permissions.ts
-  //   (testovaná). Rules dělají authoritative check; tady jen UI gating.
+  // V17.1/V17.2/V17.8 — canEdit je pure helper. Předem resolvujeme
+  //   authorRole přes user lookup (self-healing pro legacy tasky před
+  //   V17.1 deploy, které nemají field). Rules dělají authoritative check
+  //   serverside; tady jen UI gating.
+  const taskAuthorRole = resolveAuthorRole({
+    task,
+    usersByUid: byUid,
+  });
   const canEdit = canEditTask({
     task,
+    taskAuthorRole,
     currentUserUid: user?.uid,
     currentUserRole: roleState.status === "ready" ? roleState.profile.role : null,
   });
