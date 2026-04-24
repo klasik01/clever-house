@@ -46,6 +46,11 @@ const ARCHIVE_DIR = join(__dirname, "archive");
 const ARCHIVE_README = join(ARCHIVE_DIR, "README.md");
 const VALID_ENVS = new Set(["dev", "ope"]);
 
+// Layout: app/deploy/deploy.mjs → appRoot = app/ (kde je firebase.json +
+// firestore.rules), functionsRoot = app/functions/ (kde běží npm build).
+const APP_ROOT = join(__dirname, "..");
+const FUNCTIONS_ROOT = join(APP_ROOT, "functions");
+
 const args = process.argv.slice(2);
 const env = args.find((a) => !a.startsWith("--"));
 const DRY_RUN = args.includes("--dry-run");
@@ -126,8 +131,8 @@ async function main() {
   console.log(`Firebase project: ${projectId}`);
 
   const firebaseEnv = { GOOGLE_APPLICATION_CREDENTIALS: join(__dirname, `${env}.json`) };
-  const appRoot = join(__dirname, "..", "..");       // app/
-  const functionsRoot = join(__dirname, "..");        // app/functions/
+  const appRoot = APP_ROOT;
+  const functionsRoot = FUNCTIONS_ROOT;
 
   // --- 1. Deploy Firestore rules ---
   if (!SKIP_FIREBASE) {
