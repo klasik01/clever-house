@@ -66,3 +66,4 @@ Historie je cenná:
 | Datum | Verze | Skript | Popis |
 |-------|-------|--------|-------|
 | 2026-04-24 | V17.8 | `2026-04-24-V17.8-authorRole.mjs` | Backfill authorRole do historických tasků (před V17.1 deploy) |
+| 2026-04-24 | V17.8 | `2026-04-24-V17.8-authorRole.mjs` | Backfill authorRole do historických tasků (před V17.1 deploy) |
