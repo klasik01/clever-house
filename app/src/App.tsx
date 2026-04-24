@@ -11,6 +11,7 @@ import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useAppBadge } from "./hooks/useAppBadge";
 import { useInbox } from "./hooks/useInbox";
+import { useInboxAutoRead } from "./hooks/useInboxAutoRead";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
@@ -80,8 +81,12 @@ function ProtectedLayout() {
   // count of in-app notifications. SW still bumps it to "1" on push arrival
   // (before the app is open), and this hook overwrites with the true number
   // the moment the app mounts or reconnects to Firestore.
-  const { unreadCount } = useInbox(user?.uid ?? null);
+  const { items, unreadCount } = useInbox(user?.uid ?? null);
   useAppBadge(unreadCount);
+  // V16.9 — když jsem aktivně na /t/{taskId} a dorazí unread inbox item
+  // pro ten task, automaticky ho mark-readnu. SW zvlášť suppressne push
+  // popup (viz firebaseMessagingSw plugin ve vite.config.ts).
+  useInboxAutoRead(user?.uid ?? null, items);
 
   if (loading || (user && roleState.status === "loading")) {
     return <Splash message={t("app.loading")} />;

@@ -51,7 +51,7 @@ const messaging = firebase.messaging();
 // Background push (app closed or in another tab) — render the notification
 // ourselves using the payload. Tag by taskId so a second push on the same
 // thread collapses onto the first on iOS / Android native notification UIs.
-messaging.onBackgroundMessage((payload) => {
+messaging.onBackgroundMessage(async (payload) => {
   // Data-only payload: title/body jsou v payload.data, ne v payload.notification.
   // (Pokud by v budoucnu někdo změnil server na notification-based, padneme
   //  zpět na tu cestu — proto dvoustupňový fallback.)
@@ -62,6 +62,44 @@ messaging.onBackgroundMessage((payload) => {
   const body  = data.body
                 || (payload && payload.notification && payload.notification.body)
                 || "";
+  const taskId = data.taskId;
+
+  // V16.9 — presence-aware suppression:
+  //   Pokud je aplikace aktivně otevřená (nějaký tab visible/focused),
+  //   nepouštěj systémový push popup. Inbox záznam v CF už proběhl, bell
+  //   se rozsvítí přes Firestore snapshot. Push je určený pro "app je
+  //   v pozadí / úplně zavřená" případ.
+  //
+  //   Navíc: pokud je ten focused tab na /t/{taskId} toho samého tasku,
+  //   pošli postMessage → klient auto-mark-read inbox záznam (bell ani
+  //   nezačne blikat).
+  //
+  //   iOS PWA poznámka: Safari v background pozastavuje JS clienty úplně,
+  //   takže clients.matchAll() vrátí prázdno když je app minimalizovaná.
+  //   To je přesně co chceme — v té situaci push zobrazit. Jediný případ
+  //   kdy SW běží A existuje visible client = user má app v popředí.
+  try {
+    const clients = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+    const focusedClient = clients.find(function(c) {
+      return c.focused === true || c.visibilityState === "visible";
+    });
+    if (focusedClient) {
+      // App je v popředí → neukaž push.
+      // Pokud matchuje taskId, upozorni klienta ať mark-read přidružený inbox item.
+      if (taskId && focusedClient.url && focusedClient.url.indexOf("/t/" + taskId) !== -1) {
+        try {
+          focusedClient.postMessage({
+            type: "INBOX_AUTO_READ",
+            taskId: taskId,
+          });
+        } catch (_) { /* noop */ }
+      }
+      return; // žádný showNotification
+    }
+  } catch (_) { /* pokud clients API selže, padni do defaultního push flow níž */ }
 
   // App badge na ikonce plochy (iOS 16.4+ / Chrome PWA / macOS Safari PWA).
   // Minimální verze — jen puntík ("je tam něco nového"), bez čísla.
@@ -79,11 +117,11 @@ messaging.onBackgroundMessage((payload) => {
   //       do event.waitUntil, ale jen pokud ji z handleru vrátíme.
   //       Bez return iOS SW někdy skončí dřív, než notifikace fakt vyrenderuje.
   return self.registration.showNotification(title, {
-    body,
+    body: body,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    data,
-    tag: data.taskId ? ("task-" + data.taskId) : undefined,
+    data: data,
+    tag: taskId ? ("task-" + taskId) : undefined,
   });
 });
 
