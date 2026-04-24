@@ -4,6 +4,7 @@ import { renderPayload } from "./copy";
 import { normalisePrefs } from "./prefs";
 import type {
   NotificationDevice,
+  NotificationItemWrite,
   NotificationPrefs,
   NotifyInput,
 } from "./types";
@@ -68,15 +69,50 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
     return 0;
   }
 
-  // 2) Recipient's devices.
+  // 2) Mirror into the in-app inbox BEFORE device lookup. The feed should
+  //     work even for users who never enabled push — prefs gate above already
+  //     ran, so we only write here when the event actually matters to the
+  //     recipient. Fire-and-forget in try/catch: if Firestore write fails
+  //     we still attempt the push (best-effort), not blocking delivery on
+  //     inbox persistence issues.
+  //
+  //     Render strings (title/body) are computed here too so client doesn't
+  //     need to reconstruct them from raw data on every feed render.
+  const { title, body } = renderPayload(input);
+  try {
+    const itemRef = admin.firestore()
+      .collection("users").doc(input.recipientUid)
+      .collection("notifications").doc();
+    const item: NotificationItemWrite = {
+      eventType: input.eventType,
+      taskId: input.taskId,
+      commentId: input.commentId ?? null,
+      actorUid: input.actorUid,
+      actorName: input.actorName,
+      title,
+      body,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      readAt: null,
+    };
+    await itemRef.set(item);
+  } catch (err) {
+    logger.warn("inbox write failed (non-fatal)", {
+      recipient: input.recipientUid,
+      event: input.eventType,
+      err,
+    });
+  }
+
+  // 3) Recipient's devices.
   const devices = await loadDevices(input.recipientUid);
   if (devices.length === 0) {
     logger.debug("skip: no devices", { recipient: input.recipientUid });
     return 0;
   }
 
-  // 3) Build shared payload (same title/body for all recipient's devices).
-  const { title, body } = renderPayload(input);
+  // 4) Build shared payload (same title/body for all recipient's devices).
+  //    Reuse title/body from inbox step above — same NotifyInput means
+  //    same render.
   const url = input.commentId
     ? `/t/${input.taskId}#comment-${input.commentId}`
     : `/t/${input.taskId}`;
@@ -115,7 +151,7 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
 
   const response = await admin.messaging().sendEachForMulticast(message);
 
-  // 4) Cleanup stale tokens based on per-token response.
+  // 5) Cleanup stale tokens based on per-token response.
   const cleanupPromises: Promise<unknown>[] = [];
   response.responses.forEach((res, i) => {
     if (!res.success) {

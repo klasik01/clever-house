@@ -1,47 +1,39 @@
 import { useEffect } from "react";
 
 /**
- * V15/N-19 — clears the OS-level app badge (red dot on home-screen icon)
- * whenever the PWA becomes visible. Pairs with the SW setAppBadge(1) call
- * in firebase-messaging-sw.js — push increments the badge, opening the app
- * clears it.
+ * V15.1 — syncs the OS home-screen app badge with the in-app inbox's
+ * real unread count. Supersedes the V15/N-19 minimal version that just
+ * cleared the badge on app-open.
  *
- * Web Badging API: https://developer.mozilla.org/en-US/docs/Web/API/Badging_API
- * Support matrix (as of iOS 26.3 / April 2026):
- *   - iOS 16.4+ Safari PWA (standalone mode) ✓
- *   - Chrome desktop / Android PWA ✓
- *   - macOS Safari installed PWA ✓
- *   - Firefox ✗ (gracefully no-op)
+ * Input: unread count from useInbox. Whenever that count changes:
+ *   - n > 0  → navigator.setAppBadge(n)  → red badge with number on icon
+ *   - n === 0 → navigator.clearAppBadge() → icon returns to neutral
  *
- * The hook is a no-op on unsupported browsers.
+ * The SW's push handler still bumps the badge to "1" when it arrives
+ * while the app is closed (as a signal "something new"). On next app
+ * launch, this hook overwrites it with the true unread count from
+ * Firestore (source of truth). Brief stale state possible when offline;
+ * corrects itself on reconnect.
+ *
+ * Graceful no-op on Firefox / pre-16.4 Safari where the API isn't present.
  */
-export function useAppBadge(): void {
+export function useAppBadge(unreadCount: number): void {
   useEffect(() => {
     if (typeof navigator === "undefined") return;
-    if (!("clearAppBadge" in navigator)) return;
+    const nav = navigator as Navigator & {
+      setAppBadge?: (n?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (!("setAppBadge" in nav) && !("clearAppBadge" in nav)) return;
 
-    function clear() {
-      const n = navigator as Navigator & { clearAppBadge?: () => Promise<void> };
-      n.clearAppBadge?.().catch(() => {
-        /* Safari občas odmítne když PWA není v standalone mode — safe to ignore */
+    if (unreadCount > 0) {
+      nav.setAppBadge?.(unreadCount).catch(() => {
+        /* ignore — happens when PWA isn't standalone */
+      });
+    } else {
+      nav.clearAppBadge?.().catch(() => {
+        /* ignore */
       });
     }
-
-    // Clear on mount (app just opened).
-    clear();
-
-    // Clear when tab becomes visible again (e.g. user swiped to PWA from
-    // another app). Used in addition to mount because a long-lived session
-    // could accumulate badges while backgrounded.
-    function onVisibility() {
-      if (document.visibilityState === "visible") clear();
-    }
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onVisibility);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onVisibility);
-    };
-  }, []);
+  }, [unreadCount]);
 }

@@ -195,3 +195,28 @@ export interface NotificationDevice {
   /** Bumped on every app load so stale devices can be swept quarterly. */
   lastSeen: string;
 }
+
+/**
+ * In-app inbox item — mirror of a FCM push that's been delivered (or
+ * would've been, had the user had a registered device). Lives in
+ * users/{uid}/notifications/{id}. Written by the Cloud Function alongside
+ * the FCM send, so the feed stays in sync with push without relying on
+ * client-side delivery confirmation.
+ *
+ * readAt = null means unread (driver for the badge count); setting a
+ * timestamp marks it read. There's no delete — cleanup lives in a later
+ * scheduled function (TTL ~30 days).
+ */
+export interface NotificationItem {
+  id: string;
+  eventType: NotificationEventKey;
+  taskId: string;
+  commentId?: string | null;
+  actorUid: string;
+  /** Cached at write time so the feed renders without user-collection reads. */
+  actorName: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+}

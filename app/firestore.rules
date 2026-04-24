@@ -68,6 +68,24 @@ service cloud.firestore {
       match /devices/{deviceId} {
         allow read, write: if isSignedIn() && request.auth.uid == uid;
       }
+
+      // ------ Notifications inbox (V15.1) ------
+      // Mirror of push notifications, persisted for in-app feed. Server
+      // (Cloud Function) writes; owner reads + marks-read. Owner can't
+      // delete (keeps a consistent audit trail); retention lives in a
+      // scheduled cleanup function.
+      match /notifications/{notifId} {
+        allow read: if isSignedIn() && request.auth.uid == uid;
+        // Owner may only patch readAt to set it from null → timestamp.
+        // No other field can be modified from the client — content is
+        // written server-side.
+        allow update: if isSignedIn()
+                      && request.auth.uid == uid
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['readAt']);
+        // Create + delete via Admin SDK only (Cloud Function).
+        allow create, delete: if false;
+      }
     }
 
     // ------ Tasks ------

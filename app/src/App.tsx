@@ -10,6 +10,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useAppBadge } from "./hooks/useAppBadge";
+import { useInbox } from "./hooks/useInbox";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
@@ -75,9 +76,12 @@ function ProtectedLayout() {
   // V15/N-5 — bridge SW NAVIGATE messages (from notification click) into
   // React Router so deep links soft-navigate instead of full-reloading.
   useSwNavigate();
-  // V15/N-19 — clear iOS home-screen app badge on each app-open /
-  // visibility change. The SW sets it when a background push arrives.
-  useAppBadge();
+  // V15.1/N-22 — drive the iOS home-screen app badge off the real unread
+  // count of in-app notifications. SW still bumps it to "1" on push arrival
+  // (before the app is open), and this hook overwrites with the true number
+  // the moment the app mounts or reconnects to Firestore.
+  const { unreadCount } = useInbox(user?.uid ?? null);
+  useAppBadge(unreadCount);
 
   if (loading || (user && roleState.status === "loading")) {
     return <Splash message={t("app.loading")} />;

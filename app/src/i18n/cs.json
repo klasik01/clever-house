@@ -537,5 +537,14 @@
       "deniedTitle": "Notifikace jsou zakázané",
       "deniedBody": "Otevři na iPhonu Nastavení → Chytrý dům → Notifikace a zapni Allow Notifications."
     }
+  },
+  "inbox": {
+    "title": "Notifikace",
+    "empty": "Žádné notifikace zatím nejsou.",
+    "markAllRead": "Označit vše jako přečtené",
+    "loadFailed": "Notifikace se nepodařilo načíst.",
+    "openDetail": "Otevřít detail",
+    "ariaBellLabel": "Otevřít notifikace",
+    "ariaUnread": "Nepřečtené"
   }
 }

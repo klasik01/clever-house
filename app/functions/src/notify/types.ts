@@ -53,3 +53,19 @@ export interface NotifyInput {
   commentId?: string;
   comment?: CommentDoc;
 }
+
+/**
+ * In-app inbox doc shape — written by send.ts after prefs gate passes.
+ * Mirrors the FCM payload fields so feed renders without additional reads.
+ */
+export interface NotificationItemWrite {
+  eventType: NotificationEventKey;
+  taskId: string;
+  commentId?: string | null;
+  actorUid: string;
+  actorName: string;
+  title: string;
+  body: string;
+  createdAt: FirebaseFirestore.FieldValue;
+  readAt: null;
+}

@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
+import NotificationBell from "./NotificationBell";
 
 interface Props {
   children: ReactNode;
@@ -38,13 +39,16 @@ function Header() {
       className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur pt-safe"
       role="banner"
     >
-      <div className="mx-auto flex max-w-xl items-baseline justify-between px-4 py-3">
-        <h1 className="font-sans text-lg font-semibold tracking-tight">
-          {t("app.title")}
-        </h1>
-        <span className="font-sans text-xs text-ink-subtle">
-          {t("app.subtitle")}
-        </span>
+      <div className="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-sans text-lg font-semibold tracking-tight truncate">
+            {t("app.title")}
+          </h1>
+          <p className="mt-0.5 font-sans text-xs text-ink-subtle truncate">
+            {t("app.subtitle")}
+          </p>
+        </div>
+        <NotificationBell />
       </div>
     </header>
   );
