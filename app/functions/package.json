@@ -16,17 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:dev": "node scripts/deploy.mjs dev",
-    "deploy:ope": "node scripts/deploy.mjs ope",
-    "deploy:dev:dry": "node scripts/deploy.mjs dev --dry-run",
-    "deploy:ope:dry": "node scripts/deploy.mjs ope --dry-run",
-    "rules:deploy:dev": "node scripts/firebase-deploy.mjs dev firestore:rules",
-    "rules:deploy:ope": "node scripts/firebase-deploy.mjs ope firestore:rules",
-    "storage:deploy:dev": "node scripts/firebase-deploy.mjs dev storage",
-    "storage:deploy:ope": "node scripts/firebase-deploy.mjs ope storage",
-    "functions:deploy:dev": "node scripts/firebase-deploy.mjs dev functions",
-    "functions:deploy:ope": "node scripts/firebase-deploy.mjs ope functions"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",

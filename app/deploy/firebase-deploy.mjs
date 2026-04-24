@@ -33,7 +33,7 @@ const saPath = join(__dirname, `${env}.json`);
 const sa = JSON.parse(await readFile(saPath, "utf-8"));
 const projectId = sa.project_id;
 
-const appRoot = join(__dirname, "..", "..");
+const appRoot = join(__dirname, "..");
 console.log(`→ firebase deploy --only ${target} --project ${projectId}`);
 
 const child = spawn(

@@ -54,6 +54,8 @@ out/
 # Service account keys (firebase-admin) — never commit
 **/scripts/permission.json
 **/scripts/*.json
+**/deploy/*.json
+app/deploy/node_modules/
 .env.*.local
 
 # npm cache directory
