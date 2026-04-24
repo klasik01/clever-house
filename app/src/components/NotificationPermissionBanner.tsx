@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotificationPermission } from "@/hooks/useNotificationPermission";
+import { useToast } from "@/components/Toast";
 import { useT } from "@/i18n/useT";
 import { requestPermissionAndRegister } from "@/lib/messaging";
 
@@ -45,6 +46,7 @@ export default function NotificationPermissionBanner() {
   const t = useT();
   const { user } = useAuth();
   const permission = useNotificationPermission();
+  const { show: showToast } = useToast();
   const [dismissed, setDismissed] = useState<boolean>(() => wasRecentlyDismissed());
   const [busy, setBusy] = useState(false);
 
@@ -57,15 +59,24 @@ export default function NotificationPermissionBanner() {
     setBusy(true);
     try {
       const result = await requestPermissionAndRegister(user.uid);
-      // Primary dismiss path: Permissions API onchange event v hooku fires
-      // při "granted"/"denied" → banner se skryje sám skrz permission !==
-      // "default" check dole. Tady přidáváme belt-and-suspenders: pokud
-      // hook z nějakého důvodu pomalý, jednorázově banner skryjeme hned
-      // po úspěšné registraci. Dismiss cooldown nevolám (není to dismiss
-      // v smyslu "odložit na týden", ale "hotovo, zmiz").
-      if (result.status === "granted" || result.status === "denied") {
+      console.log("[FCM] registration result:", result);
+      // Visible feedback — user jinak neví, jestli to prošlo nebo padlo.
+      if (result.status === "granted") {
+        showToast("Notifikace zapnuté", "success");
         setDismissed(true);
+      } else if (result.status === "denied") {
+        showToast("Povolení zamítnuto — zapni v iOS Nastavení", "error");
+        setDismissed(true);
+      } else if (result.status === "no_token") {
+        showToast("FCM token se nezískal — zkus to znovu", "error");
+      } else if (result.status === "unsupported") {
+        showToast("Tento prohlížeč push notifikace nepodporuje", "error");
+      } else if (result.status === "error") {
+        showToast("Registrace selhala — viz konzole", "error");
       }
+    } catch (err) {
+      console.error("[FCM] handleEnable threw:", err);
+      showToast("Něco se pokazilo při zapínání notifikací", "error");
     } finally {
       setBusy(false);
     }
