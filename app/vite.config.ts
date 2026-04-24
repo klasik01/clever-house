@@ -55,10 +55,15 @@ messaging.onBackgroundMessage((payload) => {
   const title = (payload && payload.notification && payload.notification.title) || "Chytrý dům";
   const body  = (payload && payload.notification && payload.notification.body)  || "";
   const data  = (payload && payload.data) || {};
-  self.registration.showNotification(title, {
+  // iOS Safari Web Push má dva dopady, kvůli kterým notifikace tiše padá:
+  //   (a) ikona musí být raster (PNG/JPEG), SVG Apple nerenderuje.
+  //   (b) showNotification vrací Promise — FCM SDK ji interně wraapi
+  //       do event.waitUntil, ale jen pokud ji z handleru vrátíme.
+  //       Bez return iOS SW někdy skončí dřív, než notifikace fakt vyrenderuje.
+  return self.registration.showNotification(title, {
     body,
-    icon: "/icon-192.svg",
-    badge: "/icon-192.svg",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     data,
     tag: data.taskId ? ("task-" + data.taskId) : undefined,
   });
@@ -203,7 +208,7 @@ export default defineConfig(({ mode }) => {
           },
         ],
       },
-      includeAssets: ["favicon.svg", "icon-192.svg", "icon-512.svg", "apple-touch-icon.png"],
+      includeAssets: ["favicon.svg", "icon-192.svg", "icon-192.png", "icon-512.svg", "apple-touch-icon.png"],
       manifest: {
         name: "Chytrý dům na vsi",
         short_name: "Chytrý dům",

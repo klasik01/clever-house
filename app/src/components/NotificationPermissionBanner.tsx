@@ -56,10 +56,16 @@ export default function NotificationPermissionBanner() {
     if (!user) return;
     setBusy(true);
     try {
-      await requestPermissionAndRegister(user.uid);
-      // Permission flip will re-render via useNotificationPermission on
-      // visibility change; the banner self-hides when permission !==
-      // "default". Nothing else to do here.
+      const result = await requestPermissionAndRegister(user.uid);
+      // Primary dismiss path: Permissions API onchange event v hooku fires
+      // při "granted"/"denied" → banner se skryje sám skrz permission !==
+      // "default" check dole. Tady přidáváme belt-and-suspenders: pokud
+      // hook z nějakého důvodu pomalý, jednorázově banner skryjeme hned
+      // po úspěšné registraci. Dismiss cooldown nevolám (není to dismiss
+      // v smyslu "odložit na týden", ale "hotovo, zmiz").
+      if (result.status === "granted" || result.status === "denied") {
+        setDismissed(true);
+      }
     } finally {
       setBusy(false);
     }

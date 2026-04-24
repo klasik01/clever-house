@@ -42,6 +42,28 @@ export function useNotificationPermission(): NotificationPermissionState {
 
     void refresh();
 
+    // Reactive update přes Permissions API — nejsilnější cesta jak zachytit,
+    // že uživatel flipnul prompt ("granted"/"denied") bez toho, aby musel
+    // refresh stránku. Funguje v Chrome/Edge/Firefox; Safari macOS to taky
+    // podporuje. iOS PWA nemá Permissions API, tam spadneme zpět na
+    // visibilitychange (uživatel se vrátí z iOS Settings → fire refresh).
+    type PermStatus = { state: NotificationPermission; onchange: (() => void) | null };
+    let permStatusRef: PermStatus | null = null;
+    if (navigator.permissions && typeof navigator.permissions.query === "function") {
+      navigator.permissions
+        .query({ name: "notifications" as PermissionName })
+        .then((status) => {
+          if (cancelled) return;
+          permStatusRef = status as unknown as PermStatus;
+          permStatusRef.onchange = () => {
+            void refresh();
+          };
+        })
+        .catch(() => {
+          /* Permissions API nedostupná — visibilitychange fallback řeší zbytek. */
+        });
+    }
+
     function onVisibility() {
       if (document.visibilityState === "visible") void refresh();
     }
@@ -52,6 +74,7 @@ export function useNotificationPermission(): NotificationPermissionState {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onVisibility);
+      if (permStatusRef) permStatusRef.onchange = null;
     };
   }, []);
 
