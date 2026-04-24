@@ -1,19 +1,15 @@
 import type { NotificationEventKey } from "./types";
+import { eventPriorityList } from "./catalog";
 
 /**
- * Priority list for dedupe. Lower index wins when a single user falls
- * into multiple event buckets for the same comment (e.g. they're both
- * the task creator AND @mentioned — they get `mention`, not two pushes).
- *
- * Keep in sync with the UI copy in i18n (cs.json) and the discovery doc.
+ * V16.7 — EVENT_PRIORITY je teď derivováno z NOTIFICATION_CATALOG.
+ * Pořadí odpovídá dedupePriority (ascending). Soubor zůstává kvůli
+ * buildRecipientMap funkci, která je v mnoha místech hluboko v pipeline.
  */
-export const EVENT_PRIORITY: NotificationEventKey[] = [
-  "mention",
-  "assigned",
-  "comment_on_mine",
-  "comment_on_thread",
-  "shared_with_pm",
-];
+
+/** Priority list pro dedupe. Lower index wins když user spadne do víc
+ *  event buckets pro jeden comment. Single source of truth: catalog.ts. */
+export const EVENT_PRIORITY: NotificationEventKey[] = eventPriorityList();
 
 export interface RecipientSources {
   /** The user whose action triggered this. Never notified (self-filter). */

@@ -49,14 +49,14 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isSignedIn();
 
-      // V15 — user may self-update only the notificationPrefs field. Role /
-      // email / displayName stay Admin-SDK only. We gate by diff so any
-      // attempt to change sensitive fields is rejected even when wrapped
-      // in the same patch.
+      // V16.1 — user may self-update notificationPrefs a displayName
+      // ("Přezdívka"). Role + email zůstávají Admin-SDK only. Diff gate
+      // odmítne i balíčkovaný patch, který by se snažil změnit cokoliv
+      // jiného. Oba fieldy lze posílat zvlášť nebo společně.
       allow update: if isSignedIn()
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['notificationPrefs']);
+                       .hasOnly(['notificationPrefs', 'displayName']);
 
       // Create / delete via Admin SDK only.
       allow create, delete: if false;

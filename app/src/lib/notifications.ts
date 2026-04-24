@@ -37,11 +37,18 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "comment_on_mine",
   "comment_on_thread",
   "shared_with_pm",
+  "priority_changed",    // V16.4
+  "deadline_changed",    // V16.4
+  "task_deleted",        // V16.6
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
  *  who dislike a specific event can flip it in Settings; we don't nag them
- *  into granular configuration before they've even seen what's useful. */
+ *  into granular configuration before they've even seen what's useful.
+ *
+ *  V16.7 — pořadí klíčů v `events` matchuje NOTIFICATION_CATALOG server-side.
+ *  Když přidáš nový eventType, doplň ho tady i v types.ts (union) i v CF
+ *  katalogu — všechny tři musí držet spolu. */
 export const DEFAULT_PREFS: NotificationPrefs = {
   enabled: true,
   events: {
@@ -50,6 +57,9 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     comment_on_mine: true,
     comment_on_thread: true,
     shared_with_pm: true,
+    priority_changed: true,
+    deadline_changed: true,
+    task_deleted: true,
   },
 };
 

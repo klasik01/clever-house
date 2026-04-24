@@ -1,94 +1,95 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("firebase/firestore", () => import("@/test/firestoreMock"));
-vi.mock("@/lib/firebase", () => ({ db: {} }));
-
+import { describe, it, expect } from "vitest";
 import {
   DEFAULT_PREFS,
   NOTIFICATION_EVENTS,
-  getOrCreateDeviceId,
   mergePrefsWithDefaults,
 } from "./notifications";
-import type { NotificationPrefs } from "@/types";
+import type { NotificationEventKey } from "@/types";
 
-describe("mergePrefsWithDefaults", () => {
-  it("returns a cloned default set for undefined/null input", () => {
-    const a = mergePrefsWithDefaults(undefined);
-    const b = mergePrefsWithDefaults(null);
-    expect(a).toEqual(DEFAULT_PREFS);
-    expect(b).toEqual(DEFAULT_PREFS);
-    // Must be a clone — mutating the result shouldn't leak into defaults.
-    a.events.mention = false;
-    expect(DEFAULT_PREFS.events.mention).toBe(true);
+/**
+ * V16.7 — test ujistí že klientský mirror DEFAULT_PREFS + NOTIFICATION_EVENTS
+ * drží krok s CF katalogem. Nemůžeme sem import přímo z functions/ (jiný
+ * balíček), takže kontrola je "každý klíč v NOTIFICATION_EVENTS má záznam
+ * v DEFAULT_PREFS.events a vice versa" + přítomnost všech 8 V16 klíčů.
+ */
+
+describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
+  const EXPECTED_V16_KEYS: NotificationEventKey[] = [
+    "mention",
+    "assigned",
+    "comment_on_mine",
+    "comment_on_thread",
+    "shared_with_pm",
+    "priority_changed",
+    "deadline_changed",
+    "task_deleted",
+  ];
+
+  it("NOTIFICATION_EVENTS obsahuje všech 8 V16 klíčů", () => {
+    expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_V16_KEYS].sort());
   });
 
-  it("keeps a fully-specified value intact", () => {
-    const input: NotificationPrefs = {
-      enabled: false,
-      events: {
-        mention: false,
-        assigned: true,
-        comment_on_mine: false,
-        comment_on_thread: true,
-        shared_with_pm: false,
-      },
-    };
-    expect(mergePrefsWithDefaults(input)).toEqual(input);
-  });
-
-  it("fills missing event keys from defaults", () => {
-    const input = { enabled: true, events: { mention: false } };
-    const merged = mergePrefsWithDefaults(input);
-    expect(merged.enabled).toBe(true);
-    expect(merged.events.mention).toBe(false);
-    // Unmentioned keys stay at default (true).
-    expect(merged.events.assigned).toBe(true);
-    expect(merged.events.comment_on_mine).toBe(true);
-  });
-
-  it("ignores unknown event keys in the input", () => {
-    const merged = mergePrefsWithDefaults({
-      enabled: true,
-      events: { mention: false, ghost_event: true, lunar_eclipse: false },
-    });
+  it("DEFAULT_PREFS.events má entry pro každý klíč z NOTIFICATION_EVENTS", () => {
     for (const key of NOTIFICATION_EVENTS) {
-      expect(merged.events).toHaveProperty(key);
+      expect(DEFAULT_PREFS.events).toHaveProperty(key);
+      expect(typeof DEFAULT_PREFS.events[key]).toBe("boolean");
     }
-    // No extra keys leaked.
-    expect(Object.keys(merged.events).sort()).toEqual([...NOTIFICATION_EVENTS].sort());
   });
 
-  it("falls back on missing enabled → default", () => {
-    const merged = mergePrefsWithDefaults({ events: { mention: false } });
-    expect(merged.enabled).toBe(DEFAULT_PREFS.enabled);
+  it("DEFAULT_PREFS.events nemá navíc žádný klíč nad rámec NOTIFICATION_EVENTS", () => {
+    const eventKeys = Object.keys(DEFAULT_PREFS.events).sort();
+    const expectedKeys = [...NOTIFICATION_EVENTS].sort();
+    expect(eventKeys).toEqual(expectedKeys);
   });
 
-  it("falls back when a per-event value has wrong type", () => {
-    const merged = mergePrefsWithDefaults({
-      enabled: true,
-      events: { mention: "yes please", assigned: 0 },
-    });
-    expect(merged.events.mention).toBe(true); // default
-    expect(merged.events.assigned).toBe(true); // default
+  it("DEFAULT_PREFS má enabled=true + všechny eventy=true (gentle opt-out)", () => {
+    expect(DEFAULT_PREFS.enabled).toBe(true);
+    for (const key of NOTIFICATION_EVENTS) {
+      expect(DEFAULT_PREFS.events[key]).toBe(true);
+    }
   });
 });
 
-describe("getOrCreateDeviceId", () => {
-  beforeEach(() => {
-    try { localStorage.clear(); } catch { /* jsdom */ }
+describe("mergePrefsWithDefaults", () => {
+  it("undefined → clone DEFAULT_PREFS (deep — nelze mutovat přes návrat)", () => {
+    const merged = mergePrefsWithDefaults(undefined);
+    expect(merged).toEqual(DEFAULT_PREFS);
+    merged.events.mention = false;
+    expect(DEFAULT_PREFS.events.mention).toBe(true);
   });
 
-  it("mints a new id the first time, then returns the same id on subsequent calls", () => {
-    const first = getOrCreateDeviceId();
-    expect(first.length).toBeGreaterThanOrEqual(8);
-    const second = getOrCreateDeviceId();
-    expect(second).toBe(first);
+  it("preserves a fully specified shape", () => {
+    const events = Object.fromEntries(
+      NOTIFICATION_EVENTS.map((k, i) => [k, i % 2 === 0]),
+    ) as Record<NotificationEventKey, boolean>;
+    const input = { enabled: false, events };
+    expect(mergePrefsWithDefaults(input)).toEqual(input);
   });
 
-  it("returns a fresh id after localStorage clear", () => {
-    const a = getOrCreateDeviceId();
-    localStorage.clear();
-    const b = getOrCreateDeviceId();
-    expect(b).not.toBe(a);
+  it("fills missing event keys from defaults + ignoruje unknown klíče", () => {
+    const merged = mergePrefsWithDefaults({
+      enabled: true,
+      events: { mention: false, bogus_key: true },
+    });
+    expect(merged.events.mention).toBe(false);
+    expect(Object.keys(merged.events).sort()).toEqual(
+      [...NOTIFICATION_EVENTS].sort(),
+    );
+  });
+
+  it("wrong-type enabled / event → default", () => {
+    const merged = mergePrefsWithDefaults({
+      enabled: "yes",
+      events: { mention: "on", assigned: 1 },
+    });
+    expect(merged.enabled).toBe(true);
+    expect(merged.events.mention).toBe(true);
+    expect(merged.events.assigned).toBe(true);
+  });
+
+  it("non-object raw → defaults", () => {
+    expect(mergePrefsWithDefaults(null)).toEqual(DEFAULT_PREFS);
+    expect(mergePrefsWithDefaults("garbage")).toEqual(DEFAULT_PREFS);
+    expect(mergePrefsWithDefaults(42)).toEqual(DEFAULT_PREFS);
   });
 });

@@ -1,27 +1,18 @@
 import type { NotificationEventKey, NotificationPrefs } from "./types";
+import { buildDefaultPrefs, NOTIFICATION_EVENT_KEYS } from "./catalog";
 
 /**
- * Defaults for users without a notificationPrefs field. Mirrors the
- * client-side default in app/src/lib/notifications.ts — both sides must
- * agree on the "new account" behaviour or fresh users get inconsistent
- * treatment.
+ * V16.7 — DEFAULT_PREFS je teď odvozeno z NOTIFICATION_CATALOG. Když přidáš
+ * nový event type do katalogu (s defaultEnabled=true), nový uživatel ho
+ * dostane automaticky v prefs bez ruční synchronizace tohoto souboru.
  */
-export const DEFAULT_PREFS: NotificationPrefs = {
-  enabled: true,
-  events: {
-    mention: true,
-    assigned: true,
-    comment_on_mine: true,
-    comment_on_thread: true,
-    shared_with_pm: true,
-  },
-};
+export const DEFAULT_PREFS: NotificationPrefs = buildDefaultPrefs();
 
 /**
- * Merge a raw value from Firestore against the defaults. Pure — every
- * unknown key falls back to default, wrong-type values are ignored. Safe
- * to feed arbitrary garbage data (legacy records, typos, upgrades) in
- * without crashing the trigger.
+ * Merge a raw value from Firestore against the defaults. Pure — každý
+ * unknown key padne na default, wrong-type values se ignorují. Bezpečné
+ * proti libovolným garbage datům (legacy záznamy, typo, upgrady) — trigger
+ * nespadne.
  */
 export function normalisePrefs(raw: unknown): NotificationPrefs {
   if (!raw || typeof raw !== "object") {
@@ -34,7 +25,7 @@ export function normalisePrefs(raw: unknown): NotificationPrefs {
     ? (r.events as Record<string, unknown>)
     : {};
   const events = { ...DEFAULT_PREFS.events };
-  (Object.keys(events) as NotificationEventKey[]).forEach((k) => {
+  NOTIFICATION_EVENT_KEYS.forEach((k: NotificationEventKey) => {
     const v = rawEvents[k];
     if (typeof v === "boolean") events[k] = v;
   });

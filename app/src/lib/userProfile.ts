@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import { mergePrefsWithDefaults } from "./notifications";
 import type { UserProfile, UserRole } from "@/types";
@@ -57,4 +57,22 @@ export function subscribeUsers(
     },
     (err) => onError(err)
   );
+}
+
+
+/**
+ * V16.1 — self-update displayName ("Přezdívka"). Píše do /users/{uid}.
+ * Rules povolují tento field v diff.affectedKeys vedle notificationPrefs,
+ * ostatní fieldy (role, email) jsou Admin-SDK only.
+ *
+ * Prázdný string → null (vrátí uživatele zpátky na auth/email fallback).
+ */
+export async function updateUserDisplayName(
+  uid: string,
+  displayName: string,
+): Promise<void> {
+  const next = displayName.trim();
+  await updateDoc(doc(db, "users", uid), {
+    displayName: next.length ? next : null,
+  });
 }

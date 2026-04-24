@@ -1,7 +1,8 @@
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { resolveActorName, resolvePmUids, sendNotification } from "../notify/send";
-import type { TaskDoc } from "../notify/types";
+import { protistrana } from "../notify/protistrana";
+import type { NotificationEventKey, TaskDoc } from "../notify/types";
 
 /**
  * V15/N-7 — fires when a task is updated. Two event types travel through
@@ -61,14 +62,19 @@ export const onTaskUpdated = onDocumentUpdated(
     if (!before || !after) return;
     const taskId = event.params.taskId;
 
+    // V15/V16.4 — actor detekci nemáme přímou (Firestore nenese kdo doc
+    //   updatoval). Jediná cesta by byla zapisovat `updatedBy` z klientu a
+    //   to nepokryje Admin-side patches. Fallback: task.createdBy. V praxi
+    //   tasky edituje hlavně autor sám (OWNER), občas PM na vlastních
+    //   úkolech. Self-filter v sendNotification stejně zabrání falešným
+    //   pushe.
+    const actorUid = after.createdBy;
+
     // 1) Assignee change — excluding the special case where it was
     //    simply null → same person (no actual flip).
     if ((before.assigneeUid ?? null) !== (after.assigneeUid ?? null)) {
       const newAssignee = after.assigneeUid ?? null;
       if (newAssignee && newAssignee !== before.assigneeUid) {
-        // Actor is whoever edited this task — not reliably known from
-        // the change alone. Fall back to task creator (the common case).
-        const actorUid = after.createdBy;
         const actorName = await resolveActorName(actorUid);
         await sendNotification({
           eventType: "assigned",
@@ -89,8 +95,62 @@ export const onTaskUpdated = onDocumentUpdated(
     ) {
       await fanOutShareToPm(taskId, after);
     }
+
+    // 3) V16.4 — priority change (pošle se jen když je task assignutý).
+    if ((before.priority ?? null) !== (after.priority ?? null)) {
+      await notifyScalarChange({
+        eventType: "priority_changed",
+        actorUid,
+        after,
+        taskId,
+      });
+    }
+
+    // 4) V16.4 — deadline change.
+    if ((before.deadline ?? null) !== (after.deadline ?? null)) {
+      await notifyScalarChange({
+        eventType: "deadline_changed",
+        actorUid,
+        after,
+        taskId,
+      });
+    }
   },
 );
+
+/**
+ * V16.4 — společný flow pro "scalar field" změny (priority, deadline).
+ * Rozhoduje o recipientovi přes protistrana() — nikdy actor, jen ten druhý
+ * účastník (autor nebo assignee). Pokud task nemá assignee, žádná notifikace.
+ */
+async function notifyScalarChange(args: {
+  eventType: NotificationEventKey;
+  actorUid: string;
+  after: TaskDoc;
+  taskId: string;
+}): Promise<void> {
+  const recipientUid = protistrana({
+    actorUid: args.actorUid,
+    createdBy: args.after.createdBy,
+    assigneeUid: args.after.assigneeUid,
+  });
+  if (!recipientUid) {
+    logger.debug("scalar change skip — no assignee or only self in the loop", {
+      taskId: args.taskId,
+      event: args.eventType,
+    });
+    return;
+  }
+  const actorName = await resolveActorName(args.actorUid);
+  await sendNotification({
+    eventType: args.eventType,
+    actorUid: args.actorUid,
+    actorName,
+    recipientUid,
+    taskId: args.taskId,
+    task: args.after,
+  });
+}
 
 async function fanOutShareToPm(taskId: string, task: TaskDoc): Promise<void> {
   const pmUids = await resolvePmUids();

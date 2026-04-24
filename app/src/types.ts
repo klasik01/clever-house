@@ -168,7 +168,10 @@ export type NotificationEventKey =
   | "assigned"
   | "comment_on_mine"
   | "comment_on_thread"
-  | "shared_with_pm";
+  | "shared_with_pm"
+  | "priority_changed"    // V16.4
+  | "deadline_changed"    // V16.4
+  | "task_deleted";       // V16.6
 
 /** Per-user notification preferences, stored on the user profile doc. */
 export interface NotificationPrefs {

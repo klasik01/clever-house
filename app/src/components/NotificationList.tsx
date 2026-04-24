@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AtSign, Bell, BellOff, MessageCircle, MessagesSquare, Share2, UserPlus } from "lucide-react";
+import { AtSign, Bell, BellOff, Calendar, Flag, MessageCircle, MessagesSquare, Share2, Trash2, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { markAllRead, markRead } from "@/lib/inbox";
@@ -20,6 +20,9 @@ const EVENT_ICON: Record<NotificationEventKey, LucideIcon> = {
   comment_on_mine: MessageCircle,
   comment_on_thread: MessagesSquare,
   shared_with_pm: Share2,
+  priority_changed: Flag,
+  deadline_changed: Calendar,
+  task_deleted: Trash2,
 };
 
 /**

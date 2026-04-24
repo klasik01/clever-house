@@ -44,3 +44,4 @@ export const helloPing = onRequest((req, res) => {
 // ---- Event triggers (V15 push pipeline) ----
 export { onTaskCreated, onTaskUpdated } from "./triggers/onTaskWrite";
 export { onCommentCreate } from "./triggers/onCommentCreate";
+export { onTaskDeleted } from "./triggers/onTaskDeleted";  // V16.6

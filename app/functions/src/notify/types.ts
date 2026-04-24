@@ -10,7 +10,10 @@ export type NotificationEventKey =
   | "assigned"
   | "comment_on_mine"
   | "comment_on_thread"
-  | "shared_with_pm";
+  | "shared_with_pm"
+  | "priority_changed"    // V16.4
+  | "deadline_changed"    // V16.4
+  | "task_deleted";       // V16.6
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -32,6 +35,10 @@ export interface TaskDoc {
   createdBy: string;
   sharedWithPm?: boolean;
   status?: string;
+  /** V16.4 — P1/P2/P3. Null = nenastaveno. */
+  priority?: "P1" | "P2" | "P3" | null;
+  /** V16.4 — unix millis. Null = bez termínu. */
+  deadline?: number | null;
 }
 
 export interface CommentDoc {

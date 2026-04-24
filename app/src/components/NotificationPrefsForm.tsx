@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AtSign, Bell, BellOff, CheckCircle2, MessageCircle, MessagesSquare, Share2, UserPlus } from "lucide-react";
+import { AtSign, Bell, BellOff, Calendar, CheckCircle2, Flag, MessageCircle, MessagesSquare, Share2, Trash2, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -33,6 +33,9 @@ const EVENT_ICONS: Record<NotificationEventKey, LucideIcon> = {
   comment_on_mine: MessageCircle,
   comment_on_thread: MessagesSquare,
   shared_with_pm: Share2,
+  priority_changed: Flag,
+  deadline_changed: Calendar,
+  task_deleted: Trash2,
 };
 
 export default function NotificationPrefsForm() {
@@ -40,7 +43,8 @@ export default function NotificationPrefsForm() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   const permission = useNotificationPermission();
-  const [busy, setBusy] = useState<"enabling" | null>(null);
+  const [busy, setBusy] = useState<"enabling" | "retrying" | null>(null);
+  const [retryFailed, setRetryFailed] = useState(false);
 
   const prefs = roleState.status === "ready"
     ? mergePrefsWithDefaults(roleState.profile.notificationPrefs)
@@ -51,6 +55,32 @@ export default function NotificationPrefsForm() {
     setBusy("enabling");
     try {
       await requestPermissionAndRegister(user.uid);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * V16.2 — re-trigger z denied větve. Chrome / Edge někdy prompt zobrazí
+   * znovu pokud user dříve jen "dismiss"nul bez denyování; jindy (a na iOS
+   * po ručním odmítnutí) ne. Pokud request vrátí opět "denied", zobraz
+   * ručně-povolit návod (skrytý toggle s postupy per-platform).
+   */
+  async function handleRetry() {
+    if (!user) return;
+    setBusy("retrying");
+    setRetryFailed(false);
+    try {
+      const result = await requestPermissionAndRegister(user.uid);
+      if (result.status !== "granted") {
+        // permission hook useNotificationPermission se přepne sám přes
+        // PermissionStatus.onchange; pokud to zůstane denied, flag zobrazí
+        // hlášku "browser still blocks" vedle existujícího návodu.
+        setRetryFailed(true);
+      }
+    } catch (e) {
+      console.error("permission retry failed", e);
+      setRetryFailed(true);
     } finally {
       setBusy(null);
     }
@@ -110,6 +140,43 @@ export default function NotificationPrefsForm() {
         <p className="text-sm text-ink-muted">
           {t("notifikace.sectionHintDenied")}
         </p>
+
+        <button
+          type="button"
+          onClick={handleRetry}
+          disabled={busy === "retrying"}
+          className="inline-flex items-center justify-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60 transition-colors self-start"
+        >
+          <Bell aria-hidden size={16} />
+          {busy === "retrying"
+            ? t("notifikace.deniedRetryLoading")
+            : t("notifikace.deniedRetryCta")}
+        </button>
+
+        {retryFailed && (
+          <p
+            role="status"
+            className="rounded-md border px-3 py-2 text-xs"
+            style={{
+              background: "var(--color-priority-p1-bg)",
+              color: "var(--color-priority-p1-fg)",
+              borderColor: "var(--color-priority-p1-border)",
+            }}
+          >
+            {t("notifikace.deniedStillDenied")}
+          </p>
+        )}
+
+        <details className="rounded-md border border-line bg-surface">
+          <summary className="cursor-pointer select-none px-3 py-2 text-sm text-ink hover:bg-bg-subtle">
+            {t("notifikace.deniedHelpToggle")}
+          </summary>
+          <div className="flex flex-col gap-2 border-t border-line px-3 py-2 text-xs text-ink-muted">
+            <p>{t("notifikace.deniedHelpIOS")}</p>
+            <p>{t("notifikace.deniedHelpChrome")}</p>
+            <p>{t("notifikace.deniedHelpAndroid")}</p>
+          </div>
+        </details>
       </div>
     );
   }
