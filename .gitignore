@@ -6,7 +6,8 @@
 ._*
 
 # Custom folder icons
-Icon
+Icon
+
 
 # Volume root files
 .DocumentRevisions-V100
@@ -50,6 +51,7 @@ out/
 # dotenv environment variable files
 .env
 .env.local
+**/scripts/**.json
 .env.*.local
 
 # npm cache directory
