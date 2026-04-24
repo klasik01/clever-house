@@ -589,18 +589,12 @@ export default function TaskDetail() {
 
   // ---------- PM view: read-only question + answer form ----------
   if (isPm) {
-    // Non-shared nápad is not visible to PM — client safety net (Firestore rules enforce).
-    if (task.type === "napad" && !task.sharedWithPm) {
-      return (
-        <NotFound
-          title={t("detail.notFoundTitle")}
-          body={t("detail.notFoundBody")}
-          backLabel={t("detail.back")}
-          onBack={() => navigate("/zaznamy?type=otazka")}
-        />
-      );
-    }
-    // Shared nápad — read-only view for PM (no answer form, but can comment).
+    // V15.2 — PM can open any task detail (read-only). Nápady that aren't
+    // shared with PM are still hidden from the listing views (see useTasks
+    // filters) but deep-link navigation from a push notification or mention
+    // must succeed. Write-gating is enforced by Firestore rules, so the
+    // fall-through below is safe: the PM gets the existing read-only nápad
+    // layout for every nápad they can now read.
     if (task.type === "napad") {
       const categoryIds = task.categoryIds?.length
         ? task.categoryIds

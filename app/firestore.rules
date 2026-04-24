@@ -90,19 +90,15 @@ service cloud.firestore {
 
     // ------ Tasks ------
     match /tasks/{taskId} {
-      // READ — V3-polish:
-      //   list: any signed-in user can list; client-side filters napady by sharedWithPm.
-      //   get:  per-document enforcement (direct /t/:id fetches gated here).
-      allow list: if isSignedIn();
-      // V10: every OWNER sees every OWNER's napady (workspace = one household).
-      //      Otazky are shared across the whole workspace. Napady shared with PM
-      //      stay visible to PM regardless of OWNER role.
-      allow get:  if isSignedIn() && (
-        resource.data.createdBy == request.auth.uid
-        || resource.data.type == 'otazka'
-        || (resource.data.type == 'napad' && isOwner())
-        || (resource.data.type == 'napad' && resource.data.sharedWithPm == true)
-      );
+      // READ — V15.2:
+      //   Any signed-in user can read any task (list or single get). The
+      //   workspace is one household + its PM; there are no task-level secrets
+      //   to keep between them. Role distinction lives at the write/edit level
+      //   (see UPDATE below) and in the UI (PM gets a read-only view of napady
+      //   that haven't been explicitly shared). Deep-linking from a push
+      //   notification needs this — without it PM click-throughs on unshared
+      //   napady bounced to NotFound via the rules 403.
+      allow read: if isSignedIn();
 
       // CREATE — must set createdBy to self, sensible type + status.
       allow create: if isSignedIn()
