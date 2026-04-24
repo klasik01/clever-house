@@ -20,7 +20,6 @@ export default function UpdateBanner() {
   const [needRefresh, setNeedRefresh] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
-  const [updater, setUpdater] = useState<{ updateSW: (reload: boolean) => Promise<void> } | null>(null);
 
   // Wire SW listener (primary signal).
   useEffect(() => {
@@ -28,12 +27,11 @@ export default function UpdateBanner() {
     (async () => {
       try {
         const mod = await import("virtual:pwa-register");
-        const updateSW = mod.registerSW({
+        mod.registerSW({
           onNeedRefresh() {
             if (!cancelled) setNeedRefresh(true);
           },
         });
-        if (!cancelled) setUpdater({ updateSW });
       } catch (e) {
         console.debug("PWA register unavailable", e);
       }
@@ -81,16 +79,36 @@ export default function UpdateBanner() {
 
   async function handleReload() {
     setReloading(true);
-    // Prefer the SW reload path when we have the updater handle — that keeps
-    // workbox’s registration flow intact. Fall back to a hard reload.
-    if (updater) {
-      try {
-        await updater.updateSW(true);
-        return; // SW reload triggers location.reload internally
-      } catch {
-        /* fallthrough */
+
+    // Iteration history:
+    //   V12.2 — volali jsme updater.updateSW(true) (workbox-coordinated
+    //   skip-wait + reload). Na iOS PWA ale interní waiter občas
+    //   nedostane controllerchange event a tlačítko "Obnovit" se točí
+    //   donekonečna. Uživatel musel forcequitnout PWA.
+    //
+    // V15 fix: obejít workbox helper, poslat SKIP_WAITING ručně a dát
+    // tvrdý 1.5s timeout. Když controllerchange přijde, super; když ne,
+    // stejně pokračujeme na location.reload() — browser si nové SW a
+    // bundle stáhne na dalším navigation cyklu.
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg?.waiting) {
+        reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            navigator.serviceWorker.addEventListener(
+              "controllerchange",
+              () => resolve(),
+              { once: true },
+            );
+          }),
+          new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+        ]);
       }
+    } catch (err) {
+      console.warn("[update] skipWaiting path failed, falling back to plain reload:", err);
     }
+
     window.location.reload();
   }
 

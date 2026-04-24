@@ -52,9 +52,27 @@ const messaging = firebase.messaging();
 // ourselves using the payload. Tag by taskId so a second push on the same
 // thread collapses onto the first on iOS / Android native notification UIs.
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload && payload.notification && payload.notification.title) || "Chytrý dům";
-  const body  = (payload && payload.notification && payload.notification.body)  || "";
+  // Data-only payload: title/body jsou v payload.data, ne v payload.notification.
+  // (Pokud by v budoucnu někdo změnil server na notification-based, padneme
+  //  zpět na tu cestu — proto dvoustupňový fallback.)
   const data  = (payload && payload.data) || {};
+  const title = data.title
+                || (payload && payload.notification && payload.notification.title)
+                || "Chytrý dům";
+  const body  = data.body
+                || (payload && payload.notification && payload.notification.body)
+                || "";
+
+  // App badge na ikonce plochy (iOS 16.4+ / Chrome PWA / macOS Safari PWA).
+  // Minimální verze — jen puntík ("je tam něco nového"), bez čísla.
+  // Počet by vyžadoval tracking v IndexedDB; pro MVP stačí flag.
+  // Clear hodí client-side na window visibility change (useAppBadge hook).
+  if (typeof navigator !== "undefined" && "setAppBadge" in navigator) {
+    try {
+      navigator.setAppBadge(1).catch(function() { /* noop */ });
+    } catch (_) { /* noop */ }
+  }
+
   // iOS Safari Web Push má dva dopady, kvůli kterým notifikace tiše padá:
   //   (a) ikona musí být raster (PNG/JPEG), SVG Apple nerenderuje.
   //   (b) showNotification vrací Promise — FCM SDK ji interně wraapi

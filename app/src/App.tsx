@@ -9,6 +9,7 @@ import {
 import { useAuth } from "./hooks/useAuth";
 import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
+import { useAppBadge } from "./hooks/useAppBadge";
 import { useUserRole } from "./hooks/useUserRole";
 import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
@@ -74,6 +75,9 @@ function ProtectedLayout() {
   // V15/N-5 — bridge SW NAVIGATE messages (from notification click) into
   // React Router so deep links soft-navigate instead of full-reloading.
   useSwNavigate();
+  // V15/N-19 — clear iOS home-screen app badge on each app-open /
+  // visibility change. The SW sets it when a background push arrives.
+  useAppBadge();
 
   if (loading || (user && roleState.status === "loading")) {
     return <Splash message={t("app.loading")} />;

@@ -82,10 +82,21 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
     : `/t/${input.taskId}`;
 
   const tokens = devices.map((d) => d.token);
+  // Data-only payload (žádný top-level `notification` field).
+  //   - Proč: když máme i `notification`, FCM SDK na klientu automaticky
+  //     zobrazí notifikaci v background handleru ZÁROVEŇ s naším
+  //     onBackgroundMessage, co ji taky renderuje → dvojitá notifikace.
+  //     Bez `notification` fieldu SDK nic neukáže samo a kontrolu má
+  //     výhradně náš SW handler v firebase-messaging-sw.js.
+  //   - Title/body přenesené do `data` — SW čte `payload.data.title` /
+  //     `payload.data.body` a volá showNotification ručně.
+  //   - Toto je standardní pattern pro "custom-rendered" web push, kde
+  //     chceš plnou kontrolu nad icon/badge/tag/actions.
   const message: admin.messaging.MulticastMessage = {
     tokens,
-    notification: { title, body },
     data: {
+      title,
+      body,
       url,
       eventType: input.eventType,
       taskId: input.taskId,
@@ -93,10 +104,11 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
     },
     webpush: {
       fcmOptions: { link: url },
-      notification: {
-        icon: "/icon-192.svg",
-        badge: "/icon-192.svg",
-        tag: `task-${input.taskId}`,   // iOS / Android native grouping
+      // Headers vynutí na APNs straně "alert" priorit — iOS jinak může
+      // data-only push zahodit jako silent (nedoručit), bez ohledu na to,
+      // že ho SW stejně chce ukázat.
+      headers: {
+        Urgency: "high",
       },
     },
   };
