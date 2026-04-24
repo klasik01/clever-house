@@ -14,7 +14,7 @@ import type { NotificationEventKey } from "@/types";
  */
 
 describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
-  const EXPECTED_V16_KEYS: NotificationEventKey[] = [
+  const EXPECTED_KEYS: NotificationEventKey[] = [
     "mention",
     "assigned",
     "comment_on_mine",
@@ -23,10 +23,11 @@ describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
     "priority_changed",
     "deadline_changed",
     "task_deleted",
+    "assigned_with_comment",
   ];
 
-  it("NOTIFICATION_EVENTS obsahuje všech 8 V16 klíčů", () => {
-    expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_V16_KEYS].sort());
+  it("NOTIFICATION_EVENTS obsahuje všech 9 V17 klíčů", () => {
+    expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 
   it("DEFAULT_PREFS.events má entry pro každý klíč z NOTIFICATION_EVENTS", () => {

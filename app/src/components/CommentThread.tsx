@@ -7,6 +7,7 @@ import { useComments } from "@/hooks/useComments";
 import { useUsers } from "@/hooks/useUsers";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
+import { isRealFlip, pickDefaultPeer } from "@/lib/commentTargeting";
 import { uploadTaskImage } from "@/lib/attachments";
 import { newId } from "@/lib/id";
 import { useT } from "@/i18n/useT";
@@ -57,21 +58,16 @@ export default function CommentThread({ task }: Props) {
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "cs"));
   }, [users, user?.uid]);
 
-  // Default target = předchozí předkladatel (person who most recently flipped
-  // the ball to me). Fallback to task.createdBy when that isn’t me.
-  const defaultPeerUid = useMemo(() => {
-    if (!user) return null;
-    // comments are returned newest-first by subscribeComments.
-    const prior = comments.find(
-      (c) =>
-        c.workflowAction === "flip" &&
-        c.assigneeAfter === user.uid &&
-        c.authorUid !== user.uid,
-    );
-    if (prior) return prior.authorUid;
-    if (task.createdBy !== user.uid) return task.createdBy;
-    return peers[0]?.uid ?? null;
-  }, [comments, user, task.createdBy, peers]);
+  // V17.3 — logika v lib/commentTargeting.ts (pure, testovaná).
+  const defaultPeerUid = useMemo(
+    () => pickDefaultPeer({
+      task,
+      currentUserUid: user?.uid,
+      comments,
+      peers,
+    }),
+    [comments, user, task, peers],
+  );
 
   async function handleSubmit(
     input: {
@@ -97,22 +93,30 @@ export default function CommentThread({ task }: Props) {
         uploaded.push({ id: newId(), url, path });
       }
 
-      // 2. Resolve workflow side-effect. Flip changes assignee only (status
-      //    stays OPEN). Close moves to DONE.
+      // 2. Resolve workflow side-effect.
+      //    V17.3 — no-op flip (targetUid === current assignee) je obyčejný
+      //    comment, ne flip. Logika v lib/commentTargeting.isRealFlip.
+      const realFlip = isRealFlip({
+        action: action ?? null,
+        workflowEnabled,
+        targetUid: targetUid ?? null,
+        currentAssigneeUid: task.assigneeUid ?? null,
+      });
       const workflow =
-        action === "flip" && workflowEnabled && targetUid
+        realFlip && targetUid
           ? { action: "flip" as const, assigneeAfter: targetUid }
           : action === "close"
           ? { action: "close" as const, statusAfter: "DONE" as TaskStatus }
           : undefined;
 
-      // 3. Create comment doc with uploaded refs + workflow patch
+      // 3. Create comment doc s uploaded refs + workflow patch + priorAssignee.
       await createComment(task.id, {
         authorUid: user.uid,
         body: input.body,
         attachmentImages: uploaded,
         attachmentLinks: input.linkUrls,
         mentionedUids: input.mentionedUids,
+        priorAssigneeUid: task.assigneeUid ?? null,
         workflow,
       });
     } catch (e) {

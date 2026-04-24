@@ -13,7 +13,8 @@ export type NotificationEventKey =
   | "shared_with_pm"
   | "priority_changed"    // V16.4
   | "deadline_changed"    // V16.4
-  | "task_deleted";       // V16.6
+  | "task_deleted"       // V16.6
+  | "assigned_with_comment"; // V17.5
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -33,6 +34,8 @@ export interface TaskDoc {
   body?: string;
   assigneeUid?: string | null;
   createdBy: string;
+  /** V17.1 — snapshot role tvůrce (OWNER/PROJECT_MANAGER). Legacy tasky fallback OWNER. */
+  authorRole?: "OWNER" | "PROJECT_MANAGER";
   sharedWithPm?: boolean;
   status?: string;
   /** V16.4 — P1/P2/P3. Null = nenastaveno. */
@@ -46,6 +49,10 @@ export interface CommentDoc {
   body: string;
   mentionedUids?: string[];
   workflowAction?: "flip" | "close" | null;
+  /** V17.5 — hodnota task.assigneeUid PŘED batch commitem. */
+  priorAssigneeUid?: string | null;
+  /** V17.5 — hodnota task.assigneeUid PO batch commitu (když comment flipuje). */
+  assigneeAfter?: string | null;
 }
 
 /** A resolved notification ready to send — actor, recipient, event key

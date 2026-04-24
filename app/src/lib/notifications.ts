@@ -40,6 +40,7 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "priority_changed",    // V16.4
   "deadline_changed",    // V16.4
   "task_deleted",        // V16.6
+  "assigned_with_comment", // V17.5
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
@@ -60,6 +61,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     priority_changed: true,
     deadline_changed: true,
     task_deleted: true,
+    assigned_with_comment: true,
   },
 };
 

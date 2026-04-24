@@ -7,6 +7,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { convertNapadToOtazka, convertNapadToUkol, deleteTask, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
+import { canEditTask } from "@/lib/permissions";
 import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPicker from "@/components/LocationPicker";
@@ -131,6 +132,7 @@ export default function TaskDetail() {
   const roleState = useUserRole(user?.uid);
   const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
   const { categories } = useCategories(Boolean(user));
+
   const { tasks: allTasks } = useTasks(Boolean(user));
   const { byUid } = useUsers(Boolean(user));
 
@@ -308,7 +310,7 @@ export default function TaskDetail() {
     if (!window.confirm(t("detail.convertConfirm"))) return;
     setConverting(true);
     try {
-      const newId = await convertNapadToOtazka(state.task, user.uid);
+      const newId = await convertNapadToOtazka(state.task, user.uid, isPm ? "PROJECT_MANAGER" : "OWNER");
       navigate(`/t/${newId}`);
     } catch (e) {
       console.error("convert failed", e);
@@ -322,7 +324,7 @@ export default function TaskDetail() {
     if (!window.confirm(t("detail.convertConfirmUkol"))) return;
     setConvertingUkol(true);
     try {
-      const newId = await convertNapadToUkol(state.task, user.uid);
+      const newId = await convertNapadToUkol(state.task, user.uid, isPm ? "PROJECT_MANAGER" : "OWNER");
       navigate(`/t/${newId}`);
     } catch (e) {
       console.error("convert to úkol failed", e);
@@ -580,6 +582,14 @@ export default function TaskDetail() {
   }
 
   const task = state.task;
+  // V17.1/V17.2 — canEdit logika je pure helper v lib/permissions.ts
+  //   (testovaná). Rules dělají authoritative check; tady jen UI gating.
+  const canEdit = canEditTask({
+    task,
+    currentUserUid: user?.uid,
+    currentUserRole: roleState.status === "ready" ? roleState.profile.role : null,
+  });
+  const isReadOnly = !canEdit;
   const TypeIcon =
     task.type === "otazka"
       ? HelpCircle
@@ -587,14 +597,12 @@ export default function TaskDetail() {
       ? Target
       : Notebook;
 
-  // ---------- PM view: read-only question + answer form ----------
-  if (isPm) {
-    // V15.2 — PM can open any task detail (read-only). Nápady that aren't
-    // shared with PM are still hidden from the listing views (see useTasks
-    // filters) but deep-link navigation from a push notification or mention
-    // must succeed. Write-gating is enforced by Firestore rules, so the
-    // fall-through below is safe: the PM gets the existing read-only nápad
-    // layout for every nápad they can now read.
+  // ---------- Read-only view (V17.2) ----------
+  // Aktivuje se když current user nemá edit práva na tento task:
+  //   - PM na OWNER-vytvořeném napadu/otazce/ukolu (klasický scénář)
+  //   - OWNER na PM-vytvořeném tasku (novinka V17.1)
+  // Napad v praxi vždy OWNER-created → OWNER jej má edit, sem spadne jen PM.
+  if (isReadOnly) {
     if (task.type === "napad") {
       const categoryIds = task.categoryIds?.length
         ? task.categoryIds

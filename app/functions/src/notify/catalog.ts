@@ -286,6 +286,31 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     clientLabelKey: "task_deleted",
     defaultEnabled: true,
   },
+
+  assigned_with_comment: {
+    key: "assigned_with_comment",
+    category: "immediate",
+    // V17.5 — vyšší priorita než mention (1), aby v dedupe vyhrál i když
+    //   nový assignee je zároveň @zmíněn v komentáři. Cíl: jedna jasná
+    //   notifikace "dostal jsi úkol + komentář" místo dvou.
+    dedupePriority: 0,
+    trigger:
+      "triggers/onCommentCreate.ts — comment má priorAssigneeUid != assigneeAfter (flip)",
+    recipients:
+      "Pouze nový assignee (assigneeAfter), pokud se liší od původního a není to actor sám. Ostatní účastníci threadu dostanou normální comment_on_* / mention.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} ti přiřadil + komentář: ${truncate(
+        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "assigned_with_comment",
+    defaultEnabled: true,
+  },
 };
 
 /**

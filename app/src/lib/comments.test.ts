@@ -88,3 +88,93 @@ describe("createComment — workflow: close", () => {
     expect(t.assigneeUid).toBe("me");
   });
 });
+
+// ---------- V17.3/V17.5 — priorAssigneeUid + assigneeAfter v comment docu ----------
+
+describe("createComment — V17.3 priorAssigneeUid snapshot", () => {
+  it("obyčejný komentář (no flip) → priorAssigneeUid == assigneeAfter (current)", async () => {
+    __firestoreState.store.set("tasks/t1", {
+      commentCount: 0,
+      status: "OPEN",
+      assigneeUid: "alice",
+    });
+
+    const id = await createComment("t1", {
+      authorUid: "me",
+      body: "jen komentuju",
+      priorAssigneeUid: "alice",
+    });
+
+    const stored = __firestoreState.store.get(`tasks/t1/comments/${id}`) as Record<
+      string,
+      unknown
+    >;
+    expect(stored.workflowAction).toBeNull();
+    expect(stored.priorAssigneeUid).toBe("alice");
+    // Fallback: bez workflow, assigneeAfter = priorAssigneeUid (stejný).
+    expect(stored.assigneeAfter).toBe("alice");
+  });
+
+  it("flip komentář → priorAssigneeUid = starý, assigneeAfter = nový", async () => {
+    __firestoreState.store.set("tasks/t1", {
+      commentCount: 0,
+      status: "OPEN",
+      assigneeUid: "alice",
+    });
+
+    const id = await createComment("t1", {
+      authorUid: "me",
+      body: "předávám",
+      priorAssigneeUid: "alice",
+      workflow: { action: "flip", assigneeAfter: "bob" },
+    });
+
+    const stored = __firestoreState.store.get(`tasks/t1/comments/${id}`) as Record<
+      string,
+      unknown
+    >;
+    expect(stored.workflowAction).toBe("flip");
+    expect(stored.priorAssigneeUid).toBe("alice");
+    expect(stored.assigneeAfter).toBe("bob");
+
+    // Zároveň updatnul task assigneeUid
+    const parent = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
+    expect(parent.assigneeUid).toBe("bob");
+  });
+
+  it("pokud task nemá assignee (null), prior je taky null a bez workflow i after null", async () => {
+    __firestoreState.store.set("tasks/t1", {
+      commentCount: 0,
+      status: "OPEN",
+      assigneeUid: null,
+    });
+
+    const id = await createComment("t1", {
+      authorUid: "me",
+      body: "komentář",
+      priorAssigneeUid: null,
+    });
+
+    const stored = __firestoreState.store.get(`tasks/t1/comments/${id}`) as Record<
+      string,
+      unknown
+    >;
+    expect(stored.priorAssigneeUid).toBeNull();
+    expect(stored.assigneeAfter).toBeNull();
+  });
+
+  it("bez priorAssigneeUid (legacy call, pole chybí) → null fallback", async () => {
+    __firestoreState.store.set("tasks/t1", { commentCount: 0, status: "OPEN" });
+
+    const id = await createComment("t1", {
+      authorUid: "me",
+      body: "x",
+    });
+
+    const stored = __firestoreState.store.get(`tasks/t1/comments/${id}`) as Record<
+      string,
+      unknown
+    >;
+    expect(stored.priorAssigneeUid).toBeNull();
+  });
+});

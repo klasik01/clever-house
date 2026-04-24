@@ -58,13 +58,15 @@ export async function createTask(
     body: string;
     status: Task["status"];
   },
-  uid: string
+  uid: string,
+  authorRole: import("@/types").UserRole,
 ): Promise<string> {
+  // V17.2 — PM vytvoří úkol/otázku unassigned; OWNER si je self-assignuje.
+  const defaultAssignee =
+    data.type !== "napad" && authorRole === "OWNER" ? uid : null;
   const ref = await addDoc(collection(db, TASKS), {
     ...data,
-    // V10 + V14: otázka and úkol both pin the creator as first assignee.
-    // Nápady leave assigneeUid null (not applicable to OWNER thought capture).
-    assigneeUid: (data.type === "otazka" || data.type === "ukol") ? uid : null,
+    assigneeUid: defaultAssignee,
     categoryId: null,
     locationId: null,
     linkedTaskId: null,
@@ -77,6 +79,8 @@ export async function createTask(
     attachmentLinks: [],
     attachmentLinkUrl: null,
     createdBy: uid,
+    // V17.1 — snapshot role autora pro cross-OWNER edit rule.
+    authorRole,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -137,6 +141,12 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     dependencyText: typeof data.dependencyText === "string" ? data.dependencyText : null,
     vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",
+    // V17.1 — legacy tasky neměly authorRole; fallback na "OWNER" (historicky
+    //   v drtivé většině, PM teprve nedávno dostal schopnost create).
+    authorRole:
+      data.authorRole === "PROJECT_MANAGER" || data.authorRole === "OWNER"
+        ? data.authorRole
+        : "OWNER",
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
   };
@@ -193,22 +203,21 @@ export async function needMoreInfoAsProjektant(id: string, answer: string): Prom
  */
 export async function convertNapadToOtazka(
   source: import("@/types").Task,
-  uid: string
+  uid: string,
+  authorRole: import("@/types").UserRole,
 ): Promise<string> {
   const newRef = doc(collection(db, TASKS));
   const batch = writeBatch(db);
 
+  // V17.2 — PM vytvoří otázku unassigned; OWNER si ji přiřadí sám.
+  const defaultAssignee = authorRole === "OWNER" ? uid : null;
+
   batch.set(newRef, {
     type: "otazka",
-    // V12.1: don't inherit title/body from the napad — users want the new úkol
-    // to start blank so they can phrase the ask fresh, referencing the parent
-    // napad via the linkedTaskId below.
     title: "",
     body: "",
-    // V10: new úkoly start OPEN, with the creator as first solver. They can
-    // flip to someone else from the comment thread once they open the detail.
     status: "OPEN",
-    assigneeUid: uid,
+    assigneeUid: defaultAssignee,
     categoryId: source.categoryId ?? null,
     locationId: source.locationId ?? null,
     linkedTaskId: source.id,
@@ -219,6 +228,7 @@ export async function convertNapadToOtazka(
     attachmentImagePath: null,
     attachmentLinkUrl: source.attachmentLinkUrl ?? null,
     createdBy: uid,
+    authorRole,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -245,18 +255,20 @@ export async function convertNapadToOtazka(
  */
 export async function convertNapadToUkol(
   source: import("@/types").Task,
-  uid: string
+  uid: string,
+  authorRole: import("@/types").UserRole,
 ): Promise<string> {
   const newRef = doc(collection(db, TASKS));
   const batch = writeBatch(db);
 
+  const defaultAssignee = authorRole === "OWNER" ? uid : null;
+
   batch.set(newRef, {
     type: "ukol",
-    // Blank title/body — user phrases the úkol fresh in the child detail.
     title: "",
     body: "",
     status: "OPEN",
-    assigneeUid: uid,
+    assigneeUid: defaultAssignee,
     categoryId: source.categoryId ?? null,
     locationId: source.locationId ?? null,
     linkedTaskId: source.id,
@@ -267,6 +279,7 @@ export async function convertNapadToUkol(
     attachmentImagePath: null,
     attachmentLinkUrl: source.attachmentLinkUrl ?? null,
     createdBy: uid,
+    authorRole,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

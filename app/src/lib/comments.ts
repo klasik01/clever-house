@@ -59,6 +59,11 @@ export async function createComment(
     attachmentImages?: ImageAttachment[];
     attachmentLinks?: string[];
     mentionedUids?: string[];
+    /** V17.5 — přítomný assigneeUid tasku v okamžiku odesílání komentáře.
+     *  Server CF dostane { priorAssigneeUid, assigneeAfter } ve snapshot comment
+     *  doc a sám rozhodne, jestli je to flip (prior != after) a koho má
+     *  notifikovat jako "assigned_with_comment". */
+    priorAssigneeUid?: string | null;
     /** V4/V10 — workflow action to apply to parent task atomically with comment write.
      *  V10: statusAfter is OPTIONAL on flip (assignee changes, status stays OPEN).
      *  Close always carries statusAfter: "DONE". */
@@ -74,6 +79,11 @@ export async function createComment(
   const batch = writeBatch(db);
   const ref = doc(commentsCol(taskId));
   const wf = input.workflow ?? null;
+  // V17.5 — explicitní "assignee after": pokud je workflow=flip s assigneeAfter,
+  //   má přednost; jinak je rovno priorAssigneeUid (komentář nezměnil assignee).
+  const assigneeAfter = wf && wf.action === "flip"
+    ? (wf.assigneeAfter ?? null)
+    : (input.priorAssigneeUid ?? null);
   batch.set(ref, {
     authorUid: input.authorUid,
     body: input.body,
@@ -85,7 +95,8 @@ export async function createComment(
     reactions: {},
     workflowAction: wf ? wf.action : null,
     statusAfter: wf?.statusAfter ?? null,
-    assigneeAfter: wf && wf.action === "flip" ? (wf.assigneeAfter ?? null) : null,
+    assigneeAfter,
+    priorAssigneeUid: input.priorAssigneeUid ?? null,
   });
   const taskPatch: Record<string, unknown> = {
     commentCount: increment(1),
@@ -200,6 +211,7 @@ function fromDocSnap(d: DocumentSnapshot | QueryDocumentSnapshot): Comment {
     workflowAction: (data.workflowAction as "flip" | "close" | null) ?? null,
     statusAfter: (data.statusAfter as import("@/types").TaskStatus | null) ?? null,
     assigneeAfter: (data.assigneeAfter as string | null) ?? null,
+    priorAssigneeUid: (data.priorAssigneeUid as string | null | undefined) ?? null,
   };
 }
 

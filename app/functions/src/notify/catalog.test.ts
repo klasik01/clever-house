@@ -329,8 +329,49 @@ describe("V16 new events default-on (gentle opt-out)", () => {
     "priority_changed",
     "deadline_changed",
     "task_deleted",
+    "assigned_with_comment",
   ];
   it.each(newEvents)("%s má defaultEnabled=true", (key) => {
     expect(NOTIFICATION_CATALOG[key].defaultEnabled).toBe(true);
+  });
+});
+
+// ---------- V17.5 — assigned_with_comment ----------
+
+describe("assigned_with_comment — V17.5 merged event", () => {
+  it("má nejvyšší dedupe prioritu (vyhraje nad mention, comment_on_*)", () => {
+    const priority = NOTIFICATION_CATALOG["assigned_with_comment"].dedupePriority;
+    expect(priority).toBeLessThan(NOTIFICATION_CATALOG["mention"].dedupePriority);
+    expect(priority).toBeLessThan(NOTIFICATION_CATALOG["assigned"].dedupePriority);
+  });
+
+  it("renderTitle obsahuje actor + 'přiřadil' + 'komentář' + task title", () => {
+    const { title, body, deepLink } = renderNotification(
+      baseInput({
+        eventType: "assigned_with_comment",
+        comment: { authorUid: "actor-uid", body: "Zkontroluj to prosím." },
+        commentId: "c-42",
+      }),
+    );
+    expect(title).toContain("Stanislav");
+    expect(title).toContain("přiřadil");
+    expect(title).toContain("komentář");
+    expect(title).toContain("Topení");
+    expect(body).toBe("Zkontroluj to prosím");
+    expect(deepLink).toBe("/t/task-1#comment-c-42");
+  });
+
+  it("deep-link bez commentId → /t/taskId", () => {
+    const { deepLink } = renderNotification(
+      baseInput({
+        eventType: "assigned_with_comment",
+        comment: { authorUid: "actor-uid", body: "x" },
+      }),
+    );
+    expect(deepLink).toBe("/t/task-1");
+  });
+
+  it("category je immediate (ne debounced) — assignee flip s komentem je okamžitá událost", () => {
+    expect(NOTIFICATION_CATALOG["assigned_with_comment"].category).toBe("immediate");
   });
 });

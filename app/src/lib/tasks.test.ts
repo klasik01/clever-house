@@ -21,6 +21,7 @@ describe("createTask", () => {
     const id = await createTask(
       { type: "napad", title: "Mám nápad", body: "tady", status: "Nápad" },
       "owner-1",
+      "OWNER",
     );
     expect(id).toMatch(/^auto-/);
     const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
@@ -44,6 +45,7 @@ describe("createTask", () => {
     await createTask(
       { type: "otazka", title: "Otázka", body: "", status: "Otázka" },
       "owner",
+      "OWNER",
     );
     const ops = __firestoreState.calls.map((c) => c.op);
     expect(ops).toContain("setDoc");
@@ -115,7 +117,7 @@ describe("convertNapadToOtazka", () => {
       linkedTaskIds: [],
     });
 
-    const newId = await convertNapadToOtazka(source, "owner");
+    const newId = await convertNapadToOtazka(source, "owner", "OWNER");
 
     // 1) new otazka doc exists, with the source id as parent link.
     //    V12.1: title/body start empty — user fills the ask fresh.
@@ -142,6 +144,7 @@ describe("createTask — V10 assigneeUid defaults", () => {
     const id = await createTask(
       { type: "otazka", title: "Kde umístit rozvaděč?", body: "", status: "OPEN" },
       "owner-1",
+      "OWNER",
     );
     const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
     expect(stored.assigneeUid).toBe("owner-1");
@@ -151,6 +154,7 @@ describe("createTask — V10 assigneeUid defaults", () => {
     const id = await createTask(
       { type: "napad", title: "Rekonstrukce", body: "", status: "Nápad" },
       "owner-1",
+      "OWNER",
     );
     const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
     expect(stored.assigneeUid).toBeNull();
@@ -170,7 +174,7 @@ describe("convertNapadToOtazka — V10 defaults", () => {
       createdBy: "someone",
     };
     __firestoreState.store.set("tasks/n1", { linkedTaskIds: [] });
-    const newId = await convertNapadToOtazka(source, "converter");
+    const newId = await convertNapadToOtazka(source, "converter", "OWNER");
     const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
     expect(doc.status).toBe("OPEN");
     expect(doc.assigneeUid).toBe("converter");
@@ -245,3 +249,142 @@ describe("V14 — convertNapadToUkol", () => {
   });
 });
 
+
+// ---------- V17.1 — authorRole snapshot + role-aware assigneeUid defaults ----------
+
+describe("createTask — V17.1 authorRole snapshot", () => {
+  it("zapíše authorRole=OWNER při OWNER-create", async () => {
+    const id = await createTask(
+      { type: "otazka", title: "Q", body: "", status: "OPEN" },
+      "owner-1",
+      "OWNER",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.authorRole).toBe("OWNER");
+  });
+
+  it("zapíše authorRole=PROJECT_MANAGER při PM-create", async () => {
+    const id = await createTask(
+      { type: "ukol", title: "Úkol", body: "", status: "OPEN" },
+      "pm-1",
+      "PROJECT_MANAGER",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.authorRole).toBe("PROJECT_MANAGER");
+  });
+
+  it("V17.2 — PM vytvoří úkol unassigned (žádný self-assign)", async () => {
+    const id = await createTask(
+      { type: "ukol", title: "Úkol PM", body: "", status: "OPEN" },
+      "pm-1",
+      "PROJECT_MANAGER",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBeNull();
+  });
+
+  it("V17.2 — PM vytvoří otázku unassigned", async () => {
+    const id = await createTask(
+      { type: "otazka", title: "Q?", body: "", status: "OPEN" },
+      "pm-1",
+      "PROJECT_MANAGER",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBeNull();
+  });
+
+  it("OWNER vytvoří úkol self-assigned (beze změny od V10)", async () => {
+    const id = await createTask(
+      { type: "ukol", title: "Úkol OWNER", body: "", status: "OPEN" },
+      "owner-1",
+      "OWNER",
+    );
+    const stored = __firestoreState.store.get(`tasks/${id}`) as Record<string, unknown>;
+    expect(stored.assigneeUid).toBe("owner-1");
+  });
+});
+
+describe("convertNapadToOtazka / convertNapadToUkol — V17.1 authorRole + V17.2 assignee", () => {
+  const source = {
+    id: "n1",
+    type: "napad" as const,
+    title: "Zahrada",
+    body: "",
+    status: "Nápad" as const,
+    createdAt: "2026-04-01T00:00:00Z",
+    updatedAt: "2026-04-01T00:00:00Z",
+    createdBy: "owner-orig",
+  };
+
+  it("OWNER převede napad na otazku → authorRole=OWNER, assignee=converter", async () => {
+    __firestoreState.store.set("tasks/n1", { linkedTaskIds: [] });
+    const newId = await convertNapadToOtazka(source, "owner-2", "OWNER");
+    const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(doc.authorRole).toBe("OWNER");
+    expect(doc.assigneeUid).toBe("owner-2");
+  });
+
+  it("PM převede napad na otázku → authorRole=PM, assignee=null", async () => {
+    __firestoreState.store.set("tasks/n1", { linkedTaskIds: [] });
+    const newId = await convertNapadToOtazka(source, "pm-a", "PROJECT_MANAGER");
+    const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(doc.authorRole).toBe("PROJECT_MANAGER");
+    expect(doc.assigneeUid).toBeNull();
+  });
+
+  it("PM převede napad na úkol → authorRole=PM, assignee=null", async () => {
+    __firestoreState.store.set("tasks/n1", { linkedTaskIds: [] });
+    const newId = await convertNapadToUkol(source, "pm-a", "PROJECT_MANAGER");
+    const doc = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(doc.type).toBe("ukol");
+    expect(doc.authorRole).toBe("PROJECT_MANAGER");
+    expect(doc.assigneeUid).toBeNull();
+  });
+});
+
+describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
+  it("legacy task bez authorRole → čte se jako OWNER", async () => {
+    __firestoreState.store.set("tasks/legacy", {
+      type: "napad",
+      title: "Starý záznam",
+      body: "",
+      status: "Nápad",
+      createdBy: "ancient",
+      createdAt: "2025-06-01T00:00:00Z",
+      updatedAt: "2025-06-01T00:00:00Z",
+      // žádný authorRole field
+    });
+    const out = await getTask("legacy");
+    expect(out?.authorRole).toBe("OWNER");
+  });
+
+  it("task s explicitním authorRole=PROJECT_MANAGER se zachová", async () => {
+    __firestoreState.store.set("tasks/pm-made", {
+      type: "ukol",
+      title: "PM úkol",
+      body: "",
+      status: "OPEN",
+      createdBy: "pm-x",
+      authorRole: "PROJECT_MANAGER",
+      createdAt: "2026-04-20T00:00:00Z",
+      updatedAt: "2026-04-20T00:00:00Z",
+    });
+    const out = await getTask("pm-made");
+    expect(out?.authorRole).toBe("PROJECT_MANAGER");
+  });
+
+  it("unknown authorRole value (data corruption) → fallback OWNER", async () => {
+    __firestoreState.store.set("tasks/bogus", {
+      type: "napad",
+      title: "T",
+      body: "",
+      status: "Nápad",
+      createdBy: "u",
+      authorRole: "ROBOT", // garbage
+      createdAt: "2026-04-20T00:00:00Z",
+      updatedAt: "2026-04-20T00:00:00Z",
+    });
+    const out = await getTask("bogus");
+    expect(out?.authorRole).toBe("OWNER");
+  });
+});

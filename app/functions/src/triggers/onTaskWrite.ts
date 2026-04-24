@@ -2,6 +2,7 @@ import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/fire
 import * as logger from "firebase-functions/logger";
 import { resolveActorName, resolvePmUids, sendNotification } from "../notify/send";
 import { protistrana } from "../notify/protistrana";
+import { isCommentBatchUpdate } from "../notify/commentFlip";
 import type { NotificationEventKey, TaskDoc } from "../notify/types";
 
 /**
@@ -61,6 +62,34 @@ export const onTaskUpdated = onDocumentUpdated(
     const after = event.data?.after.data() as TaskDoc | undefined;
     if (!before || !after) return;
     const taskId = event.params.taskId;
+
+    // V17.5 — pokud je tento update součástí comment batch (createComment +
+    //   updateTask v jednom writeBatch), přeskočit notifikaci assigneeUid
+    //   change. onCommentCreate pozná flip přes priorAssigneeUid na comment
+    //   docu a pošle "assigned_with_comment" místo dvou notifikací.
+    //
+    //   Detekce v notify/commentFlip.ts:isCommentBatchUpdate (testovaná).
+    const isCommentBatch = isCommentBatchUpdate({
+      beforeCommentCount: (before as unknown as { commentCount?: number }).commentCount,
+      afterCommentCount: (after as unknown as { commentCount?: number }).commentCount,
+    });
+    if (isCommentBatch) {
+      logger.debug(
+        "skip task-update notifications — comment batch, onCommentCreate handles it",
+        { taskId },
+      );
+      // Sdílení s PM je stále relevantní i když se bylo v batch (teoreticky
+      //   by se nestalo — sharedWithPm se nedá flipnout z comment compoe, ale
+      //   pro jistotu stále ověřuji). Ostatní eventy přeskočit.
+      if (
+        after.type === "napad"
+        && before.sharedWithPm !== true
+        && after.sharedWithPm === true
+      ) {
+        await fanOutShareToPm(taskId, after);
+      }
+      return;
+    }
 
     // V15/V16.4 — actor detekci nemáme přímou (Firestore nenese kdo doc
     //   updatoval). Jediná cesta by byla zapisovat `updatedBy` z klientu a

@@ -2,6 +2,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { buildRecipientMap } from "../notify/dedupe";
+import { applyAssignedWithCommentOverride } from "../notify/commentFlip";
 import { resolveActorName, sendNotification } from "../notify/send";
 import type {
   CommentDoc,
@@ -78,6 +79,14 @@ export const onCommentCreate = onDocumentCreated(
       mentionedUids: comment.mentionedUids ?? [],
       taskCreatorUid: task.createdBy,
       priorCommenterUids: Array.from(priorAuthors),
+    });
+
+    // V17.5 — pokud comment flipnul assignee, přepíše jeho event v mapě
+    //   na "assigned_with_comment". Logika v notify/commentFlip.ts (pure).
+    applyAssignedWithCommentOverride(recipients, {
+      priorAssigneeUid: comment.priorAssigneeUid,
+      assigneeAfter: comment.assigneeAfter,
+      actorUid,
     });
 
     if (recipients.size === 0) {

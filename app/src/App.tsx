@@ -10,6 +10,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useAppBadge } from "./hooks/useAppBadge";
+import { useDeviceRegistrationSanity } from "./hooks/useDeviceRegistrationSanity";
 import { useInbox } from "./hooks/useInbox";
 import { useInboxAutoRead } from "./hooks/useInboxAutoRead";
 import { useUserRole } from "./hooks/useUserRole";
@@ -74,6 +75,10 @@ function ProtectedLayout() {
   // Only acts if Notification.permission === "granted"; the initial
   // permission request is driven by the banner / Settings (slice N-3).
   useRegisterFcm(user?.uid ?? null);
+  // V17.4 — pokud permission=granted ale device doc v Firestore chybí
+  //   (zombie cleanup, token expirace, clear site data), tiše znovu
+  //   zaregistruj. Bez tohoto user má "granted" bez reálného doručování.
+  useDeviceRegistrationSanity(user?.uid ?? null);
   // V15/N-5 — bridge SW NAVIGATE messages (from notification click) into
   // React Router so deep links soft-navigate instead of full-reloading.
   useSwNavigate();

@@ -545,7 +545,9 @@
       "deadline_changed": "Změna termínu",
       "deadline_changedHint": "Někdo změnil termín úkolu, který mám na starosti nebo je můj",
       "task_deleted": "Smazání záznamu",
-      "task_deletedHint": "Někdo smazal otázku, úkol nebo nápad, kde jsem byl autor nebo jsem komentoval"
+      "task_deletedHint": "Někdo smazal otázku, úkol nebo nápad, kde jsem byl autor nebo jsem komentoval",
+      "assigned_with_comment": "Přiřazení s komentářem",
+      "assigned_with_commentHint": "Někdo mi přiřadil úkol/otázku a zároveň napsal komentář (dostanu jednu notifikaci místo dvou)"
     },
     "banner": {
       "title": "Zapni si notifikace",

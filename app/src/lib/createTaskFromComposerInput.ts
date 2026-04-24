@@ -1,7 +1,7 @@
 import { newId } from "@/lib/id";
 import { createTask, updateTask } from "@/lib/tasks";
 import { uploadTaskImage } from "@/lib/attachments";
-import type { ImageAttachment, TaskType } from "@/types";
+import type { ImageAttachment, TaskType, UserRole } from "@/types";
 
 /**
  * Shared Composer → Firestore save flow.
@@ -17,9 +17,10 @@ export async function createTaskFromComposerInput(opts: {
   imageFiles: File[];
   linkUrls: string[];
   uid: string;
+  authorRole: UserRole;
   onImageUploadError?: () => void;
 }): Promise<string> {
-  const { text, type, imageFiles, linkUrls, uid, onImageUploadError } = opts;
+  const { text, type, imageFiles, linkUrls, uid, authorRole, onImageUploadError } = opts;
 
   const lines = text.split("\n");
   const firstLine = lines[0].trim();
@@ -40,7 +41,8 @@ export async function createTaskFromComposerInput(opts: {
       body: parsedBody,
       status: seedStatus,
     },
-    uid
+    uid,
+    authorRole,
   );
 
   if (imageFiles.length > 0) {

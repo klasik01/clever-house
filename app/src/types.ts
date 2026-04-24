@@ -71,6 +71,11 @@ export interface Comment {
   statusAfter?: TaskStatus | null;
   /** Assignee uid after the flip — for "was handed to {user}" labels. */
   assigneeAfter?: string | null;
+  /** V17.5 — uid assignee tasku před batch commitem. Umožňuje CF detekovat
+   *  "comment changed assignee" bez before/after task snapshotu (onCommentCreate
+   *  ho nemá). CF: pokud priorAssigneeUid != assigneeAfter → posle
+   *  assigned_with_comment event. */
+  priorAssigneeUid?: string | null;
 }
 
 export interface Task {
@@ -120,6 +125,11 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   createdBy: string;
+  /** V17.1 — snapshot role tvůrce ("OWNER" | "PROJECT_MANAGER"). Použito
+   *  pro cross-OWNER edit rule: OWNER-created task smí editovat každý OWNER,
+   *  PM-created task jen sám autor-PM. Legacy tasky bez tohoto pole fallback
+   *  na "OWNER" (historicky v drtivé většině PM-created tasků neexistovalo). */
+  authorRole?: UserRole;
 }
 
 export interface Category {
@@ -171,7 +181,8 @@ export type NotificationEventKey =
   | "shared_with_pm"
   | "priority_changed"    // V16.4
   | "deadline_changed"    // V16.4
-  | "task_deleted";       // V16.6
+  | "task_deleted"       // V16.6
+  | "assigned_with_comment"; // V17.5
 
 /** Per-user notification preferences, stored on the user profile doc. */
 export interface NotificationPrefs {

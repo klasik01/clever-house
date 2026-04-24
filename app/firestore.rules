@@ -20,12 +20,6 @@ service cloud.firestore {
       return isSignedIn() && userRole() == 'PROJECT_MANAGER';
     }
 
-    // PM-allowed update fields on tasks: keeps the V2 "Potrebuji doplnit" flow working.
-    function pmAllowedFields() {
-      return request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['projektantAnswer', 'projektantAnswerAt', 'status', 'assigneeUid', 'updatedAt']);
-    }
-
     // V5 — batch comment writes touch the parent task to bump commentCount / updatedAt
     // (and optionally status + assigneeUid when the comment carries a workflow action).
     // Any signed-in user must be able to make this side-effect update, otherwise e.g. PM
@@ -42,6 +36,19 @@ service cloud.firestore {
     // Task creator (V3 multi-author ready). Also covers legacy OWNER-created tasks.
     function isTaskAuthor() {
       return isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // V17.1 — cross-OWNER edit: OWNER účet je sdílený prostor (typicky
+    //   manžel + manželka). Co vytvořil jeden OWNER, může druhý editovat.
+    //   PM-created tasky jsou soukromé (jen autor-PM).
+    //
+    //   Legacy tasky bez authorRole default na OWNER (historicky v drtivé
+    //   většině, PM teprve nedávno dostal schopnost create).
+    function isCrossOwnerEditable() {
+      return isOwner() && (
+        !('authorRole' in resource.data)
+        || resource.data.authorRole == 'OWNER'
+      );
     }
 
     // ------ Users ------
@@ -100,22 +107,29 @@ service cloud.firestore {
       //   napady bounced to NotFound via the rules 403.
       allow read: if isSignedIn();
 
-      // CREATE — must set createdBy to self, sensible type + status.
+      // CREATE — createdBy musí být self, sensible type + status, a V17.1
+      //   snapshot authorRole. Legacy migrace přijme i záznamy bez pole,
+      //   ale nové writes je musí obsahovat.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.type in ['napad', 'otazka', 'ukol']
-                    && request.resource.data.status is string;
+                    && request.resource.data.status is string
+                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER'];
 
-      // UPDATE — author can edit anything; PM can flip legacy V2 fields;
-      // any signed-in user can apply the comment-side-effect diff so batch writes
-      // from createComment succeed regardless of who authored the task.
+      // UPDATE — V17.1 model:
+      //   - Autor tasku může editovat vše.
+      //   - OWNER může editovat jakýkoliv OWNER-vytvořený task (cross-OWNER
+      //     shared workspace — manželé sdílí).
+      //   - Jakýkoliv signed-in může aplikovat comment-side-effect diff aby
+      //     batch writes z createComment prošly bez ohledu na autora tasku.
+      //   - PM-vytvořený task smí editovat jen autor-PM (žádná cross-PM
+      //     sharing; PM je jednotlivec, ne sdílený účet).
       allow update: if isTaskAuthor()
-                    || (isProjectManager()
-                        && resource.data.type in ['otazka', 'ukol']
-                        && pmAllowedFields())
+                    || isCrossOwnerEditable()
                     || (isSignedIn() && isCommentSideEffect());
 
-      // DELETE — only author.
+      // DELETE — pouze autor. Cross-OWNER nemůže smazat cizí task (vratná
+      //   jistota — author sám se rozhodne).
       allow delete: if isTaskAuthor();
 
       // ------ Comments subcollection (V3) ------

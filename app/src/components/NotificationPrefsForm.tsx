@@ -36,6 +36,7 @@ const EVENT_ICONS: Record<NotificationEventKey, LucideIcon> = {
   priority_changed: Flag,
   deadline_changed: Calendar,
   task_deleted: Trash2,
+  assigned_with_comment: UserPlus,
 };
 
 export default function NotificationPrefsForm() {

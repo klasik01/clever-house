@@ -37,6 +37,7 @@ export default function NewTask() {
           imageFiles,
           linkUrls,
           uid: user.uid,
+          authorRole: isPm ? "PROJECT_MANAGER" : "OWNER",
           onImageUploadError: () => showToast(t("composer.uploadFailed"), "error"),
         });
         // Hop to detail so author can fill metadata.
@@ -47,7 +48,7 @@ export default function NewTask() {
         throw e;
       }
     },
-    [user, t, showToast, navigate]
+    [user, isPm, t, showToast, navigate]
   );
 
   return (
