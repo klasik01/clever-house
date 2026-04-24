@@ -267,9 +267,21 @@ Orchestrátor:
 
 1. Resolvuje project ID ze service account JSON.
 2. `firebase deploy --only firestore:rules --project <id>`
-3. Pro každý pending skript: `node <script> <env>`. Po úspěchu
-   `rename` do `archive/` + `appendFile` řádku do README.
-4. `firebase deploy --only functions --project <id>`
+3. Pro každý pending skript: `node <script> <env>`.
+4. `npm run build` (functions) → `firebase deploy --only functions`.
+
+**Archivace jen po `ope`**: pending skripty se přesouvají do
+`archive/` a zapisují do README tabulky **pouze** když je env `ope`
+(prod). Pro `dev` pending zůstává — stejný skript ještě musí běžet
+proti produkční DB. Idempotence skriptů zajistí, že druhý dev deploy
+nic nezapíše podruhé.
+
+Typický flow pro jednu migraci:
+```
+npm run deploy:dev        # testovací, pending zůstává
+# ... ověř na dev že vše OK ...
+npm run deploy:ope        # prod, pending → archive + README tabulka
+```
 
 Když některý pending skript selže, orchestrátor se zastaví (zbytek
 pending zůstane neběhlý, už archivované zůstanou v archive). Oprav,

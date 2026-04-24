@@ -6,12 +6,13 @@ pole, reshapování kolekce, nebo one-off cleanup po incidentu.
 
 ## Jak se sem skripty dostanou
 
-Automaticky, přes orchestrátor:
+Automaticky, přes orchestrátor — ale **až po `ope` deployi**:
 
 ```
 cd app/functions
-npm run deploy:dev       # nejdřív dev, ověř
-npm run deploy:ope       # pak prod
+npm run deploy:dev       # 1. dev: skripty se spustí proti dev DB, pending zůstává
+# ... ověř že vše OK na dev ...
+npm run deploy:ope       # 2. ope: spustí proti prod DB, úspěch → archive sem + řádek níž
 ```
 
 Orchestrátor `scripts/deploy.mjs`:
@@ -19,8 +20,10 @@ Orchestrátor `scripts/deploy.mjs`:
 1. Vezme všechno z `scripts/pending/` (seřazeno abecedně — díky
    `YYYY-MM-DD-...` prefixu to je chronologicky).
 2. Pro každý skript spustí `node <script> <env>`.
-3. Po úspěšném exit 0 ho přesune sem + přidá řádek do tabulky níž
+3. Pokud env=`ope` a exit 0 → přesune sem + přidá řádek do tabulky
    (parsuje se JSDoc header `@migration`, `@date`, `@description`).
+4. Pokud env=`dev` → pending zůstává. Idempotence skriptů zajistí, že
+   opakované dev spuštění nic nezapíše podruhé.
 
 ## Postup když chceš přidat novou migraci
 
@@ -62,3 +65,4 @@ Historie je cenná:
 
 | Datum | Verze | Skript | Popis |
 |-------|-------|--------|-------|
+| 2026-04-24 | V17.8 | `2026-04-24-V17.8-authorRole.mjs` | Backfill authorRole do historických tasků (před V17.1 deploy) |

@@ -152,6 +152,12 @@ async function main() {
     console.log(`  pending: ${pendingFiles.length} skriptů`);
   }
 
+  // Archivace jen po úspěchu na prod (ope). Dev je testovací krok —
+  //   pending zůstává, protože ope ten samý skript ještě potřebuje spustit
+  //   proti produkční DB. Idempotence skriptů zajistí že re-run na
+  //   stejném prostředí nic nezapíše podruhé (safety net).
+  const ARCHIVE_ENABLED = env === "ope" && !DRY_RUN;
+
   const ran = [];
   for (const file of pendingFiles) {
     const scriptPath = join(PENDING_DIR, file);
@@ -160,17 +166,17 @@ async function main() {
       await run("node", [scriptPath, env], { cwd: functionsRoot });
       const meta = await parseMeta(scriptPath);
       ran.push({ file, meta });
-      // Přesun do archive/
-      if (!DRY_RUN) {
+      if (ARCHIVE_ENABLED) {
         const target = join(ARCHIVE_DIR, file);
         await rename(scriptPath, target);
         console.log(`  ✓ archivováno do archive/${file}`);
-        // Přidat řádek do README
         const row = `| ${meta.date || "?"} | ${meta.migration || "?"} | \`${file}\` | ${meta.description || "—"} |\n`;
         await appendFile(ARCHIVE_README, row);
         console.log(`  ✓ záznam v archive/README.md`);
-      } else {
+      } else if (DRY_RUN) {
         console.log(`  (DRY RUN — skipping archive move + README update)`);
+      } else {
+        console.log(`  ✓ pending zůstává (archivace probíhá až po 'ope' deployi)`);
       }
     } catch (err) {
       console.error(`  ✗ SKRIPT SELHAL: ${err.message}`);
@@ -182,7 +188,12 @@ async function main() {
 
   // --- 3. Deploy Cloud Functions ---
   if (!SKIP_FIREBASE) {
-    console.log("\n[3/3] Deploy Cloud Functions");
+    console.log("\n[3/3] Build + Deploy Cloud Functions");
+    // firebase deploy sice automaticky pustí `npm run build` (viz
+    // firebase.json predeploy hook), ale ne všechny repozitáře ten hook
+    // mají nastavený — spustíme build explicitně, ať je deploy
+    // deterministický bez ohledu na firebase.json konfiguraci.
+    await run("npm", ["run", "build"], { cwd: functionsRoot });
     await run(
       "npx",
       ["firebase", "deploy", "--only", "functions", "--project", projectId, "--non-interactive"],
@@ -200,6 +211,11 @@ async function main() {
     ran.forEach(({ file, meta }) => {
       console.log(`    ${meta.migration || "?"} — ${file}`);
     });
+    if (env === "dev" && !DRY_RUN) {
+      console.log(``);
+      console.log(`  pending/ zůstává — spusť 'npm run deploy:ope' pro prod nasazení`);
+      console.log(`  a následnou archivaci.`);
+    }
   }
   console.log("");
   console.log("Frontend: push do git (develop=dev, main=prod) → CI/CD.");
