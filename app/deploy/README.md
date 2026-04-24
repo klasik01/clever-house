@@ -4,6 +4,10 @@ Samostatný npm balíček pro nasazení backendu (Firestore rules + pending
 migrace + Cloud Functions) na dev / prod prostředí. Frontend je mimo
 scope — nasazuje se přes git push.
 
+Obsahuje taky **security rules** (`firestore.rules`, `storage.rules`) —
+`firebase.json` v `app/` na ně odkazuje jako na `deploy/firestore.rules`
+a `deploy/storage.rules`. Editace rules = editace v tomto adresáři.
+
 ## Setup (jednorázově)
 
 ```

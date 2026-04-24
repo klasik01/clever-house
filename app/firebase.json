@@ -1,9 +1,9 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "deploy/firestore.rules"
   },
   "storage": {
-    "rules": "storage.rules"
+    "rules": "deploy/storage.rules"
   },
   "functions": [
     {

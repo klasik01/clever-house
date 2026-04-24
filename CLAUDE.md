@@ -30,14 +30,16 @@ a přijde mu zajímavé pro budoucnost, přidá ho sem.
   - `scripts/` — deploy orchestrator, jednorázové admin skripty,
     service account JSONy (dev.json, ope.json — gitignored), wrapper
     `firebase-deploy.mjs` pro ad-hoc CLI volání (viz sekci 6)
-- `app/firestore.rules` — security rules (single source of auth)
+- `app/deploy/firestore.rules` + `app/deploy/storage.rules` — security
+  rules (single source of auth). `firebase.json` v `app/` na ně odkazuje
+  relativně.
 
 ---
 
 ## 2. Permissions model (V17.1/V17.8)
 
-**Zdroj pravdy**: `app/firestore.rules`. Klientské kontroly (`canEditTask`)
-jsou jen UX gating.
+**Zdroj pravdy**: `app/deploy/firestore.rules`. Klientské kontroly
+(`canEditTask`) jsou jen UX gating.
 
 ### Pravidla edit práv
 

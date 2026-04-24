@@ -30,8 +30,8 @@ firebase use          # vypíše aktuální
 ```
 app/
 ├── firebase.json              — centrální config (rules, functions, emulators)
-├── firestore.rules            — Firestore pravidla
-├── storage.rules              — Storage pravidla
+├── deploy/firestore.rules            — Firestore pravidla
+├── deploy/storage.rules              — Storage pravidla
 ├── functions/                 — Cloud Functions codebase (CJS, Node 20)
 │   ├── src/
 │   ├── lib/                   — build output (git-ignored)
@@ -194,15 +194,15 @@ npm run functions:deploy
 | **Dev**   | `deploy-rules-dev.yml`          | GitHub → Actions → "Deploy · Firestore + Storage rules (dev)" → Run workflow (libovolná branch) |
 | **Prod**  | `deploy-rules.yml`              | GitHub → Actions → "Deploy · Firestore + Storage rules (prod)" → Run workflow (main only) |
 
-Workflow nasadí **obě** sady (`firestore.rules` + `storage.rules`) v
+Workflow nasadí **obě** sady (`deploy/firestore.rules` + `deploy/storage.rules`) v
 jednom běhu. Jsou to malé soubory, deploy trvá pár vteřin.
 
 **Lokální alternativa** (rychlejší pro ad-hoc testy na dev):
 
 ```bash
 firebase use dev
-npm run rules:deploy              # firestore.rules
-npm run storage:deploy            # storage.rules
+npm run rules:deploy              # deploy/firestore.rules
+npm run storage:deploy            # deploy/storage.rules
 ```
 
 Lokální prod deploy bych nedoporučil — nic ti nebrání v tom, ale CI má
