@@ -34,6 +34,10 @@ export default tseslint.config(
       "functions/**",
       "deploy",
       "deploy/**",
+      // V18-S38 — `scripts/` obsahuje build/codegen utility (gen-permissions-md.mjs)
+      // — Node ESM, ne app source. Stejný důvod jako u deploy/.
+      "scripts",
+      "scripts/**",
       "*.config.js",
       "*.config.ts",
       "*.config.mjs",

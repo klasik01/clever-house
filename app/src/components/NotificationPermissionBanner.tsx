@@ -59,7 +59,7 @@ export default function NotificationPermissionBanner() {
     setBusy(true);
     try {
       const result = await requestPermissionAndRegister(user.uid);
-      console.log("[FCM] registration result:", result);
+      console.debug("[FCM] registration result:", result);
       // Visible feedback — user jinak neví, jestli to prošlo nebo padlo.
       if (result.status === "granted") {
         showToast("Notifikace zapnuté", "success");

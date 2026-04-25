@@ -269,6 +269,53 @@ describe("canActOnResource — event.edit (mirror task.edit)", () => {
   });
 });
 
+describe("canActOnResource — autor short-circuit (V18-S38)", () => {
+  it("autor smí editovat i s null rolí (profil ještě neloadnutý)", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: null,
+        uid: "me",
+        resourceCreatedBy: "me",
+        resourceAuthorRole: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("autor smí mazat i s null rolí", () => {
+    expect(
+      canActOnResource("task.delete", {
+        role: null,
+        uid: "me",
+        resourceCreatedBy: "me",
+        resourceAuthorRole: undefined,
+      }),
+    ).toBe(true);
+  });
+
+  it("ne-autor s null rolí NESMÍ (cross-OWNER vyžaduje role check)", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: null,
+        uid: "me",
+        resourceCreatedBy: "other",
+        resourceAuthorRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("autor s null rolí na anyone-action stále vyžaduje role (žádný short-circuit)", () => {
+    // task.read má ownership=anyone — autor short-circuit neplatí.
+    expect(
+      canActOnResource("task.read", {
+        role: null,
+        uid: "me",
+        resourceCreatedBy: "me",
+        resourceAuthorRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+});
+
 // ---------- canActOn sugar wrapper ----------
 
 describe("canActOn", () => {

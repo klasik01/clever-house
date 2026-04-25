@@ -94,18 +94,18 @@ export async function requestPermissionAndRegister(
   uid: string,
 ): Promise<RegistrationResult> {
   try {
-    console.log("[FCM] requestPermissionAndRegister start", { uid });
+    console.debug("[FCM] requestPermissionAndRegister start", { uid });
     const supported = await isMessagingSupported();
-    console.log("[FCM] messaging supported:", supported);
+    console.debug("[FCM] messaging supported:", supported);
     if (!supported) return { status: "unsupported" };
 
     // Notification.permission short-circuits if already set: "granted" /
     // "denied" returns immediately; "default" triggers the OS prompt. On
     // iOS the prompt only works when called from a user gesture — callers
     // must wire this behind a button click, not on mount.
-    console.log("[FCM] current permission:", Notification.permission);
+    console.debug("[FCM] current permission:", Notification.permission);
     const permission = await Notification.requestPermission();
-    console.log("[FCM] permission after prompt:", permission);
+    console.debug("[FCM] permission after prompt:", permission);
     if (permission !== "granted") {
       return { status: permission as "denied" | "default" };
     }
@@ -140,13 +140,13 @@ export async function requestPermissionAndRegister(
     // serviceWorker.getRegistration(...) — ale když SW ještě nebyl
     // zaregistrovaný, vraceli jsme undefined a SDK si SW nemohlo registrovat
     // korektně (hlavně na iOS). Nechávat SDK si to řešit samo je robustnější.
-    console.log("[FCM] requesting token...");
+    console.debug("[FCM] requesting token...");
     const token = await getToken(messaging, { vapidKey: trimmed });
-    console.log("[FCM] token received:", token ? `(length ${token.length})` : "(null)");
+    console.debug("[FCM] token received:", token ? `(length ${token.length})` : "(null)");
     if (!token) return { status: "no_token" };
 
     const deviceId = getOrCreateDeviceId();
-    console.log("[FCM] registering device", { deviceId, platform: detectPlatform() });
+    console.debug("[FCM] registering device", { deviceId, platform: detectPlatform() });
     await registerDevice({
       uid,
       deviceId,
@@ -154,7 +154,7 @@ export async function requestPermissionAndRegister(
       platform: detectPlatform(),
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     });
-    console.log("[FCM] device doc written to Firestore");
+    console.debug("[FCM] device doc written to Firestore");
 
     return { status: "granted", token, deviceId };
   } catch (error) {

@@ -210,27 +210,44 @@ export interface ResourceCtx {
  * Full check pro ownership-omezené akce (edit, delete).
  *
  * Postup:
- *   1. Role musí být v allowed list.
- *   2. Pak vyhodnotit ownership constraint:
- *      - `anyone`        — true
- *      - `author`        — createdBy === uid
- *      - `author-or-cross-owner` — autor OR (OWNER && OWNER-created)
+ *   1. Vyžadujeme `uid` (signed-in). `role` může být null (profil ještě
+ *      neloadlý) — autor short-circuit projde bez role check, mirror
+ *      serverového `isTaskAuthor()`, který userRole() neměří.
+ *   2. Pro ownership `author` / `author-or-cross-owner`: autor (uid ===
+ *      createdBy) vrátí true bez role check.
+ *   3. Jinak: role musí být v allowed list (`rule.roles`).
+ *   4. Pak vyhodnotit zbylý ownership constraint:
+ *      - `anyone`                 — true (role check už proběhl)
+ *      - `author`                 — false (autor by už byl zachycen v 2)
+ *      - `author-or-cross-owner`  — OWNER && OWNER-created
  */
 export function canActOnResource(
   action: ActionKey,
   ctx: ResourceCtx,
 ): boolean {
-  if (!ctx.uid || !ctx.role) return false;
+  if (!ctx.uid) return false;
   const rule = PERMISSIONS[action];
-  if (!rule.roles.includes(ctx.role)) return false;
+  const ownership = rule.ownership ?? "anyone";
 
-  switch (rule.ownership ?? "anyone") {
+  // Autor short-circuit. Mirror server `isTaskAuthor()` — orthogonal
+  // k roli. Pokud je akce ownership-driven a já jsem autor, smím bez
+  // ohledu na to, jestli profil zatím doloadnul roli (UX edge case).
+  if (
+    (ownership === "author" || ownership === "author-or-cross-owner") &&
+    ctx.resourceCreatedBy === ctx.uid
+  ) {
+    return true;
+  }
+
+  if (!ctx.role || !rule.roles.includes(ctx.role)) return false;
+
+  switch (ownership) {
     case "anyone":
       return true;
     case "author":
-      return ctx.resourceCreatedBy === ctx.uid;
+      // Autor větev byla výše; tady nejsem autor → false.
+      return false;
     case "author-or-cross-owner":
-      if (ctx.resourceCreatedBy === ctx.uid) return true;
       return ctx.role === "OWNER" && ctx.resourceAuthorRole === "OWNER";
   }
 }
