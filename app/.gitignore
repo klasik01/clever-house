@@ -9,3 +9,6 @@ dist/
 
 # vitest coverage report
 coverage/
+
+# V18-S46 — lokální testovací ICS soubory (gen:ics script)
+sample-*.ics

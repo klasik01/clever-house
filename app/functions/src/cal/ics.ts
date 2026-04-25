@@ -109,17 +109,20 @@ function renderVevent(
 
   const creator = usersByUid.get(event.createdBy);
   if (creator) {
-    // V18-S44 — autor jen jako ATTENDEE, bez ORGANIZER (Apple Calendar
-    // deduplikuje shodný mailto a skryje ho z attendee listu). Stejný
-    // důvod jako v klientu — viz src/lib/ics.ts.
+    // V18-S45 — autor jako ORGANIZER, NE v ATTENDEE listu. Apple Calendar
+    // pak zobrazí standardní "Pozvánka od X" + "Pozvaní" UI.
+    // Žádný ORGANIZER (S44) způsobil že Apple celý attendee list potlačil.
+    // Autor v obou (S37) způsobil dedup → autor mizel z attendee listu.
+    // Jen ORGANIZER (návrat na S24+) je správný invitation pattern.
     const { name, email } = nameAndEmail(creator);
     lines.push(
-      `ATTENDEE;CN=${escapeIcsText(name)}:mailto:${email}`,
+      `ORGANIZER;CN=${escapeIcsText(name)}:mailto:${email}`,
     );
   }
 
   for (const uid of event.inviteeUids) {
-    // V18-S37 — skip autor (už přidán výše s ROLE=CHAIR).
+    // V18-S45 — skip autor v invitees loop. Autor je ORGANIZER, do
+    // ATTENDEE listu nepatří (jinak by ho Apple deduplikoval).
     if (uid === event.createdBy) continue;
     const profile = usersByUid.get(uid);
     const { name, email } = nameAndEmail(profile ?? { uid });

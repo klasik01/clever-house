@@ -79,12 +79,17 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   }
 
   if (creator) {
-    // V18-S44 — autor jen jako ATTENDEE, bez ORGANIZER property.
-    // Důvod: Apple Calendar deduplikuje ATTENDEE mailto, který se shoduje
-    // s ORGANIZER → autor mizel z "All Invitees" listu na iPhone. Ani
-    // ROLE=CHAIR (V18-S37) nepomohlo. METHOD:PUBLISH ORGANIZER nevyžaduje
-    // (jen METHOD:REQUEST). Vypuštění → autor je rovnocenný ATTENDEE,
-    // Apple ho zobrazí jako prvního v listu (consistent s UI v appce S36).
+    // V18-S45 — autor jako ORGANIZER (NE v ATTENDEE listu).
+    //
+    // Apple Calendar UX flow:
+    //   ORGANIZER + ATTENDEE → "Pozvánka od X" UI + "Pozvaní" sekce.
+    //   Autor v ATTENDEE i ORGANIZER → Apple deduplikuje (S44 problém).
+    //   Žádný ORGANIZER → ICS působí jako informační feed, ne pozvánka,
+    //                     a Apple celý attendee list potlačí.
+    //
+    // Správný invitation pattern: jen ORGANIZER pro autora, ATTENDEE
+    // jen pro ostatní (autor se NEukazuje v "Pozvaní" listu — to je
+    // OK, protože "Pozvánka od:" už ho zobrazuje nahoře).
     const creatorEmail =
       creator.contactEmail || creator.email || `${creator.uid}@chytrydum.local`;
     const creatorCn = resolveUserName({
@@ -93,7 +98,7 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
       uid: creator.uid,
     });
     lines.push(
-      `ATTENDEE;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
+      `ORGANIZER;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
     );
   }
 
@@ -102,8 +107,10 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   // svůj iCloud email) jinak fallback na auth email. CN = přezdívka pro
   // friendly view — Apple Calendar pak zobrazí "Stáňa <stana@icloud.com>"
   // a klik na účastníka najde vizitku v iCloud Contacts.
-  // V18-S37 — skip autor (už přidán výše s ROLE=CHAIR), aby se nezobrazil
-  // dvakrát kdyby byl v inviteeUids zařazen i sám.
+  // V18-S45 — skip autor v invitees loop. Autor je ORGANIZER nahoře
+  // a v ATTENDEE listu se vůbec neukazuje (záměrně — "Pozvánka od:" už
+  // ho zobrazuje). Pokud by composer omylem zařadil autora do
+  // inviteeUids, nepřidáme duplikát (ani jako ATTENDEE bez ORGANIZER role).
   const creatorUid = creator?.uid;
   for (const uid of event.inviteeUids) {
     if (creatorUid && uid === creatorUid) continue;

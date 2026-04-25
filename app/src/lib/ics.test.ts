@@ -178,27 +178,19 @@ describe("buildEventIcs — datetime", () => {
 });
 
 describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
-  it("V18-S44 — ATTENDEE pro autora pokud je creator dodán", () => {
+  it("V18-S45 — ORGANIZER pro autora pokud je creator dodán", () => {
     const ics = buildEventIcs({
       event: mkEvent(),
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
     });
     expect(ics).toContain(
-      "ATTENDEE;CN=Stanislav:mailto:stanislav@example.cz",
+      "ORGANIZER;CN=Stanislav:mailto:stanislav@example.cz",
     );
+    // Autor NENÍ v ATTENDEE listu — Apple jinak duplikuje.
+    expect(ics).not.toContain("ATTENDEE;CN=Stanislav:");
   });
 
-  it("V18-S44 — autor je rovnocenný ATTENDEE (žádný ORGANIZER)", () => {
-    const ics = buildEventIcs({
-      event: mkEvent(),
-      creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
-    });
-    expect(ics).toContain(
-      "ATTENDEE;CN=Stanislav:mailto:stanislav@example.cz",
-    );
-  });
-
-  it("V18-S44 — skip duplicitního autora pokud je v inviteeUids", () => {
+  it("V18-S45 — autor není v ATTENDEE ani když je v inviteeUids", () => {
     const ics = buildEventIcs({
       event: mkEvent({ inviteeUids: ["owner-uid", "u2"] }),
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
@@ -207,13 +199,11 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
         ["u2", mkUser("u2", "Marie", "marie@x.cz")],
       ]),
     });
-    // Autor je v ICS jen jednou — jako rovnocenný ATTENDEE. Druhý průchod
-    // přes inviteeUids ho přeskočí (createdBy === uid guard).
-    const stanislavCount = (
-      ics.match(/ATTENDEE;CN=Stanislav:mailto/g) ?? []
-    ).length;
-    expect(stanislavCount).toBe(1);
-    // Marie je tam normálně (jiný uid, není autor).
+    // Autor je jen v ORGANIZER. ATTENDEE pro autora se nevykreslí ani
+    // když je v inviteeUids (skip guard).
+    expect(ics).toContain("ORGANIZER;CN=Stanislav:mailto:stanislav@example.cz");
+    expect(ics.match(/ATTENDEE;CN=Stanislav:/g)).toBeNull();
+    // Marie je v ATTENDEE normálně.
     expect(ics).toContain("ATTENDEE;CN=Marie:mailto:marie@x.cz");
   });
 
