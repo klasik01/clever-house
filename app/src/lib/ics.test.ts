@@ -198,7 +198,7 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
     );
   });
 
-  it("V18-S37 — skip duplicitního autora pokud je v inviteeUids", () => {
+  it("V18-S44 — skip duplicitního autora pokud je v inviteeUids", () => {
     const ics = buildEventIcs({
       event: mkEvent({ inviteeUids: ["owner-uid", "u2"] }),
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
@@ -207,16 +207,13 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
         ["u2", mkUser("u2", "Marie", "marie@x.cz")],
       ]),
     });
-    // Autor je tam jen jednou (s CHAIR rolí, ne jako ne-chair attendee).
-    const chairCount = (
-      ics.match(/ATTENDEE;CN=Stanislav:/g) ?? []
-    ).length;
-    const nonChairCount = (
+    // Autor je v ICS jen jednou — jako rovnocenný ATTENDEE. Druhý průchod
+    // přes inviteeUids ho přeskočí (createdBy === uid guard).
+    const stanislavCount = (
       ics.match(/ATTENDEE;CN=Stanislav:mailto/g) ?? []
     ).length;
-    expect(chairCount).toBe(1);
-    expect(nonChairCount).toBe(0);
-    // Marie je tam normálně.
+    expect(stanislavCount).toBe(1);
+    // Marie je tam normálně (jiný uid, není autor).
     expect(ics).toContain("ATTENDEE;CN=Marie:mailto:marie@x.cz");
   });
 
