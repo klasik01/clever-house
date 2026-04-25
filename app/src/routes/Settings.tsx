@@ -8,6 +8,7 @@ import NotificationPrefsForm from "@/components/NotificationPrefsForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 import { useUserRole } from "@/hooks/useUserRole";
+import { roleHas } from "@/lib/permissionsConfig";
 import { useT } from "@/i18n/useT";
 import { updateUserContactEmail, updateUserDisplayName } from "@/lib/userProfile";
 import { useBusy } from "@/components/BusyOverlay";
@@ -21,7 +22,9 @@ export default function Settings() {
   const t = useT();
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  const isPm = roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER";
+  // V18-S38 — role pro permissionsConfig lookup.
+  const role =
+    roleState.status === "ready" ? roleState.profile.role : null;
   // Prefer the Firestore profile.displayName (user-editable in future); fall
   // back to the Firebase Auth displayName; finally to "—".
   const profileName =
@@ -72,7 +75,7 @@ export default function Settings() {
         <Row label={t("settings.role")} value={roleLabel} />
       </SettingsGroup>
 
-      {!isPm && (
+      {roleHas("categories.manage", role) && (
         <SettingsGroup title="Data">
           <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
           <LinkRow to="/nastaveni/lokace" icon={<MapPin size={18} aria-hidden />} label={t("settings.locationsManage")} />

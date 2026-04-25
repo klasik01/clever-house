@@ -1,0 +1,265 @@
+import type { UserRole } from "@/types";
+
+/**
+ * V18-S38 — Single source of truth pro KLIENTSKÉ permission gating.
+ *
+ * Cíl: jedním pohledem do tohohle souboru zjistit "smí role X akci Y?"
+ * bez čtení rules + UI komponent rozházených napříč codebase.
+ *
+ * ⚠️ Server-side authoritative rules živí v `app/deploy/firestore.rules`.
+ *    Tento config je MIRROR pro klient — při změně tady **vždy** projet
+ *    odpovídající rule přes `rulesAt` pointer a updatovat oba.
+ *    Drift mezi configem a rules = UI ukáže klikatelné tlačítko, které
+ *    rules zamítnou (špatné UX, ne security risk).
+ *
+ * Pro některé patterny (isCommentSideEffect diff-gate, calendar token
+ * diff whitelist, schema validation `inviteeUids: list(>=1)`) je výhradní
+ * domov v rules — sem nepatří, protože nejsou role-driven, ale schema-driven.
+ */
+
+/**
+ * Kanonická enumerace všech role-gated akcí.
+ *
+ * Naming: `<resource>.<verb>[.<variant>]`. Variant používáme jen tam,
+ * kde se permission liší podle podtypu (např. `task.create.napad`
+ * je jen pro OWNER, `task.create.ukol` umí i PM).
+ */
+export type ActionKey =
+  // ---------- Tasks ----------
+  | "task.read"
+  | "task.create.napad"
+  | "task.create.otazka"
+  | "task.create.ukol"
+  | "task.edit"
+  | "task.delete"
+  | "task.comment"
+  // ---------- Events ----------
+  | "event.read"
+  | "event.create"
+  | "event.edit"
+  | "event.delete"
+  | "event.rsvp"
+  // ---------- Taxonomy (OWNER-managed workspace data) ----------
+  | "categories.manage"
+  | "locations.manage"
+  // ---------- Settings ----------
+  | "settings.profile"
+  | "settings.calendarToken";
+
+/**
+ * Vlastnictví záznamu — určuje, jestli akce vyžaduje autorství navíc
+ * k role check.
+ *
+ *   - `anyone`: stačí mít roli v `roles[]` (žádný ownership constraint).
+ *   - `author`: jen autor (createdBy === me). Cross-OWNER NEMÁ.
+ *   - `author-or-cross-owner`: autor + (OWNER edituje OWNER-created).
+ *     V17.1 cross-OWNER pattern.
+ */
+export type Ownership = "anyone" | "author" | "author-or-cross-owner";
+
+export interface PermissionRule {
+  /** Které role v principu smí (před ownership checkem). */
+  roles: UserRole[];
+  /** Vlastnictví modifier. Defaultně `anyone`. */
+  ownership?: Ownership;
+  /** Krátký lidský popis pro auto-gen dokumentaci. */
+  description: string;
+  /**
+   * Pointer kam mrkat v `firestore.rules` při sync auditu.
+   * Reviewer při změně configu zkontroluje odpovídající rule.
+   */
+  rulesAt: string;
+}
+
+/**
+ * Hlavní matrix. Každá ActionKey má entry s rolemi + ownership +
+ * dokumentací + rulesAt pointer.
+ *
+ * ✏️ Při přidání role:
+ *    1. Rozšiř `UserRole` union v `@/types`.
+ *    2. Doplň novou roli do relevantních `roles[]` arrayů zde.
+ *    3. Updatuj `firestore.rules` (pointer v rulesAt).
+ *    4. Spusť `npm run docs:permissions` pro update markdown matrix.
+ */
+export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
+  // ---------- Tasks ----------
+  "task.read": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Přečíst libovolný task v workspace (V15.2 — listing i detail).",
+    rulesAt: "tasks/read = isSignedIn()",
+  },
+  "task.create.napad": {
+    roles: ["OWNER"],
+    description:
+      "Vytvořit nápad. Jen OWNER (PM nápady neeviduje, jen na ně reaguje).",
+    rulesAt: "tasks/create + UI gate v NewTask (allowedTypes)",
+  },
+  "task.create.otazka": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description: "Vytvořit otázku.",
+    rulesAt: "tasks/create + composer allowedTypes",
+  },
+  "task.create.ukol": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description: "Vytvořit úkol.",
+    rulesAt: "tasks/create + composer allowedTypes",
+  },
+  "task.edit": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author-or-cross-owner",
+    description:
+      "Editovat task. Autor vždy; OWNER navíc edituje libovolný OWNER-created.",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable()",
+  },
+  "task.delete": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author",
+    description:
+      "Smazat task. Pouze autor — i cross-OWNER respektuje ownership pro delete.",
+    rulesAt: "tasks/delete = isTaskAuthor()",
+  },
+  "task.comment": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Napsat komentář. Kdokoliv signed-in. Side-effect na parent (commentCount/status/assignee) řeší isCommentSideEffect rule.",
+    rulesAt: "comments/create + tasks/update isCommentSideEffect()",
+  },
+
+  // ---------- Events ----------
+  "event.read": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Přečíst event. Kdokoliv signed-in; listing filtrujeme klientsky na 'jsem invitee/autor'.",
+    rulesAt: "events/read = isSignedIn()",
+  },
+  "event.create": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description: "Vytvořit event s pozvánkou pro >=1 invitee.",
+    rulesAt: "events/create",
+  },
+  "event.edit": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author-or-cross-owner",
+    description:
+      "Editovat event. Stejný pattern jako task — autor + cross-OWNER.",
+    rulesAt: "events/update — isTaskAuthor() OR isCrossOwnerEditable()",
+  },
+  "event.delete": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author",
+    description: "Smazat event. Jen autor.",
+    rulesAt: "events/delete = isTaskAuthor()",
+  },
+  "event.rsvp": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Odpovědět na pozvánku (Můžu/Nemůžu). Self-write na rsvps/{userId}.",
+    rulesAt: "events/{id}/rsvps/{userId}/write = self",
+  },
+
+  // ---------- Taxonomy ----------
+  "categories.manage": {
+    roles: ["OWNER"],
+    description: "Spravovat kategorie (workspace-wide taxonomy).",
+    rulesAt: "categories/write = isOwner()",
+  },
+  "locations.manage": {
+    roles: ["OWNER"],
+    description: "Spravovat lokace (workspace-wide taxonomy).",
+    rulesAt: "locations/write = isOwner()",
+  },
+
+  // ---------- Settings ----------
+  "settings.profile": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Upravit vlastní přezdívku, contactEmail, notification prefs (diff-gate v rules).",
+    rulesAt: "users/{uid}/update — self + diff hasOnly([whitelist])",
+  },
+  "settings.calendarToken": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description: "Generovat / rotovat osobní token pro webcal subscription.",
+    rulesAt: "users/{uid}/update — self + diff hasOnly([calendarToken,…])",
+  },
+};
+
+// ---------- Lookups ----------
+
+/**
+ * Plain role-only check. Pro UI gates typu "ukázat tlačítko Nový nápad".
+ * Bez ownership — pokud akce má ownership constraint, použij
+ * `canActOnResource()`.
+ */
+export function roleHas(
+  action: ActionKey,
+  role: UserRole | null | undefined,
+): boolean {
+  if (!role) return false;
+  return PERMISSIONS[action].roles.includes(role);
+}
+
+export interface ResourceCtx {
+  role: UserRole | null | undefined;
+  uid: string | null | undefined;
+  resourceCreatedBy: string;
+  resourceAuthorRole: UserRole | undefined;
+}
+
+/**
+ * Full check pro ownership-omezené akce (edit, delete).
+ *
+ * Postup:
+ *   1. Role musí být v allowed list.
+ *   2. Pak vyhodnotit ownership constraint:
+ *      - `anyone`        — true
+ *      - `author`        — createdBy === uid
+ *      - `author-or-cross-owner` — autor OR (OWNER && OWNER-created)
+ */
+export function canActOnResource(
+  action: ActionKey,
+  ctx: ResourceCtx,
+): boolean {
+  if (!ctx.uid || !ctx.role) return false;
+  const rule = PERMISSIONS[action];
+  if (!rule.roles.includes(ctx.role)) return false;
+
+  switch (rule.ownership ?? "anyone") {
+    case "anyone":
+      return true;
+    case "author":
+      return ctx.resourceCreatedBy === ctx.uid;
+    case "author-or-cross-owner":
+      if (ctx.resourceCreatedBy === ctx.uid) return true;
+      return ctx.role === "OWNER" && ctx.resourceAuthorRole === "OWNER";
+  }
+}
+
+/**
+ * Helper pro use v komponentách, které mají task/event objekty:
+ * `canActOn("task.edit", task, taskAuthorRole, currentUid, currentRole)`.
+ *
+ * Trochu sugar nad canActOnResource — ušetří caller composing ctx objektu.
+ */
+export function canActOn(
+  action: ActionKey,
+  resource: { createdBy: string; authorRole?: UserRole | undefined },
+  resourceAuthorRoleResolved: UserRole | undefined,
+  currentUserUid: string | null | undefined,
+  currentUserRole: UserRole | null | undefined,
+): boolean {
+  return canActOnResource(action, {
+    role: currentUserRole,
+    uid: currentUserUid,
+    resourceCreatedBy: resource.createdBy,
+    resourceAuthorRole: resourceAuthorRoleResolved ?? resource.authorRole,
+  });
+}
+
+/**
+ * Pro auto-gen dokumentaci a debugging — vrátí všechny ActionKey klíče
+ * v deterministickém pořadí (definition order v PERMISSIONS).
+ */
+export function listActions(): ActionKey[] {
+  return Object.keys(PERMISSIONS) as ActionKey[];
+}

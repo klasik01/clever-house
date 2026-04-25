@@ -5,6 +5,7 @@ import Composer from "@/components/Composer";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { roleHas } from "@/lib/permissionsConfig";
 import { useToast } from "@/components/Toast";
 import { createTaskFromComposerInput } from "@/lib/createTaskFromComposerInput";
 import type { TaskType } from "@/types";
@@ -18,12 +19,16 @@ export default function NewTask() {
   const t = useT();
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  const isPm =
-    roleState.status === "ready" &&
-    roleState.profile.role === "PROJECT_MANAGER";
-  // V14 — PM picks between otázka and úkol (OWNER still sees all three via
-  // the default. The toggle hides entirely when only one type is allowed).
-  const allowedTypes: TaskType[] | undefined = isPm ? ["otazka", "ukol"] : undefined;
+  // V18-S38 — role driven přes permissionsConfig.
+  const role =
+    roleState.status === "ready" ? roleState.profile.role : null;
+  const canCreateNapad = roleHas("task.create.napad", role);
+  // V14 — pokud user nesmí vytvořit nápad (PM, později WORKER), composer
+  // mu povolí jen { otazka, ukol }. Pokud smí všechno, prop nenastavuje
+  // a composer nabídne plné menu (defaultní chování OWNER).
+  const allowedTypes: TaskType[] | undefined = canCreateNapad
+    ? undefined
+    : ["otazka", "ukol"];
   const { show: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -37,7 +42,9 @@ export default function NewTask() {
           imageFiles,
           linkUrls,
           uid: user.uid,
-          authorRole: isPm ? "PROJECT_MANAGER" : "OWNER",
+          // V18-S38 — authorRole snapshot odpovídá aktuální roli signed-in usera;
+          // fallback OWNER pro safety pokud roleState ještě neloadnul.
+          authorRole: role ?? "OWNER",
           onImageUploadError: () => showToast(t("composer.uploadFailed"), "error"),
         });
         // Hop to detail so author can fill metadata.
@@ -48,7 +55,7 @@ export default function NewTask() {
         throw e;
       }
     },
-    [user, isPm, t, showToast, navigate]
+    [user, role, t, showToast, navigate]
   );
 
   return (
@@ -63,11 +70,11 @@ export default function NewTask() {
           <ArrowLeft aria-hidden size={20} />
         </button>
         <h2 id="novy-heading" className="text-xl font-semibold tracking-tight text-ink">
-          {t(isPm ? "novy.pageTitlePm" : "novy.pageTitle")}
+          {t(canCreateNapad ? "novy.pageTitle" : "novy.pageTitlePm")}
         </h2>
       </header>
       <p className="mb-4 text-sm text-ink-muted">
-        {t(isPm ? "novy.pageHintPm" : "novy.pageHint")}
+        {t(canCreateNapad ? "novy.pageHint" : "novy.pageHintPm")}
       </p>
       <Composer onSave={onSave} allowedTypes={allowedTypes} />
     </section>

@@ -20,6 +20,7 @@
     "test:coverage:all": "npm run test:coverage && npm run functions:test:coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "docs:permissions": "node scripts/gen-permissions-md.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:all": "npm run typecheck && npm run functions:typecheck",
     "functions:install": "npm --prefix functions install",

@@ -52,6 +52,47 @@ a přijde mu zajímavé pro budoucnost, přidá ho sem.
    (`commentCount`, `updatedAt`, volitelně `status`, `assigneeUid`) —
    aby `createComment` batch prošel nezávisle na autorovi.
 
+### `permissionsConfig.ts` (V18-S38) — single source pro klient
+
+`app/src/lib/permissionsConfig.ts` je deklarativní matrix akcí × rolí ×
+ownership. **Klientské helpery** (`canEditTask`, `canEditEvent`, UI gates
+typu `roleHas("categories.manage", role)`) z něj čtou — config je
+jediné místo, kde se mění klientská permission politika.
+
+**Server-side rules** (`app/deploy/firestore.rules`) jsou stále
+authoritative. Config sám rules nepřegeneruje. Při změně **musíš
+updatovat oba** — config má `rulesAt` pointer u každé `PermissionRule`,
+abys věděl kam mrknout.
+
+#### Přidání nové akce
+
+1. Rozšiř `ActionKey` union v `permissionsConfig.ts`.
+2. Přidej entry do `PERMISSIONS` mapy (roles + ownership + description + rulesAt).
+3. Updatuj `firestore.rules` přesně tam, kam ukazuje `rulesAt`.
+4. Spusť `npm run docs:permissions` — regeneruje `app/PERMISSIONS_GENERATED.md`.
+5. Spusť `npm test` — invariant testy v `permissionsConfig.test.ts`
+   ověří, že všechny entries mají rulesAt + popis + neprázdné roles.
+6. Commit všechno (config + rules + generated MD) v jednom PR.
+
+#### Přidání nové role
+
+1. Rozšiř `UserRole` union v `app/src/types.ts`.
+2. TypeScript ti označí `roles: [...]` arraye v configu — projdi je,
+   doplň novou roli tam, kde patří.
+3. Updatuj `firestore.rules` (typicky přidání nové helper funkce
+   `isWorker()` + úprava existujících `userRole() in [...]` checků).
+4. Re-gen MD + run tests.
+
+#### ❌ NEDĚLAT
+
+- Inline `role === "PROJECT_MANAGER"` checky v komponentách. Místo
+  toho `roleHas("…", role)` z configu. Výjimka: layout decisions
+  (např. které tabs ukázat v Shell.tsx) — to není permission check.
+- Editovat `PERMISSIONS_GENERATED.md` ručně. Jen přes gen script.
+- Vynechat `rulesAt` v nové PermissionRule — invariant test selže.
+
+---
+
 ### `authorRole` snapshot
 
 Při create tasku se uloží `authorRole: "OWNER" | "PROJECT_MANAGER"` —
