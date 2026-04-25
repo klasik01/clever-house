@@ -17,6 +17,13 @@ export default tseslint.config(
   // because the compiled `lib/` output uses `require()` / `exports`,
   // which the root config (ESM + strict) rejects. Functions has its own
   // `npm run typecheck` — that's plenty.
+  //
+  // `deploy/` je samostatný Node.js balíček s ESM `.mjs` skripty pro
+  // orchestraci deploy (rules + functions + pending migrace). Používá
+  // Node globály (`process`, `console`, `URL`) a vlastní `package.json`
+  // s `type: module`. Lintovat ho ze stejného configu jako browser
+  // source se tluče — vypínáme ho tady a spoléháme na runtime + code
+  // review (žádné typy, žádný React).
   {
     ignores: [
       "dist",
@@ -25,6 +32,8 @@ export default tseslint.config(
       "public",
       "functions",
       "functions/**",
+      "deploy",
+      "deploy/**",
       "*.config.js",
       "*.config.ts",
       "*.config.mjs",

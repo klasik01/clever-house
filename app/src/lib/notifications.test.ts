@@ -20,13 +20,20 @@ describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
     "comment_on_mine",
     "comment_on_thread",
     "shared_with_pm",
-    "priority_changed",
-    "deadline_changed",
-    "task_deleted",
-    "assigned_with_comment",
+    "priority_changed",         // V16.4
+    "deadline_changed",         // V16.4
+    "task_deleted",             // V16.6
+    "assigned_with_comment",    // V17.5
+    "event_invitation",         // V18-S04
+    "event_rsvp_response",      // V18-S05
+    "event_update",             // V18-S07
+    "event_uninvited",          // V18-S07
+    "event_cancelled",          // V18-S08
+    "event_calendar_token_reset", // V18-S12
+    "event_rsvp_reminder",      // V18-S13
   ];
 
-  it("NOTIFICATION_EVENTS obsahuje všech 9 V17 klíčů", () => {
+  it("NOTIFICATION_EVENTS obsahuje všech 16 V18 klíčů", () => {
     expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 

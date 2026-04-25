@@ -10,6 +10,9 @@ import { useAuth } from "./hooks/useAuth";
 import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useAppBadge } from "./hooks/useAppBadge";
+import Events from "./routes/Events";
+import EventComposer from "./routes/EventComposer";
+import EventDetail from "./routes/EventDetail";
 import { useDeviceRegistrationSanity } from "./hooks/useDeviceRegistrationSanity";
 import { useInbox } from "./hooks/useInbox";
 import { useInboxAutoRead } from "./hooks/useInboxAutoRead";
@@ -46,6 +49,10 @@ export default function App() {
           <Route path="/otazky" element={<Navigate to="/ukoly" replace />} />
           <Route path="/zaznamy" element={<Zaznamy />} />
           <Route path="/ukoly" element={<Ukoly />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/events/new" element={<EventComposer />} />
+        <Route path="/event/:id" element={<EventDetail />} />
+        <Route path="/event/:id/edit" element={<EventComposer />} />
           <Route path="/t/:id" element={<TaskDetail />} />
           <Route path="/nastaveni" element={<Settings />} />
           <Route path="/kategorie" element={<KategorieForOwner />} />

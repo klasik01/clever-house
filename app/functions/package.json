@@ -1,6 +1,6 @@
 {
   "name": "chytry-dum-functions",
-  "description": "Cloud Functions for Chytrý dům na vsi (push notifications)",
+  "description": "Cloud Functions for Chytr\u00fd d\u016fm na vsi (push notifications)",
   "private": true,
   "type": "commonjs",
   "engines": {
@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "typescript": "^5.4.5",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
   }
 }

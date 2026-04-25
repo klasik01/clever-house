@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AtSign, Bell, BellOff, Calendar, Flag, MessageCircle, MessagesSquare, Share2, Trash2, UserPlus } from "lucide-react";
+import { AtSign, Ban, Bell, BellOff, BellRing, Calendar, CalendarX, Check, Flag, Link as LinkIcon, MessageCircle, MessagesSquare, Pencil, Share2, Trash2, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { markAllRead, markRead } from "@/lib/inbox";
@@ -24,6 +24,13 @@ const EVENT_ICON: Record<NotificationEventKey, LucideIcon> = {
   deadline_changed: Calendar,
   task_deleted: Trash2,
   assigned_with_comment: UserPlus,
+  event_invitation: Calendar,
+  event_rsvp_response: Check,
+  event_update: Pencil,
+  event_uninvited: CalendarX,
+  event_cancelled: Ban,
+  event_calendar_token_reset: LinkIcon,
+  event_rsvp_reminder: BellRing,
 };
 
 /**
@@ -122,9 +129,17 @@ function NotificationRow({
   const Icon = EVENT_ICON[item.eventType] ?? Bell;
   const isUnread = !item.readAt;
   const created = new Date(item.createdAt);
-  const url = item.commentId
-    ? `/t/${item.taskId}#comment-${item.commentId}`
-    : `/t/${item.taskId}`;
+  // V18 — preferuj pre-rendered deepLink z katalogu; fallback na legacy
+  //   taskId/commentId path pro záznamy zapsané před rozšířením schématu.
+  const url =
+    item.deepLink ??
+    (item.commentId
+      ? `/t/${item.taskId ?? ""}#comment-${item.commentId}`
+      : item.taskId
+        ? `/t/${item.taskId}`
+        : item.eventId
+          ? `/event/${item.eventId}`
+          : "/");
 
   return (
     <Link

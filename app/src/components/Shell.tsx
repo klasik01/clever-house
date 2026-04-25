@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { Calendar, Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
+import { NavLink, Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
 import { useTasks } from "@/hooks/useTasks";
@@ -48,7 +48,16 @@ function Header() {
             {t("app.subtitle")}
           </p>
         </div>
-        <NotificationBell />
+        <div className="flex items-center gap-1">
+          <Link
+            to="/events"
+            aria-label={t("events.ariaCalendarLabel")}
+            className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+          >
+            <Calendar aria-hidden size={20} />
+          </Link>
+          <NotificationBell />
+        </div>
       </div>
     </header>
   );

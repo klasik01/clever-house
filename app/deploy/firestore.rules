@@ -60,10 +60,22 @@ service cloud.firestore {
       // ("Přezdívka"). Role + email zůstávají Admin-SDK only. Diff gate
       // odmítne i balíčkovaný patch, který by se snažil změnit cokoliv
       // jiného. Oba fieldy lze posílat zvlášť nebo společně.
+      //
+      // V18-S12 — přidány `calendarToken` a `calendarTokenRotatedAt`
+      // (webcal subscription) + bookkeeping `updatedAt`. User si sám
+      // lazy-generuje token při prvním otevření Kalendář sekce a dělá
+      // reset přes stejné diff-gate. Server-side (CF, admin) pořád
+      // může psát pomocí Admin SDK bez těchto rules.
       allow update: if isSignedIn()
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['notificationPrefs', 'displayName']);
+                       .hasOnly([
+                         'notificationPrefs',
+                         'displayName',
+                         'calendarToken',
+                         'calendarTokenRotatedAt',
+                         'updatedAt',
+                       ]);
 
       // Create / delete via Admin SDK only.
       allow create, delete: if false;
@@ -179,6 +191,47 @@ service cloud.firestore {
       allow create, update: if isOwner()
                             && request.resource.data.taskId is string;
       allow delete: if isOwner();
+    }
+
+    // ------ Events (V18) ------
+    // Calendar-aware eventy s fixním datetime. Paralelí s tasks rules
+    // (V17.1 permissions model), jen bez sharedWithPm / commentCount
+    // side-effects.
+    match /events/{eventId} {
+      // READ — V15.2 styl: kdokoliv signed-in čte detail. Listing filtrujeme
+      // klientsky (jsem invitee OR autor). Server-side filter by komplikoval
+      // queries s composite indexy; user experience stejná — každý má jen
+      // malou množinu events, důvěryhodní users.
+      allow read: if isSignedIn();
+
+      // CREATE — createdBy = self, title povinný, authorRole snapshot.
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER']
+                    && request.resource.data.status in ['UPCOMING', 'AWAITING_CONFIRMATION', 'HAPPENED', 'CANCELLED']
+                    && request.resource.data.inviteeUids is list
+                    && request.resource.data.inviteeUids.size() >= 1;
+
+      // UPDATE — V17.1 pattern:
+      //   - autor smí editovat vše
+      //   - OWNER smí editovat OWNER-vytvořený event (cross-OWNER household)
+      //   - PM-created eventy smí jen autor-PM
+      //   - scheduled CF (S09 AWAITING transition) používá Admin SDK, bypass
+      allow update: if isTaskAuthor()
+                    || isCrossOwnerEditable();
+
+      // DELETE — pouze autor (i cross-OWNER respektuje).
+      allow delete: if isTaskAuthor();
+
+      // ------ RSVP subcollection (S05 chystá) ------
+      // Placeholder: self-write, read kdokoliv. V S05 dopracujeme detail
+      // schema + validaci.
+      match /rsvps/{userId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == userId;
+      }
     }
 
     // Default deny everything else

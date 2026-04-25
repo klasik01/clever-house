@@ -38,6 +38,7 @@ import type {
   NotifyInput,
   TaskDoc,
   CommentDoc,
+  EventDoc,
 } from "./types";
 
 // ---------- Typy ----------
@@ -56,13 +57,22 @@ import type {
  */
 export type EventCategory = "immediate" | "debounced";
 
-/** Kontext, který dostane render funkce. Pure data — žádný Firestore. */
+/** Kontext, který dostane render funkce. Pure data — žádný Firestore.
+ *
+ *  V18 — task/event jsou volitelné; katalogová entry ví co přesně má
+ *  (podle eventType). Render funkce sahá na relevantní pole. */
 export interface RenderContext {
-  task: TaskDoc;
-  taskId: string;
+  /** Task-scope context (tasky, komenty). */
+  task?: TaskDoc;
+  taskId?: string;
+  /** V18 — event-scope context (kalendářové události). */
+  event?: EventDoc;
+  eventId?: string;
   actorName: string;
   comment?: CommentDoc;
   commentId?: string;
+  /** V18-S05 — aktuální RSVP answer (pro event_rsvp_response render). */
+  rsvpAnswer?: "yes" | "no";
 }
 
 export interface NotificationSpec {
@@ -81,6 +91,11 @@ export interface NotificationSpec {
   clientLabelKey: string;
   /** Je default zapnutý? Všechny dnes existující true (gentle opt-out). */
   defaultEnabled: boolean;
+  /** V18-S12 — meta-notifikace posílané sobě (self-confirm akce).
+   *  Když true, sendNotification self-filter (actor == recipient) se
+   *  pro tento event vypne. Default false — standard je potlačit self
+   *  notifikace. */
+  allowSelf?: boolean;
 }
 
 // ---------- Helpery pro render ----------
@@ -115,6 +130,25 @@ function taskTypeLabel(type: TaskDoc["type"]): string {
   return "nápadu";
 }
 
+/**
+ * V18 — format event datetime pro push notifikaci.
+ * "14. 5. 14:00" nebo "14. 5." pokud all-day. Krátké aby vešlo do title.
+ */
+function formatEventWhen(event: EventDoc): string {
+  const start = new Date(event.startAt);
+  if (Number.isNaN(start.getTime())) return "";
+  const date = start.toLocaleDateString("cs-CZ", {
+    day: "numeric",
+    month: "numeric",
+  });
+  if (event.isAllDay) return date;
+  const time = start.toLocaleTimeString("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${date} ${time}`;
+}
+
 // ---------- Katalog ----------
 
 /**
@@ -132,7 +166,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Všichni uživatelé explicitně zmínění přes @mention v komentáři (minus autor komentáře — self-filter)",
     renderTitle: (ctx) =>
       `${ctx.actorName} tě zmínil: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         50,
       )}`,
     renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
@@ -154,7 +188,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Nový assignee (after.assigneeUid). Self-filter: pokud actor sám sebe nastavuje, notifikace se nepošle.",
     renderTitle: (ctx) => `${ctx.actorName} ti přiřadil úkol`,
     renderBody: (ctx) =>
-      `${taskTitleOrFallback(ctx.task.title, ctx.task.body)} — otevři a pojď do toho`,
+      `${taskTitleOrFallback(ctx.task!.title, ctx.task!.body)} — otevři a pojď do toho`,
     renderDeepLink: (ctx) => `/t/${ctx.taskId}`,
     clientLabelKey: "assigned",
     defaultEnabled: true,
@@ -170,7 +204,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Autor tasku (task.createdBy), pokud není sám autorem komentáře. Dedupe: pokud je zároveň @mention, vyhraje mention.",
     renderTitle: (ctx) =>
       `${ctx.actorName} komentoval: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         50,
       )}`,
     renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
@@ -192,7 +226,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Každý kdo dříve v threadu komentoval (kromě autora nového komentáře). Dedupe: @mention > comment_on_mine > tento event.",
     renderTitle: (ctx) =>
       `${ctx.actorName} v diskuzi: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         50,
       )}`,
     renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
@@ -214,10 +248,10 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Všichni uživatelé s role == 'PROJECT_MANAGER' (fan-out přes resolvePmUids). Self-filter: pokud je PM zároveň autor, nedostane.",
     renderTitle: (ctx) =>
       `Nový sdílený nápad: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         60,
       )}`,
-    renderBody: (ctx) => commentPreview(ctx.task.body ?? ""),
+    renderBody: (ctx) => commentPreview(ctx.task!.body ?? ""),
     renderDeepLink: (ctx) => `/t/${ctx.taskId}`,
     clientLabelKey: "shared_with_pm",
     defaultEnabled: true,
@@ -233,10 +267,10 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Protistrana: kdo z {createdBy, assigneeUid} NENÍ actor. Nikdy self (actor vlastní změnu). Platí jen když je task aktuálně na někom assignutý.",
     renderTitle: (ctx) =>
       `${ctx.actorName} změnil prioritu${
-        ctx.task.priority ? ` na ${ctx.task.priority}` : ""
+        ctx.task!.priority ? ` na ${ctx.task!.priority}` : ""
       }`,
     renderBody: (ctx) =>
-      `${taskTitleOrFallback(ctx.task.title, ctx.task.body)}`,
+      `${taskTitleOrFallback(ctx.task!.title, ctx.task!.body)}`,
     renderDeepLink: (ctx) => `/t/${ctx.taskId}`,
     clientLabelKey: "priority_changed",
     defaultEnabled: true,
@@ -251,17 +285,17 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     recipients:
       "Protistrana (viz priority_changed). Platí jen pro assignuté tasky.",
     renderTitle: (ctx) => {
-      if (ctx.task.deadline == null) {
+      if (ctx.task!.deadline == null) {
         return `${ctx.actorName} odstranil termín`;
       }
-      const d = new Date(ctx.task.deadline);
+      const d = new Date(ctx.task!.deadline);
       const formatted = Number.isNaN(d.getTime())
         ? "?"
         : d.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
       return `${ctx.actorName} nastavil termín na ${formatted}`;
     },
     renderBody: (ctx) =>
-      `${taskTitleOrFallback(ctx.task.title, ctx.task.body)}`,
+      `${taskTitleOrFallback(ctx.task!.title, ctx.task!.body)}`,
     renderDeepLink: (ctx) => `/t/${ctx.taskId}`,
     clientLabelKey: "deadline_changed",
     defaultEnabled: true,
@@ -276,14 +310,177 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     recipients:
       "Autor tasku (createdBy) + všichni prior komentátoři. Self-filter: actor neincluded.",
     renderTitle: (ctx) =>
-      `${ctx.actorName} smazal ${taskTypeLabel(ctx.task.type)}: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+      `${ctx.actorName} smazal ${taskTypeLabel(ctx.task!.type)}: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         50,
       )}`,
     renderBody: () => "Záznam byl smazán.",
     // Task už neexistuje — odkaz vedeme na listing, ne na /t/{id}.
     renderDeepLink: () => `/zaznamy`,
     clientLabelKey: "task_deleted",
+    defaultEnabled: true,
+  },
+
+  event_invitation: {
+    key: "event_invitation",
+    category: "immediate",
+    // Dedupe priority ~10: nižší než comment events (1-4), nevyhraje
+    // nad @mention v komentáři, ale vyhraje nad generic task updates.
+    // V praxi je event_invitation téměř vždy sám — jen při rare case
+    // "pozvali mě na event A jedním dechem jsem mění priority na tasku B"
+    // by mohlo dojít k dedupe.
+    dedupePriority: 10,
+    trigger:
+      "triggers/onEventWrite.ts — při CREATE /events/{id} (V18-S04)",
+    recipients:
+      "Všichni uživatelé v inviteeUids kromě creatorUid (autor sám sebe nepozývá).",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} tě pozval: ${truncate(ctx.event?.title ?? "[bez názvu]", 50)}`,
+    renderBody: (ctx) =>
+      ctx.event ? formatEventWhen(ctx.event) : "",
+    renderDeepLink: (ctx) =>
+      ctx.eventId ? `/event/${ctx.eventId}` : "/events",
+    clientLabelKey: "event_invitation",
+    defaultEnabled: true,
+  },
+
+  event_rsvp_response: {
+    key: "event_rsvp_response",
+    category: "immediate",
+    // Priorita 11 — těsně pod event_invitation. Autor dostává typicky
+    // 2-3 RSVP notifikace per event (od každého pozvaného), dedupe
+    // není kritický.
+    dedupePriority: 11,
+    trigger:
+      "triggers/onRsvpWrite.ts — při CREATE nebo UPDATE /events/{id}/rsvps/{uid} (V18-S05)",
+    recipients:
+      "Pouze autor eventu (event.createdBy). Respondent sám sebe nenotifikuje (self-filter v sendNotification).",
+    renderTitle: (ctx) => {
+      const verb =
+        (ctx as { rsvpAnswer?: "yes" | "no" }).rsvpAnswer === "no"
+          ? "odmítl"
+          : "potvrdil";
+      return `${ctx.actorName} ${verb}: ${truncate(
+        ctx.event?.title ?? "[bez názvu]",
+        50,
+      )}`;
+    },
+    renderBody: (ctx) =>
+      ctx.event ? formatEventWhen(ctx.event) : "",
+    renderDeepLink: (ctx) =>
+      ctx.eventId ? `/event/${ctx.eventId}` : "/events",
+    clientLabelKey: "event_rsvp_response",
+    defaultEnabled: true,
+  },
+
+  event_update: {
+    key: "event_update",
+    category: "immediate",
+    dedupePriority: 12,
+    trigger:
+      "triggers/onEventWrite.ts — při UPDATE /events/{id} kdy se změnil title, startAt, endAt, isAllDay, address, description nebo inviteeUids (V18-S07)",
+    recipients:
+      "Všichni existující pozvaní (in both before+after inviteeUids) kromě actora. Nově přidaní dostanou místo toho event_invitation; odebraní event_uninvited.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} upravil: ${truncate(
+        ctx.event?.title ?? "[bez názvu]",
+        50,
+      )}`,
+    renderBody: (ctx) =>
+      ctx.event ? formatEventWhen(ctx.event) : "",
+    renderDeepLink: (ctx) =>
+      ctx.eventId ? `/event/${ctx.eventId}` : "/events",
+    clientLabelKey: "event_update",
+    defaultEnabled: true,
+  },
+
+  event_uninvited: {
+    key: "event_uninvited",
+    category: "immediate",
+    dedupePriority: 13,
+    trigger:
+      "triggers/onEventWrite.ts — při UPDATE /events/{id} kdy autor odebral user z inviteeUids (V18-S07)",
+    recipients:
+      "Pozvaní, kteří byli v before.inviteeUids ale nejsou v after.inviteeUids. Actor se nikdy nenotifikuje.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} tě vyškrtl z události: ${truncate(
+        ctx.event?.title ?? "[bez názvu]",
+        40,
+      )}`,
+    renderBody: (ctx) =>
+      ctx.event ? formatEventWhen(ctx.event) : "",
+    // Deep-link na /events (list) — uninvitee už nemá přístup k detailu;
+    // rules dovolují read všem signedIn, takže detail by prošel, ale UX
+    // zní divně "klikneš na notifikaci → uvidíš event kde už nejsi".
+    renderDeepLink: () => `/events`,
+    clientLabelKey: "event_uninvited",
+    defaultEnabled: true,
+  },
+
+  event_rsvp_reminder: {
+    key: "event_rsvp_reminder",
+    category: "immediate",
+    // Priorita 15 — pro-active reminder, nejníž v pořadí. Prakticky nikdy
+    // nedoráží ve stejném batch commitu jako jiný event (je to scheduled
+    // CF běžící hodinově).
+    dedupePriority: 15,
+    trigger:
+      "scheduled/rsvpReminder.ts — každou hodinu: events s startAt za 23-25h bez reminderSentAt (V18-S13)",
+    recipients:
+      "Invitees co dosud nemají /events/{id}/rsvps/{uid} záznam (žádné yes/no). Kdo už odpověděl (v jakékoliv formě) reminder nedostává.",
+    renderTitle: (ctx) =>
+      `Připomenutí: ${truncate(ctx.event?.title ?? "[bez názvu]", 50)}`,
+    renderBody: (ctx) =>
+      ctx.event
+        ? `Zítra ${formatEventWhen(ctx.event)} — dej vědět, jestli dorazíš.`
+        : "Zítra — dej vědět, jestli dorazíš.",
+    renderDeepLink: (ctx) =>
+      ctx.eventId ? `/event/${ctx.eventId}` : "/events",
+    clientLabelKey: "event_rsvp_reminder",
+    defaultEnabled: true,
+  },
+
+  event_calendar_token_reset: {
+    key: "event_calendar_token_reset",
+    category: "immediate",
+    // Priorita 14 — meta-notifikace, nekonkuruje s event-scope. Self
+    // notification (recipient == actor), dedupe prakticky irrelevantní.
+    dedupePriority: 14,
+    trigger:
+      "triggers/onUserWrite.ts — při UPDATE /users/{uid} kdy calendarTokenRotatedAt se změnil (V18-S12)",
+    recipients:
+      "User sám sobě — potvrzení že reset proběhl. Self-notifikace: sendNotification self-filter se pro tento event vypíná (recipient == actor).",
+    renderTitle: () => "Kalendář token resetován",
+    renderBody: () =>
+      "Stará subscription URL přestala platit. V Nastavení si zkopíruj novou a nahraď v Apple Calendar.",
+    renderDeepLink: () => "/nastaveni#kalendar",
+    clientLabelKey: "event_calendar_token_reset",
+    defaultEnabled: true,
+    allowSelf: true,
+  },
+
+  event_cancelled: {
+    key: "event_cancelled",
+    category: "immediate",
+    // Priorita 9 — nad event_invitation (10), protože cancel je časově
+    // citlivý a má vyhrát pokud autor během 60s pozval a pak zrušil
+    // (nepravděpodobné, ale cancel > invite by měl platit).
+    dedupePriority: 9,
+    trigger:
+      "triggers/onEventWrite.ts — při UPDATE /events/{id} kdy before.status != 'CANCELLED' a after.status == 'CANCELLED' (V18-S08)",
+    recipients:
+      "Všichni aktuální invitees (after.inviteeUids) kromě actora. Autor sám sebe nenotifikuje (self-filter).",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} zrušil událost: ${truncate(
+        ctx.event?.title ?? "[bez názvu]",
+        50,
+      )}`,
+    renderBody: (ctx) =>
+      ctx.event ? formatEventWhen(ctx.event) : "",
+    // Deep-link na detail — pozvaní tam uvidí "Zrušeno" + strike-through.
+    renderDeepLink: (ctx) =>
+      ctx.eventId ? `/event/${ctx.eventId}` : "/events",
+    clientLabelKey: "event_cancelled",
     defaultEnabled: true,
   },
 
@@ -300,7 +497,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
       "Pouze nový assignee (assigneeAfter), pokud se liší od původního a není to actor sám. Ostatní účastníci threadu dostanou normální comment_on_* / mention.",
     renderTitle: (ctx) =>
       `${ctx.actorName} ti přiřadil + komentář: ${truncate(
-        taskTitleOrFallback(ctx.task.title, ctx.task.body),
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
         40,
       )}`,
     renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
@@ -343,9 +540,12 @@ export function renderNotification(input: NotifyInput): {
   const ctx: RenderContext = {
     task: input.task,
     taskId: input.taskId,
+    event: input.event,
+    eventId: input.eventId,
     actorName: input.actorName || "Někdo",
     comment: input.comment,
     commentId: input.commentId,
+    rsvpAnswer: input.rsvpAnswer,
   };
   return {
     title: spec.renderTitle(ctx),

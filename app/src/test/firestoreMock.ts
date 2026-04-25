@@ -74,12 +74,19 @@ export function doc(...args: unknown[]): DocRef {
     const id = `auto-${state.calls.length}-${Math.random().toString(36).slice(2, 10)}`;
     return { __path: `${col.__path}/${id}`, id, parent: { __path: col.__path } };
   }
-  // doc(db, "collection", "id")
-  const [, colName, id] = args as [unknown, string, string];
+  // doc(db, "col1", "id1", "col2", "id2", ...) — variadic, podporuje
+  // i subcollection paths jako `events/{id}/rsvps/{uid}`. Skipujeme
+  // první arg (db). Páry collection/doc segmentů se spojí lomítkem.
+  const segments = args.slice(1).map((a) => String(a));
+  const path = segments.join("/");
+  // Poslední segment je doc id; předposlední (nebo zbytek do .) je
+  // parent collection path.
+  const id = segments[segments.length - 1];
+  const parentPath = segments.slice(0, -1).join("/");
   return {
-    __path: `${colName}/${id}`,
+    __path: path,
     id,
-    parent: { __path: colName },
+    parent: { __path: parentPath },
   };
 }
 

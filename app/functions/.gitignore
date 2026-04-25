@@ -9,3 +9,6 @@ node_modules/
 service-account.json
 .env
 .env.local
+
+# vitest coverage report
+coverage/

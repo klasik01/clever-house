@@ -41,6 +41,13 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "deadline_changed",    // V16.4
   "task_deleted",        // V16.6
   "assigned_with_comment", // V17.5
+  "event_invitation",    // V18-S04
+  "event_rsvp_response", // V18-S05
+  "event_update",        // V18-S07
+  "event_uninvited",     // V18-S07
+  "event_cancelled",     // V18-S08
+  "event_calendar_token_reset", // V18-S12
+  "event_rsvp_reminder", // V18-S13
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
@@ -62,6 +69,13 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     deadline_changed: true,
     task_deleted: true,
     assigned_with_comment: true,
+    event_invitation: true,
+    event_rsvp_response: true,
+    event_update: true,
+    event_uninvited: true,
+    event_cancelled: true,
+    event_calendar_token_reset: true,
+    event_rsvp_reminder: true,
   },
 };
 
