@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getLocation } from "@/lib/locations";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import { deadlineState } from "@/lib/deadline";
+import { taskDetail } from "@/lib/routes";
 
 // Shared lazy loader for the Tiptap-based RichTextEditor. One in-flight
 // promise regardless of how many cards mount — browsers cache the module
@@ -150,7 +151,7 @@ export default function NapadCard({ task, categories }: Props) {
       style={isOverdue ? { borderLeftColor: "var(--color-status-danger-fg)" } : undefined}
     >
       <Link
-        to={`/t/${task.id}`}
+        to={taskDetail(task.id)}
         aria-label={`${
           task.type === "otazka"
             ? t("aria.typeOtazka")

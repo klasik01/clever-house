@@ -7,6 +7,7 @@ import { locationsByGroup } from "@/lib/locations";
 import { useLocations } from "@/hooks/useLocations";
 import { useT } from "@/i18n/useT";
 import type { Category, Task } from "@/types";
+import { ROUTES, kategorieDetail, lokaceDetail } from "@/lib/routes";
 
 type HomeView = "lokace" | "kategorie";
 
@@ -131,7 +132,7 @@ function LocationsGrid({ tasks, locations }: { tasks: Task[]; locations: import(
               return (
                 <li key={loc.id}>
                   <Link
-                    to={`/lokace/${encodeURIComponent(loc.id)}`}
+                    to={lokaceDetail(encodeURIComponent(loc.id))}
                     className="flex h-full min-h-[5rem] flex-col justify-between gap-2 rounded-md border border-line bg-surface px-3 py-3 transition-colors hover:bg-bg-subtle focus-visible:border-line-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
                   >
                     <span className="flex items-start gap-2">
@@ -181,7 +182,7 @@ function CategoriesGrid({ tasks, categories }: { tasks: Task[]; categories: Cate
         <p className="text-base font-medium text-ink">{t("categories.empty")}</p>
         <p className="mt-2 text-sm text-ink-muted">{t("categories.emptyHint")}</p>
         <Link
-          to="/kategorie"
+          to={ROUTES.kategorie}
           className="mt-4 inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover"
         >
           {t("categories.manage")}
@@ -198,7 +199,7 @@ function CategoriesGrid({ tasks, categories }: { tasks: Task[]; categories: Cate
           return (
             <li key={c.id}>
               <Link
-                to={`/kategorie/${encodeURIComponent(c.id)}`}
+                to={kategorieDetail(encodeURIComponent(c.id))}
                 className="flex h-full min-h-[5rem] flex-col justify-between gap-2 rounded-md border border-line bg-surface px-3 py-3 transition-colors hover:bg-bg-subtle focus-visible:border-line-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
               >
                 <span className="flex items-start gap-2">

@@ -12,6 +12,7 @@ import { roleHas } from "@/lib/permissionsConfig";
 import { useT } from "@/i18n/useT";
 import { updateUserContactEmail, updateUserDisplayName } from "@/lib/userProfile";
 import { useBusy } from "@/components/BusyOverlay";
+import { ROUTES } from "@/lib/routes";
 import {
   buildCalendarUrl,
   ensureCalendarToken,
@@ -77,9 +78,9 @@ export default function Settings() {
 
       {roleHas("categories.manage", role) && (
         <SettingsGroup title="Data">
-          <LinkRow to="/kategorie" icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
-          <LinkRow to="/nastaveni/lokace" icon={<MapPin size={18} aria-hidden />} label={t("settings.locationsManage")} />
-          <LinkRow to="/export" icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
+          <LinkRow to={ROUTES.kategorie} icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
+          <LinkRow to={ROUTES.nastaveniLokace} icon={<MapPin size={18} aria-hidden />} label={t("settings.locationsManage")} />
+          <LinkRow to={ROUTES.export} icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
         </SettingsGroup>
       )}
 

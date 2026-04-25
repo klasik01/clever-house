@@ -28,6 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import type { TaskStatus } from "@/types";
 import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
+import { taskDetail } from "@/lib/routes";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
@@ -81,7 +82,7 @@ function LinkedList({
           return (
             <li key={lid ?? ot?.id}>
               <Link
-                to={`/t/${lid ?? ot?.id ?? ""}`}
+                to={taskDetail(lid ?? ot?.id ?? "")}
                 className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
                 style={{
                   borderLeftColor: c ? c.border : "var(--color-border-default)",
@@ -312,7 +313,7 @@ export default function TaskDetail() {
     setConverting(true);
     try {
       const newId = await convertNapadToOtazka(state.task, user.uid, isPm ? "PROJECT_MANAGER" : "OWNER");
-      navigate(`/t/${newId}`);
+      navigate(taskDetail(newId));
     } catch (e) {
       console.error("convert failed", e);
       setConverting(false);
@@ -326,7 +327,7 @@ export default function TaskDetail() {
     setConvertingUkol(true);
     try {
       const newId = await convertNapadToUkol(state.task, user.uid, isPm ? "PROJECT_MANAGER" : "OWNER");
-      navigate(`/t/${newId}`);
+      navigate(taskDetail(newId));
     } catch (e) {
       console.error("convert to úkol failed", e);
       setConvertingUkol(false);
@@ -1391,7 +1392,7 @@ export default function TaskDetail() {
           t("detail.noTitle");
         return (
           <Link
-            to={`/t/${task.linkedTaskId}`}
+            to={taskDetail(task.linkedTaskId)}
             className="mt-4 flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">

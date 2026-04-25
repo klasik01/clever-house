@@ -36,6 +36,7 @@ import UpdateBanner from "./components/UpdateBanner";
 import { BusyProvider } from "./components/BusyOverlay";
 import { signOut } from "./lib/auth";
 import { useT } from "./i18n/useT";
+import { ROUTES, ROUTE_PATTERNS } from "./lib/routes";
 
 export default function App() {
   return (
@@ -43,31 +44,31 @@ export default function App() {
       <BusyProvider>
         <UpdateBanner />
         <Routes>
-        <Route path="/auth/prihlaseni" element={<Login />} />
+        <Route path={ROUTES.login} element={<Login />} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<LokaceForOwner />} />
-          <Route path="/napady" element={<Navigate to="/zaznamy" replace />} />
-          <Route path="/otazky" element={<Navigate to="/ukoly" replace />} />
-          <Route path="/zaznamy" element={<Zaznamy />} />
-          <Route path="/ukoly" element={<Ukoly />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/events/new" element={<EventComposer />} />
-        <Route path="/event/:id" element={<EventDetail />} />
-        <Route path="/event/:id/edit" element={<EventComposer />} />
-          <Route path="/t/:id" element={<TaskDetail />} />
-          <Route path="/nastaveni" element={<Settings />} />
-          <Route path="/kategorie" element={<KategorieForOwner />} />
-          <Route path="/nastaveni/lokace" element={<LokaceManageForOwner />} />
-          <Route path="/rozpocet" element={<RozpocetForPm />} />
-          <Route path="/harmonogram" element={<HarmonogramForPm />} />
-          <Route path="/kategorie/:id" element={<KategorieDetailForOwner />} />
-          <Route path="/lokace/:id" element={<LokaceDetailForOwner />} />
-          <Route path="/prehled" element={<Navigate to="/ukoly" replace />} />
-          <Route path="/novy" element={<NewTaskForOwner />} />
-          <Route path="/export" element={<ExportForOwner />} />
-          <Route path="/lokace" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path={ROUTES.home} element={<LokaceForOwner />} />
+          <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
+          <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
+          <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
+          <Route path={ROUTES.ukoly} element={<Ukoly />} />
+        <Route path={ROUTES.events} element={<Events />} />
+        <Route path={ROUTES.eventsNew} element={<EventComposer />} />
+        <Route path={ROUTE_PATTERNS.eventDetail} element={<EventDetail />} />
+        <Route path={ROUTE_PATTERNS.eventEdit} element={<EventComposer />} />
+          <Route path={ROUTE_PATTERNS.taskDetail} element={<TaskDetail />} />
+          <Route path={ROUTES.nastaveni} element={<Settings />} />
+          <Route path={ROUTES.kategorie} element={<KategorieForOwner />} />
+          <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
+          <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
+          <Route path={ROUTES.harmonogram} element={<HarmonogramForPm />} />
+          <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
+          <Route path={ROUTE_PATTERNS.lokaceDetail} element={<LokaceDetailForOwner />} />
+          <Route path={ROUTES.legacyPrehled} element={<Navigate to={ROUTES.ukoly} replace />} />
+          <Route path={ROUTES.novyTask} element={<NewTaskForOwner />} />
+          <Route path={ROUTES.export} element={<ExportForOwner />} />
+          <Route path={ROUTES.lokace} element={<Navigate to={ROUTES.home} replace />} />
+          <Route path={ROUTE_PATTERNS.catchAll} element={<Navigate to={ROUTES.home} replace />} />
         </Route>
         </Routes>
       </BusyProvider>
@@ -108,7 +109,7 @@ function ProtectedLayout() {
   }
 
   if (!user) {
-    return <Navigate to="/auth/prihlaseni" replace state={{ from: location.pathname }} />;
+    return <Navigate to={ROUTES.login} replace state={{ from: location.pathname }} />;
   }
 
   if (roleState.status === "missing" || roleState.status === "error") {
@@ -131,7 +132,7 @@ function ExportForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Export />;
 }
@@ -141,7 +142,7 @@ function HarmonogramForPm() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
-    return <Navigate to="/" replace />;
+    return <Navigate to={ROUTES.home} replace />;
   }
   return <Harmonogram />;
 }
@@ -151,7 +152,7 @@ function RozpocetForPm() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
-    return <Navigate to="/" replace />;
+    return <Navigate to={ROUTES.home} replace />;
   }
   return <Rozpocet />;
 }
@@ -161,7 +162,7 @@ function LokaceManageForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <LokaceManage />;
 }
@@ -171,7 +172,7 @@ function KategorieForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Kategorie />;
 }
@@ -181,7 +182,7 @@ function KategorieDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <KategorieDetail />;
 }
@@ -191,7 +192,7 @@ function LokaceForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Lokace />;
 }
@@ -206,7 +207,7 @@ function LokaceDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to="/ukoly" replace />;
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <LokaceDetail />;
 }

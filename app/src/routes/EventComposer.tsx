@@ -32,6 +32,7 @@ import {
  */
 
 import { LOCAL_STORAGE } from "@/lib/storageKeys";
+import { ROUTES, eventDetail } from "@/lib/routes";
 
 const DRAFT_KEY = LOCAL_STORAGE.eventDraft;
 const HOUR_MS = 60 * 60 * 1000;
@@ -247,7 +248,7 @@ export default function EventComposer() {
             inviteeUids: draft.inviteeUids,
             linkedTaskId: draft.linkedTaskId,
           });
-          navigate(`/event/${editId}`, { replace: true });
+          navigate(eventDetail(editId), { replace: true });
         } else {
           const authorRole =
             roleState.status === "ready" ? roleState.profile.role : "OWNER";
@@ -266,7 +267,7 @@ export default function EventComposer() {
             authorRole,
           );
           clearDraft();
-          navigate(`/event/${newId}`, { replace: true });
+          navigate(eventDetail(newId), { replace: true });
         }
       }, t("busy.saving"));
     } catch (e) {
@@ -279,7 +280,7 @@ export default function EventComposer() {
   function handleClose() {
     if (isEditMode) {
       // V edit mode close = zahoď změny, vrať na detail (nebo zpět).
-      navigate(editId ? `/event/${editId}` : "/events");
+      navigate(editId ? eventDetail(editId) : ROUTES.events);
       return;
     }
     const hasContent =
@@ -291,7 +292,7 @@ export default function EventComposer() {
       if (!window.confirm(t("events.composer.closeConfirm"))) return;
     }
     clearDraft();
-    navigate("/events");
+    navigate(ROUTES.events);
   }
 
   function toggleInvitee(uid: string) {
@@ -316,12 +317,12 @@ export default function EventComposer() {
       })
     : true;
 
-  if (isEditMode && editState.status === "ready" && !canEdit) {
-    navigate(`/event/${editId}`, { replace: true });
+  if (isEditMode && editState.status === "ready" && !canEdit && editId) {
+    navigate(eventDetail(editId), { replace: true });
     return null;
   }
   if (isEditMode && editState.status === "missing") {
-    navigate("/events", { replace: true });
+    navigate(ROUTES.events, { replace: true });
     return null;
   }
 

@@ -22,6 +22,7 @@ import { setRsvp } from "@/lib/rsvp";
 import { resolveUserName } from "@/lib/names";
 import AvatarCircle from "@/components/AvatarCircle";
 import type { Event, Rsvp, RsvpAnswer, UserProfile } from "@/types";
+import { ROUTES, eventEdit, taskDetail } from "@/lib/routes";
 
 /**
  * V18-S03 — Event detail (read-only).
@@ -63,7 +64,7 @@ export default function EventDetail() {
         title={t("events.detail.notFoundTitle")}
         body={t("events.detail.notFoundBody")}
         backLabel={t("events.detail.back")}
-        onBack={() => navigate("/events")}
+        onBack={() => navigate(ROUTES.events)}
       />
     );
   }
@@ -83,7 +84,7 @@ export default function EventDetail() {
     try {
       await busy.run(async () => {
         await deleteEvent(event.id);
-        navigate("/events");
+        navigate(ROUTES.events);
       }, t("busy.deleting"));
     } catch (e) {
       console.error("deleteEvent failed", e);
@@ -148,7 +149,7 @@ export default function EventDetail() {
         <div className="-mr-2 flex items-center">
           {canEdit && event.status !== "CANCELLED" && (
             <Link
-              to={`/event/${event.id}/edit`}
+              to={eventEdit(event.id)}
               aria-label={t("events.detail.edit")}
               className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle"
             >
@@ -302,7 +303,7 @@ function LinkedTaskChip({ taskId }: { taskId: string }) {
       : t("events.detail.linkedTaskLoading");
   return (
     <Link
-      to={`/t/${taskId}`}
+      to={taskDetail(taskId)}
       className="inline-flex max-w-full items-center gap-2 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors"
     >
       <span className="text-xs font-semibold uppercase tracking-wide text-ink-subtle shrink-0">
@@ -675,7 +676,7 @@ function AddToCalendarSection({
       <p className="text-xs text-ink-subtle">
         {t("events.detail.connectHint")}{" "}
         <Link
-          to="/nastaveni#kalendar"
+          to={`${ROUTES.nastaveni}#kalendar`}
           className="underline underline-offset-2 hover:text-ink"
         >
           {t("events.detail.connectCta")}

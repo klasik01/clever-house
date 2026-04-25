@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 import { subscribeEvents } from "@/lib/events";
 import type { Event } from "@/types";
+import { eventDetail } from "@/lib/routes";
 import {
   formatEventDateShort,
   formatEventTimeRange,
@@ -162,7 +163,7 @@ function EventCard({ event }: { event: Event }) {
 
   return (
     <Link
-      to={`/event/${event.id}`}
+      to={eventDetail(event.id)}
       className="flex items-start gap-3 rounded-md bg-surface ring-1 ring-line px-3 py-3 hover:bg-bg-subtle transition-colors"
     >
       <div className="w-20 shrink-0 text-xs">

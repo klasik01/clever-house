@@ -6,6 +6,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
 import TaskList from "@/components/TaskList";
 import { useT } from "@/i18n/useT";
+import { ROUTES } from "@/lib/routes";
 
 type TabId = "napady" | "otazky";
 
@@ -33,7 +34,7 @@ export default function KategorieDetail() {
         <p className="mt-2 text-sm text-ink-muted">{t("categories.notFoundBody")}</p>
         <button
           type="button"
-          onClick={() => navigate("/?view=kategorie")}
+          onClick={() => navigate(`${ROUTES.home}?view=kategorie`)}
           className="mt-6 min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover"
         >
           {t("detail.back")}
@@ -56,7 +57,7 @@ export default function KategorieDetail() {
     <section aria-labelledby="kategorie-detail-heading" className="mx-auto max-w-xl px-4 pt-4 pb-4">
       <div className="flex items-center gap-2">
         <Link
-          to="/?view=kategorie"
+          to={`${ROUTES.home}?view=kategorie`}
           aria-label={t("detail.back")}
           className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
         >

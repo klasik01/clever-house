@@ -9,6 +9,7 @@ import { roleHas } from "@/lib/permissionsConfig";
 import { useToast } from "@/components/Toast";
 import { createTaskFromComposerInput } from "@/lib/createTaskFromComposerInput";
 import type { TaskType } from "@/types";
+import { taskDetail } from "@/lib/routes";
 
 /**
  * /novy — dedicated create-task page.
@@ -48,7 +49,7 @@ export default function NewTask() {
           onImageUploadError: () => showToast(t("composer.uploadFailed"), "error"),
         });
         // Hop to detail so author can fill metadata.
-        navigate(`/t/${taskId}`, { replace: true });
+        navigate(taskDetail(taskId), { replace: true });
       } catch (e) {
         console.error(e);
         showToast(t("composer.saveFailed"), "error");

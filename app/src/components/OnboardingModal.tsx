@@ -11,6 +11,7 @@ import {
 } from "@/lib/userProfile";
 import { requestPermissionAndRegister } from "@/lib/messaging";
 import { useBusy } from "./BusyOverlay";
+import { ROUTES } from "@/lib/routes";
 
 /**
  * V18-S30 — onboarding modal pro nové users.
@@ -342,7 +343,7 @@ export default function OnboardingModal() {
               {t("onboarding.calendarHint")}
             </p>
             <Link
-              to="/nastaveni#kalendar"
+              to={`${ROUTES.nastaveni}#kalendar`}
               className="inline-flex items-center gap-2 self-start rounded-md ring-1 ring-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors"
               onClick={() => {
                 // Klik na link → mark completed na pozadí, modal zavře

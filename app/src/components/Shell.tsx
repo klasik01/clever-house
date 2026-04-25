@@ -11,6 +11,7 @@ import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import NotificationBell from "./NotificationBell";
 import OnboardingModal from "./OnboardingModal";
+import { ROUTES } from "@/lib/routes";
 
 interface Props {
   children: ReactNode;
@@ -61,7 +62,7 @@ function Header() {
         <div className="flex items-center gap-1">
           {showAddEventCta && (
             <Link
-              to="/events/new"
+              to={ROUTES.eventsNew}
               aria-label={t("events.addCta")}
               className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
             >
@@ -69,7 +70,7 @@ function Header() {
             </Link>
           )}
           <Link
-            to="/events"
+            to={ROUTES.events}
             aria-label={t("events.ariaCalendarLabel")}
             className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
           >
@@ -119,13 +120,13 @@ function BottomTabs({ role }: { role: UserRole }) {
             {/* OWNER nav: Seznam / Záznamy · FAB · Úkoly / Nastavení */}
             <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.seznam")} />
             <Tab
-              to="/zaznamy"
+              to={ROUTES.zaznamy}
               icon={<Notebook aria-hidden size={20} />}
               label={t("tabs.zaznamy")}
             />
             <FabCell />
             <Tab
-              to="/ukoly"
+              to={ROUTES.ukoly}
               icon={<ListChecks aria-hidden size={20} />}
               label={t("tabs.ukoly")}
               badge={ballOnMe}
@@ -136,18 +137,18 @@ function BottomTabs({ role }: { role: UserRole }) {
             {/* PM nav: Rozpočet · Záznamy · FAB · Úkoly / Nastavení.
                 Layout: [Rozpočet] [Záznamy] [⊕] [Úkoly] · [Nastavení]. */}
             <Tab
-              to="/harmonogram"
+              to={ROUTES.harmonogram}
               icon={<CalendarDays aria-hidden size={20} />}
               label={t("tabs.harmonogram")}
             />
             <Tab
-              to="/zaznamy"
+              to={ROUTES.zaznamy}
               icon={<Notebook aria-hidden size={20} />}
               label={t("tabs.zaznamy")}
             />
             <FabCell />
             <Tab
-              to="/ukoly"
+              to={ROUTES.ukoly}
               icon={<ListChecks aria-hidden size={20} />}
               label={t("tabs.ukoly")}
               badge={ballOnMe}
@@ -155,7 +156,7 @@ function BottomTabs({ role }: { role: UserRole }) {
           </>
         )}
         <Tab
-          to="/nastaveni"
+          to={ROUTES.nastaveni}
           icon={<Ellipsis aria-hidden size={20} />}
           label={t("tabs.more")}
         />
@@ -212,7 +213,7 @@ function FabCell() {
   return (
     <li className="relative -my-2 flex w-14 justify-center">
       <NavLink
-        to="/novy"
+        to={ROUTES.novyTask}
         aria-label={t("tabs.newTask")}
         className={({ isActive }) =>
           [
