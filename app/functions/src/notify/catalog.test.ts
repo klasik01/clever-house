@@ -356,9 +356,319 @@ describe("V16 new events default-on (gentle opt-out)", () => {
     "deadline_changed",
     "task_deleted",
     "assigned_with_comment",
+    "event_invitation",
+    "event_rsvp_response",
   ];
   it.each(newEvents)("%s má defaultEnabled=true", (key) => {
     expect(NOTIFICATION_CATALOG[key].defaultEnabled).toBe(true);
+  });
+});
+
+// ---------- V18-S04 — event_invitation (nový event-scope event type) ----------
+
+describe("event_invitation — V18-S04", () => {
+  function mkInput(override = {}) {
+    return {
+      eventType: "event_invitation" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "spouse-uid",
+      eventId: "event-42",
+      event: {
+        title: "Elektrikář — rozvaděč",
+        startAt: "2026-05-14T12:00:00.000Z",
+        endAt: "2026-05-14T14:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: ["spouse-uid", "pm-uid"],
+        createdBy: "owner-uid",
+        status: "UPCOMING" as const,
+      },
+      ...override,
+    };
+  }
+
+  it("title obsahuje actor jméno + event title", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("Stanislav");
+    expect(title).toContain("pozval");
+    expect(title).toContain("Elektrikář");
+  });
+
+  it("body obsahuje datum + čas (timed event)", () => {
+    const { body } = renderNotification(mkInput());
+    // Formát "14. 5. 14:00" nebo podobný — ověříme že tam je aspoň datum
+    expect(body).toMatch(/\d+\.\s*\d+/);
+  });
+
+  it("all-day event → body bez času", () => {
+    const { body } = renderNotification(
+      mkInput({
+        event: {
+          title: "Kolaudace",
+          startAt: "2026-06-01T00:00:00.000Z",
+          endAt: "2026-06-01T23:59:00.000Z",
+          isAllDay: true,
+          inviteeUids: ["u"],
+          createdBy: "owner",
+          status: "UPCOMING",
+        },
+      }),
+    );
+    expect(body).not.toMatch(/\d\d:\d\d/);
+  });
+
+  it("deep-link vede na /event/:id", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/event/event-42");
+  });
+
+  it("fallback /events pokud eventId chybí", () => {
+    const { deepLink } = renderNotification(
+      mkInput({ eventId: undefined }),
+    );
+    expect(deepLink).toBe("/events");
+  });
+
+  it("dedupePriority je vyšší (nižší číslo) než task-update ale nižší než comment events", () => {
+    // event_invitation nemá soutěžit s mention/assigned — jen být nad task
+    // update events (priority_changed=6). Explicitní hodnota v katalogu: 10.
+    expect(NOTIFICATION_CATALOG["event_invitation"].dedupePriority).toBe(10);
+  });
+});
+
+// ---------- V18-S05 — event_rsvp_response ----------
+
+describe("event_rsvp_response — V18-S05", () => {
+  function mkInput(rsvp: "yes" | "no") {
+    return {
+      eventType: "event_rsvp_response" as const,
+      actorUid: "spouse-uid",
+      actorName: "Manželka",
+      recipientUid: "owner-uid",
+      eventId: "event-1",
+      rsvpAnswer: rsvp,
+      event: {
+        title: "Schůzka s PM",
+        startAt: "2026-06-10T10:00:00.000Z",
+        endAt: "2026-06-10T11:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: ["spouse-uid"],
+        createdBy: "owner-uid",
+        status: "UPCOMING" as const,
+      },
+    };
+  }
+
+  it("title obsahuje 'potvrdil' pro yes", () => {
+    const { title } = renderNotification(mkInput("yes"));
+    expect(title).toContain("Manželka");
+    expect(title).toContain("potvrdil");
+    expect(title).toContain("Schůzka s PM");
+  });
+
+  it("title obsahuje 'odmítl' pro no", () => {
+    const { title } = renderNotification(mkInput("no"));
+    expect(title).toContain("odmítl");
+  });
+
+  it("priorita 11 — pod event_invitation", () => {
+    expect(NOTIFICATION_CATALOG["event_rsvp_response"].dedupePriority).toBe(11);
+  });
+});
+
+// ---------- V18-S07 — event_update + event_uninvited ----------
+
+describe("event_update — V18-S07", () => {
+  function mkInput() {
+    return {
+      eventType: "event_update" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "spouse-uid",
+      eventId: "event-1",
+      event: {
+        title: "Schůzka s PM",
+        startAt: "2026-06-10T10:00:00.000Z",
+        endAt: "2026-06-10T11:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: ["spouse-uid"],
+        createdBy: "owner-uid",
+        status: "UPCOMING" as const,
+      },
+    };
+  }
+
+  it("title obsahuje 'upravil' + actor", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("Stanislav");
+    expect(title).toContain("upravil");
+    expect(title).toContain("Schůzka s PM");
+  });
+
+  it("priorita 12", () => {
+    expect(NOTIFICATION_CATALOG["event_update"].dedupePriority).toBe(12);
+  });
+
+  it("deep-link vede na /event/:id", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/event/event-1");
+  });
+});
+
+describe("event_uninvited — V18-S07", () => {
+  function mkInput() {
+    return {
+      eventType: "event_uninvited" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "spouse-uid",
+      eventId: "event-1",
+      event: {
+        title: "Schůzka s PM",
+        startAt: "2026-06-10T10:00:00.000Z",
+        endAt: "2026-06-10T11:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: [],
+        createdBy: "owner-uid",
+        status: "UPCOMING" as const,
+      },
+    };
+  }
+
+  it("title obsahuje 'vyškrtl' + actor", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("Stanislav");
+    expect(title).toContain("vyškrtl");
+  });
+
+  it("priorita 13", () => {
+    expect(NOTIFICATION_CATALOG["event_uninvited"].dedupePriority).toBe(13);
+  });
+
+  it("deep-link vede na /events (list, ne detail — uninvitee už nemá přístup)", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/events");
+  });
+});
+
+// ---------- V18-S08 — event_cancelled ----------
+
+describe("event_cancelled — V18-S08", () => {
+  function mkInput() {
+    return {
+      eventType: "event_cancelled" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "spouse-uid",
+      eventId: "event-1",
+      event: {
+        title: "Schůzka s PM",
+        startAt: "2026-06-10T10:00:00.000Z",
+        endAt: "2026-06-10T11:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: ["spouse-uid"],
+        createdBy: "owner-uid",
+        status: "CANCELLED" as const,
+      },
+    };
+  }
+
+  it("title obsahuje 'zrušil'", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("zrušil");
+    expect(title).toContain("Schůzka s PM");
+  });
+
+  it("priorita 9 — vyšší než invitation (10) aby cancel vyhrál v race", () => {
+    expect(NOTIFICATION_CATALOG["event_cancelled"].dedupePriority).toBe(9);
+    expect(NOTIFICATION_CATALOG["event_cancelled"].dedupePriority).toBeLessThan(
+      NOTIFICATION_CATALOG["event_invitation"].dedupePriority,
+    );
+  });
+
+  it("deep-link na detail (uvidí strike-through)", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/event/event-1");
+  });
+});
+
+// ---------- V18-S12 — event_calendar_token_reset ----------
+
+describe("event_calendar_token_reset — V18-S12", () => {
+  function mkInput() {
+    return {
+      eventType: "event_calendar_token_reset" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "owner-uid", // self
+    };
+  }
+
+  it("title je statický bez actor jména (meta-notifikace)", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("Kalendář");
+    expect(title).toContain("resetován");
+  });
+
+  it("deep-link vede na /nastaveni#kalendar", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/nastaveni#kalendar");
+  });
+
+  it("má allowSelf=true (povolí self-notification)", () => {
+    expect(
+      NOTIFICATION_CATALOG["event_calendar_token_reset"].allowSelf,
+    ).toBe(true);
+  });
+
+  it("priorita 14", () => {
+    expect(
+      NOTIFICATION_CATALOG["event_calendar_token_reset"].dedupePriority,
+    ).toBe(14);
+  });
+});
+
+// ---------- V18-S13 — event_rsvp_reminder ----------
+
+describe("event_rsvp_reminder — V18-S13", () => {
+  function mkInput() {
+    return {
+      eventType: "event_rsvp_reminder" as const,
+      actorUid: "owner-uid",
+      actorName: "Stanislav",
+      recipientUid: "spouse-uid",
+      eventId: "event-1",
+      event: {
+        title: "Schůzka s PM",
+        startAt: "2026-06-10T10:00:00.000Z",
+        endAt: "2026-06-10T11:00:00.000Z",
+        isAllDay: false,
+        inviteeUids: ["spouse-uid"],
+        createdBy: "owner-uid",
+        status: "UPCOMING" as const,
+      },
+    };
+  }
+
+  it("title obsahuje 'Připomenutí' + event title", () => {
+    const { title } = renderNotification(mkInput());
+    expect(title).toContain("Připomenutí");
+    expect(title).toContain("Schůzka s PM");
+  });
+
+  it("body obsahuje 'Zítra' + výzvu k odpovědi", () => {
+    const { body } = renderNotification(mkInput());
+    expect(body).toContain("Zítra");
+    expect(body).toContain("dorazíš");
+  });
+
+  it("priorita 15 — nejníž (proactive reminder)", () => {
+    expect(NOTIFICATION_CATALOG["event_rsvp_reminder"].dedupePriority).toBe(15);
+  });
+
+  it("deep-link vede na /event/:id", () => {
+    const { deepLink } = renderNotification(mkInput());
+    expect(deepLink).toBe("/event/event-1");
   });
 });
 

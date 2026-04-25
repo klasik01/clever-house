@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Clock, FileDown, LogOut, MapPin, Tag } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Clock, Copy, FileDown, LogOut, MapPin, RefreshCw, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -10,6 +10,11 @@ import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useT } from "@/i18n/useT";
 import { updateUserDisplayName } from "@/lib/userProfile";
+import {
+  buildCalendarUrl,
+  ensureCalendarToken,
+  rotateCalendarToken,
+} from "@/lib/calendarToken";
 
 export default function Settings() {
   const t = useT();
@@ -81,6 +86,14 @@ export default function Settings() {
         defaultOpen={notifDefaultOpen}
       >
         <NotificationPrefsForm />
+      </SettingsGroup>
+
+      <SettingsGroup
+        title={t("settings.calendarSectionTitle")}
+        collapsible
+        defaultOpen={false}
+      >
+        {user && <CalendarSection uid={user.uid} />}
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.todoTitle")}>
@@ -312,6 +325,162 @@ function TodoRow({ label }: { label: string }) {
         {label}
       </span>
       <span className="text-xs text-ink-subtle uppercase tracking-wide">WIP</span>
+    </div>
+  );
+}
+
+/**
+ * V18-S12 — Settings sekce "Kalendář". Lazy-generuje calendarToken při
+ * prvním otevření, zobrazí "Připojit do Apple Calendar" webcal:// link,
+ * collapsible detail s HTTPS URL copy, a [Resetovat] button.
+ *
+ * Reset → rotateCalendarToken(uid) zapíše nový token; trigger
+ * `onUserUpdated` v CF to detekuje a pošle self-notifikaci
+ * `event_calendar_token_reset` (push + inbox na všech zařízeních).
+ */
+function CalendarSection({ uid }: { uid: string }) {
+  const t = useT();
+  const [token, setToken] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    ensureCalendarToken(uid)
+      .then((tok) => {
+        if (!alive) return;
+        setToken(tok);
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        console.error("ensureCalendarToken failed", e);
+        setError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [uid]);
+
+  const httpsUrl = token ? buildCalendarUrl(uid, token, "https") : "";
+  const webcalUrl = token ? buildCalendarUrl(uid, token, "webcal") : "";
+
+  async function handleCopy() {
+    if (!httpsUrl) return;
+    try {
+      await navigator.clipboard.writeText(httpsUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error("clipboard write failed", e);
+    }
+  }
+
+  async function handleReset() {
+    if (!window.confirm(t("settings.calendarResetConfirm"))) return;
+    setResetting(true);
+    try {
+      const next = await rotateCalendarToken(uid);
+      setToken(next);
+    } catch (e) {
+      console.error("rotateCalendarToken failed", e);
+      window.alert(t("settings.calendarResetFailed"));
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <p className="px-4 py-3 text-sm text-ink-subtle">
+        {t("settings.calendarLoading")}
+      </p>
+    );
+  }
+  if (error) {
+    return (
+      <p className="px-4 py-3 text-sm text-[color:var(--color-status-danger-fg)]">
+        {error}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <p className="px-4 pt-3 pb-1 text-xs text-ink-subtle">
+        {t("settings.calendarIntro")}
+      </p>
+      <div className="px-4 py-3">
+        <a
+          href={webcalUrl}
+          className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover transition-colors"
+        >
+          <Calendar aria-hidden size={16} />
+          {t("settings.calendarConnectCta")}
+        </a>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((v) => !v)}
+        aria-expanded={detailsOpen}
+        className="flex items-center justify-between gap-2 px-4 py-3 text-left text-sm text-ink hover:bg-bg-subtle transition-colors"
+      >
+        <span>{t("settings.calendarDetailsToggle")}</span>
+        <ChevronDown
+          aria-hidden
+          size={16}
+          className={`text-ink-subtle transition-transform duration-200 ${
+            detailsOpen ? "rotate-0" : "-rotate-90"
+          }`}
+        />
+      </button>
+      {detailsOpen && (
+        <div className="flex flex-col gap-3 px-4 pb-3">
+          <div>
+            <p className="mb-1 text-xs text-ink-subtle">
+              {t("settings.calendarUrlLabel")}
+            </p>
+            <div className="flex items-start gap-2">
+              <code
+                className="flex-1 min-w-0 break-all rounded-md bg-bg-subtle px-2 py-1.5 text-xs text-ink"
+                aria-label={t("settings.calendarUrlLabel")}
+              >
+                {httpsUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={t("settings.calendarCopy")}
+                className="inline-flex items-center gap-1 rounded-md ring-1 ring-line bg-surface px-2 py-1.5 text-xs text-ink-muted hover:bg-bg-subtle transition-colors"
+              >
+                <Copy aria-hidden size={14} />
+                {copied ? t("settings.calendarCopied") : t("settings.calendarCopy")}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={resetting}
+            className="inline-flex items-center justify-center gap-2 rounded-md ring-1 ring-line bg-surface px-3 py-2 text-sm font-medium text-ink-muted hover:bg-bg-subtle transition-colors disabled:opacity-60"
+          >
+            <RefreshCw aria-hidden size={14} className={resetting ? "animate-spin" : ""} />
+            {resetting
+              ? t("settings.calendarResetting")
+              : t("settings.calendarResetCta")}
+          </button>
+          <p className="text-xs text-ink-subtle">
+            {t("settings.calendarResetHint")}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

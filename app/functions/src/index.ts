@@ -45,3 +45,13 @@ export const helloPing = onRequest((req, res) => {
 export { onTaskCreated, onTaskUpdated } from "./triggers/onTaskWrite";
 export { onCommentCreate } from "./triggers/onCommentCreate";
 export { onTaskDeleted } from "./triggers/onTaskDeleted";  // V16.6
+export { onEventCreated, onEventUpdated } from "./triggers/onEventWrite";  // V18-S04 + S07 + S08
+export { onRsvpWrite } from "./triggers/onRsvpWrite";  // V18-S05
+export { onUserUpdated } from "./triggers/onUserWrite";  // V18-S12
+
+// ---- Scheduled (cron) ----
+export { eventLifecycleTick } from "./scheduled/eventLifecycle";  // V18-S09
+export { rsvpReminderTick } from "./scheduled/rsvpReminder";  // V18-S13
+
+// ---- HTTP endpoints ----
+export { calendarSubscription } from "./cal/calendarSubscription";  // V18-S11

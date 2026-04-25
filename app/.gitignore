@@ -6,3 +6,6 @@ dist/
 *.log
 .vscode/
 .idea/
+
+# vitest coverage report
+coverage/

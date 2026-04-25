@@ -155,3 +155,69 @@ describe("isReadOnlyTask — inverze", () => {
     ).toBe(true);
   });
 });
+
+// ---------- canEditEvent (V18-S07) ----------
+
+import { canEditEvent } from "./permissions";
+
+describe("canEditEvent — V18-S07", () => {
+  it("autor vždy edituje", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "me", authorRole: "OWNER" },
+        currentUserUid: "me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("OWNER edituje jiný OWNER event (cross-OWNER)", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "owner-spouse", authorRole: "OWNER" },
+        currentUserUid: "owner-me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("OWNER NEMŮŽE PM event", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "pm-x", authorRole: "PROJECT_MANAGER" },
+        currentUserUid: "owner-me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("PM NEMŮŽE jiný PM event", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "pm-a", authorRole: "PROJECT_MANAGER" },
+        currentUserUid: "pm-b",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("missing authorRole → false i pro OWNER", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "ghost" },
+        currentUserUid: "owner-me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("unauthorized → false", () => {
+    expect(
+      canEditEvent({
+        event: { createdBy: "x", authorRole: "OWNER" },
+        currentUserUid: null,
+        currentUserRole: null,
+      }),
+    ).toBe(false);
+  });
+});

@@ -132,6 +132,68 @@ export interface Task {
   authorRole?: UserRole;
 }
 
+/**
+ * V18 — Events feature.
+ *
+ * Calendar-aware events with fixed datetime (unlike tasks which have
+ * flexible deadlines). Exports to ICS (Apple Calendar, Google Calendar)
+ * via per-user webcal subscription and per-event download.
+ *
+ * Kód anglicky, UI česky (viz CLAUDE.md konvenci).
+ */
+export type EventStatus =
+  | "UPCOMING"                 // Vytvořen, termín nadchází
+  | "AWAITING_CONFIRMATION"    // Uplynul termín, autor nepotvrdil (červený v UI)
+  | "HAPPENED"                 // Autor potvrdil "proběhlo"
+  | "CANCELLED";               // Zrušen (pre-termín nebo retro)
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;                  // volitelný, markdown
+  /** ISO timestamp of event start. */
+  startAt: string;
+  /** ISO timestamp of event end. Must be > startAt. */
+  endAt: string;
+  /** All-day mode: čas se ignoruje, používá se jen datum. */
+  isAllDay: boolean;
+  /** Free-text adresa; prázdný string = nevyplněno. */
+  address: string;
+  /** Uids of invitees (min. 1, may or may not include creator). */
+  inviteeUids: string[];
+  /** Uid tvůrce eventu. */
+  createdBy: string;
+  /** Snapshot role autora pro V17.1 cross-OWNER edit rule. */
+  authorRole?: UserRole;
+  status: EventStatus;
+  /** Optional link to a related task (/t/:id). */
+  linkedTaskId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Set when author confirms "proběhlo" po termínu. */
+  happenedConfirmedAt?: string | null;
+  /** Set when event is cancelled (pre-termín nebo retro). */
+  cancelledAt?: string | null;
+  /** V18-S13 — ISO kdy scheduled CF poslal RSVP reminder. Null = nikdy. */
+  reminderSentAt?: string | null;
+}
+
+/**
+ * V18-S05 — RSVP response na event.
+ *
+ * Každý invitee si spravuje svůj záznam v subkolekci
+ * /events/{eventId}/rsvps/{uid}. Doc id = uid → guaranteed max jeden
+ * záznam per pozvaný. Firestore rules: self-write only.
+ */
+export type RsvpAnswer = "yes" | "no";
+
+export interface Rsvp {
+  /** Doc id = uid pozvaného. */
+  uid: string;
+  response: RsvpAnswer;
+  respondedAt: string;
+}
+
 export interface Category {
   id: string;
   label: string;
@@ -163,6 +225,11 @@ export interface UserProfile {
   /** V15 — push notification preferences. Undefined = legacy record;
    *  readers merge with DEFAULT_PREFS (see lib/notifications.ts). */
   notificationPrefs?: NotificationPrefs;
+  /** V18-S12 — webcal subscription token. URL-safe alphanumeric + hyphen.
+   *  Undefined = legacy user před migration; resolver si vygeneruje lazily. */
+  calendarToken?: string;
+  /** V18-S12 — ISO kdy byl token naposledy vygenerován/rotován. */
+  calendarTokenRotatedAt?: string;
 }
 
 // ==================== V15 — Push notifications ====================
@@ -182,7 +249,14 @@ export type NotificationEventKey =
   | "priority_changed"    // V16.4
   | "deadline_changed"    // V16.4
   | "task_deleted"       // V16.6
-  | "assigned_with_comment"; // V17.5
+  | "assigned_with_comment" // V17.5
+  | "event_invitation"   // V18-S04
+  | "event_rsvp_response" // V18-S05
+  | "event_update"       // V18-S07
+  | "event_uninvited"    // V18-S07
+  | "event_cancelled"    // V18-S08
+  | "event_calendar_token_reset"   // V18-S12
+  | "event_rsvp_reminder";         // V18-S13
 
 /** Per-user notification preferences, stored on the user profile doc. */
 export interface NotificationPrefs {
@@ -224,13 +298,19 @@ export interface NotificationDevice {
 export interface NotificationItem {
   id: string;
   eventType: NotificationEventKey;
-  taskId: string;
+  /** V18 — volitelné; event notifikace nesou eventId místo taskId. */
+  taskId?: string | null;
+  /** V18 — event-scope notifikace. */
+  eventId?: string | null;
   commentId?: string | null;
   actorUid: string;
   /** Cached at write time so the feed renders without user-collection reads. */
   actorName: string;
   title: string;
   body: string;
+  /** V18 — pre-rendered deep-link z katalogu (/t/:id nebo /event/:id).
+   *  Legacy records (bez fieldu) mají fallback na taskId path. */
+  deepLink?: string;
   createdAt: string;
   readAt: string | null;
 }

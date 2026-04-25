@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AtSign, Bell, BellOff, Calendar, CheckCircle2, Flag, MessageCircle, MessagesSquare, Share2, Trash2, UserPlus } from "lucide-react";
+import { AtSign, Ban, Bell, BellOff, BellRing, Calendar, CalendarX, Check, CheckCircle2, Flag, Link, MessageCircle, MessagesSquare, Pencil, Share2, Trash2, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -37,6 +37,13 @@ const EVENT_ICONS: Record<NotificationEventKey, LucideIcon> = {
   deadline_changed: Calendar,
   task_deleted: Trash2,
   assigned_with_comment: UserPlus,
+  event_invitation: Calendar,
+  event_rsvp_response: Check,
+  event_update: Pencil,
+  event_uninvited: CalendarX,
+  event_cancelled: Ban,
+  event_calendar_token_reset: Link,
+  event_rsvp_reminder: BellRing,
 };
 
 export default function NotificationPrefsForm() {

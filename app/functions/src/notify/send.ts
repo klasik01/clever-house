@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { NOTIFICATION_CATALOG } from "./catalog";
 import { renderPayload } from "./copy";
 import { normalisePrefs } from "./prefs";
 import type {
@@ -50,9 +51,14 @@ async function loadPrefs(uid: string): Promise<NotificationPrefs> {
  * scheduled job (see N-10 in the design doc).
  */
 export async function sendNotification(input: NotifyInput): Promise<number> {
-  // 0) Never notify the actor about their own action.
+  // 0) Never notify the actor about their own action — except for
+  //    meta-notifikace (V18-S12) kde self-confirm dává smysl (reset
+  //    tokenu, apod.). Katalog má `allowSelf: true` flag.
   if (input.actorUid === input.recipientUid) {
-    return 0;
+    const spec = NOTIFICATION_CATALOG[input.eventType];
+    if (!spec?.allowSelf) {
+      return 0;
+    }
   }
 
   // 1) Recipient's prefs — master + per-event gates.
@@ -78,19 +84,21 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
   //
   //     Render strings (title/body) are computed here too so client doesn't
   //     need to reconstruct them from raw data on every feed render.
-  const { title, body } = renderPayload(input);
+  const { title, body, deepLink } = renderPayload(input);
   try {
     const itemRef = admin.firestore()
       .collection("users").doc(input.recipientUid)
       .collection("notifications").doc();
     const item: NotificationItemWrite = {
       eventType: input.eventType,
-      taskId: input.taskId,
+      taskId: input.taskId ?? null,
+      eventId: input.eventId ?? null,
       commentId: input.commentId ?? null,
       actorUid: input.actorUid,
       actorName: input.actorName,
       title,
       body,
+      deepLink,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       readAt: null,
     };
@@ -113,9 +121,10 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
   // 4) Build shared payload (same title/body for all recipient's devices).
   //    Reuse title/body from inbox step above — same NotifyInput means
   //    same render.
-  const url = input.commentId
-    ? `/t/${input.taskId}#comment-${input.commentId}`
-    : `/t/${input.taskId}`;
+  // V18 — URL je deep-link z katalogu. Pro task-scope eventy to dál
+  //   vede na /t/:id, pro event-scope na /event/:id. Fragment s commentId
+  //   řeší katalog v renderDeepLink.
+  const url = deepLink;
 
   const tokens = devices.map((d) => d.token);
   // Data-only payload (žádný top-level `notification` field).
@@ -135,7 +144,8 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
       body,
       url,
       eventType: input.eventType,
-      taskId: input.taskId,
+      ...(input.taskId ? { taskId: input.taskId } : {}),
+      ...(input.eventId ? { eventId: input.eventId } : {}),
       ...(input.commentId ? { commentId: input.commentId } : {}),
     },
     webpush: {

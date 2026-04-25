@@ -21,8 +21,13 @@ export const truncate = truncateFromCatalog;
 export const taskTitleOrFallback = taskTitleOrFallbackFromCatalog;
 export const commentPreview = commentPreviewFromCatalog;
 
-/** Build FCM title + body strings for a given event. */
-export function renderPayload(input: NotifyInput): { title: string; body: string } {
-  const { title, body } = renderNotification(input);
-  return { title, body };
+/** Build FCM title + body + deep-link for a given event.
+ *  V18 — deepLink je teď součástí výstupu (z katalogu), abychom ho
+ *  nemuseli hardcodovat v send.ts. */
+export function renderPayload(input: NotifyInput): {
+  title: string;
+  body: string;
+  deepLink: string;
+} {
+  return renderNotification(input);
 }
