@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { Calendar, Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
-import { NavLink, Link } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
 import { useTasks } from "@/hooks/useTasks";
+import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
@@ -34,6 +35,13 @@ export default function Shell({ children, role }: Props) {
 
 function Header() {
   const t = useT();
+  const { user } = useAuth();
+  const eventsActionCount = useEventsActionCount(user?.uid);
+  const location = useLocation();
+  // V18-S20 — `+` v headeru jen na samotném /events listu (ne /events/new
+  // composer ani /event/:id detail — tam by mátl).
+  const showAddEventCta = location.pathname === "/events";
+
   return (
     <header
       className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur pt-safe"
@@ -49,12 +57,38 @@ function Header() {
           </p>
         </div>
         <div className="flex items-center gap-1">
+          {showAddEventCta && (
+            <Link
+              to="/events/new"
+              aria-label={t("events.addCta")}
+              className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+            >
+              <Plus aria-hidden size={20} />
+            </Link>
+          )}
           <Link
             to="/events"
             aria-label={t("events.ariaCalendarLabel")}
-            className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+            className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
           >
             <Calendar aria-hidden size={20} />
+            {eventsActionCount > 0 && (
+              <span
+                aria-hidden
+                className="absolute top-1 right-1 inline-flex min-w-[1.125rem] items-center justify-center rounded-pill px-1 text-[10px] font-semibold text-white"
+                style={{
+                  background: "var(--color-status-danger-fg)",
+                  lineHeight: "1rem",
+                }}
+              >
+                {eventsActionCount > 99 ? "99+" : eventsActionCount}
+              </span>
+            )}
+            <span className="sr-only">
+              {eventsActionCount > 0
+                ? t("events.actionsBadgeAria", { n: eventsActionCount })
+                : ""}
+            </span>
           </Link>
           <NotificationBell />
         </div>

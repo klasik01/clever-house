@@ -183,7 +183,7 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
     });
     expect(ics).toContain(
-      "ORGANIZER;CN=Stanislav:mailto:stanislav@example.cz",
+      "ORGANIZER;CN=stanislav@example.cz:mailto:stanislav@example.cz",
     );
   });
 
@@ -200,10 +200,34 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
         ["u2", mkUser("u2", "Honza", "honza@example.cz")],
       ]),
     });
-    expect(ics).toContain("ATTENDEE;CN=Marie:mailto:marie@example.cz");
-    expect(ics).toContain("ATTENDEE;CN=Honza:mailto:honza@example.cz");
+    expect(ics).toContain("ATTENDEE;CN=marie@example.cz:mailto:marie@example.cz");
+    expect(ics).toContain("ATTENDEE;CN=honza@example.cz:mailto:honza@example.cz");
   });
 
+  it("V18-S20 — CN=email (ne přezdívka) pro multi-account jednoznačnost", () => {
+    const ics = buildEventIcs({
+      event: mkEvent({ inviteeUids: ["u1"] }),
+      inviteeUsers: new Map([
+        ["u1", mkUser("u1", "Stáňa", "stanislav.kasika@gmail.com")],
+      ]),
+    });
+    // CN MÁ být email, NE přezdívka
+    expect(ics).toContain(
+      "ATTENDEE;CN=stanislav.kasika@gmail.com:mailto:stanislav.kasika@gmail.com",
+    );
+    expect(ics).not.toContain("CN=Stáňa");
+  });
+
+  it("V18-S20 — fallback: bez emailu → CN=displayName (legacy data)", () => {
+    const ics = buildEventIcs({
+      event: mkEvent({ inviteeUids: ["legacy-uid"] }),
+      inviteeUsers: new Map([
+        ["legacy-uid", mkUser("legacy-uid", "OldUser", null)],
+      ]),
+    });
+    // Email synthesized z uid → @chytrydum.local fallback
+    expect(ics).toContain("CN=OldUser:mailto:legacy-uid@chytrydum.local");
+  });
   it("ATTENDEE bez PARTSTAT (R1 mitigation — no Apple RSVP prompt)", () => {
     const ics = buildEventIcs({
       event: mkEvent({ inviteeUids: ["u1"] }),

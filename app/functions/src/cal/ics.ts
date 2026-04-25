@@ -130,14 +130,17 @@ function renderVevent(
 // ---------- helpers (pure) ----------
 
 function nameAndEmail(u: IcsUser): { name: string; email: string } {
-  const p = u.displayName?.trim();
+  // V18-S20 — pro ICS (Apple Calendar attendee zobrazování) preferujeme
+  // **email** jako CN. Důvod: multi-account user vidí jednoznačně, kdo
+  // je zván — místo "Stáňa" (ambig.) uvidí "stanislav.kasika@gmail.com".
+  // Přezdívka zůstává v UI appky pro friendly UX.
   const e = u.email?.trim();
-  const name =
-    p ||
-    (e && e.split("@")[0]) ||
-    u.uid.slice(0, 6) ||
-    "—";
   const email = e || `${u.uid}@chytrydum.local`;
+  // Fallback na displayName / uid jen pokud email úplně chybí (legacy
+  // user docs před V15.2 sync).
+  const name = e
+    ? e
+    : u.displayName?.trim() || u.uid.slice(0, 6) || "—";
   return { name, email };
 }
 

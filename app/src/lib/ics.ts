@@ -75,28 +75,38 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   }
 
   if (creator) {
-    const creatorName = resolveUserName({
-      profileDisplayName: creator.displayName,
-      email: creator.email,
-      uid: creator.uid,
-    });
+    // V18-S20 — CN = email (ne přezdívka). Apple Calendar pak zobrazuje
+    // "stanislav.kasika@gmail.com" místo "Stáňa", což je jednoznačnější
+    // pro multi-account user (vidím přesně kdo to organizuje, ne ambig.
+    // přezdívku). Fallback na resolveUserName když email chybí (legacy).
     const creatorEmail = creator.email || `${creator.uid}@chytrydum.local`;
+    const creatorCn = creator.email
+      ? creator.email
+      : resolveUserName({
+          profileDisplayName: creator.displayName,
+          email: creator.email,
+          uid: creator.uid,
+        });
     lines.push(
-      `ORGANIZER;CN=${escapeIcsText(creatorName)}:mailto:${creatorEmail}`,
+      `ORGANIZER;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
     );
   }
 
   // ATTENDEE per invitee. Bez PARTSTAT — viz R1 mitigation.
+  // V18-S20 — CN = email (důvod viz ORGANIZER výše). Email je primární
+  // identifikátor, přezdívka jen v UI appky.
   for (const uid of event.inviteeUids) {
     const profile = inviteeUsers?.get(uid);
-    const name = resolveUserName({
-      profileDisplayName: profile?.displayName,
-      email: profile?.email,
-      uid,
-    });
     const email = profile?.email || `${uid}@chytrydum.local`;
+    const cn = profile?.email
+      ? profile.email
+      : resolveUserName({
+          profileDisplayName: profile?.displayName,
+          email: profile?.email,
+          uid,
+        });
     lines.push(
-      `ATTENDEE;CN=${escapeIcsText(name)}:mailto:${email}`,
+      `ATTENDEE;CN=${escapeIcsText(cn)}:mailto:${email}`,
     );
   }
 

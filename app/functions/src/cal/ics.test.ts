@@ -148,7 +148,7 @@ describe("buildCalendarIcs", () => {
         { uid: "owner-1", displayName: "Stáňa", email: "st@example.com" },
       ]),
     });
-    expect(out).toContain("ORGANIZER;CN=Stáňa:mailto:st@example.com");
+    expect(out).toContain("ORGANIZER;CN=st@example.com:mailto:st@example.com");
   });
 
   it("ATTENDEE line per invitee, s fallbackem na placeholder email", () => {
@@ -163,8 +163,8 @@ describe("buildCalendarIcs", () => {
         { uid: "u1", displayName: "Marie", email: "marie@x.cz" },
       ]),
     });
-    expect(out).toContain("ATTENDEE;CN=Marie:mailto:marie@x.cz");
-    // ghost dostane fallback email
+    expect(out).toContain("ATTENDEE;CN=marie@x.cz:mailto:marie@x.cz");
+    // ghost dostane fallback email + CN je placeholder uid (nemá email)
     expect(out).toContain("ATTENDEE;CN=u2-gho:mailto:u2-ghost@chytrydum.local");
   });
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
@@ -136,19 +136,8 @@ export default function Events() {
         </ul>
       )}
 
-      {/* FAB — composer route /events/new přijde v S02. Zatím je button
-          disabled placeholder, aby byl vidět ale neblokoval. */}
-      <div className="pointer-events-none fixed bottom-20 right-0 left-0 z-10 mx-auto max-w-xl px-4">
-        <div className="flex justify-end">
-          <Link
-            to="/events/new"
-            aria-label={t("events.addCta")}
-            className="pointer-events-auto inline-flex size-14 items-center justify-center rounded-full bg-accent text-accent-on shadow-lg hover:bg-accent-hover transition-colors"
-          >
-            <Plus aria-hidden size={24} />
-          </Link>
-        </div>
-      </div>
+      {/* V18-S20 — FAB byl přesunutý do Shell headeru (vlevo od Calendar
+          ikony) když je user na /events. Tady tedy nic. */}
     </section>
   );
 }

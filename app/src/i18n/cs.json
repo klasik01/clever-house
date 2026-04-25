@@ -598,6 +598,7 @@
     "title": "Události",
     "subtitle": "{n} nadcházejících",
     "ariaCalendarLabel": "Otevřít události",
+    "actionsBadgeAria": "{n} událostí čeká na akci",
     "emptyTitle": "Zatím žádné události",
     "emptyBody": "Přidej první událost tlačítkem +.",
     "filterUpcoming": "Nadcházející",
