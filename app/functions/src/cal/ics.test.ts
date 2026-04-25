@@ -84,13 +84,14 @@ describe("buildCalendarIcs", () => {
     expect(out).toContain("UID:c@chytrydum");
   });
 
-  it("používá TZID=Europe/Prague pro ne-all-day events", () => {
+  it("V18-S42 — používá UTC s Z suffixem pro ne-all-day events", () => {
     const out = buildCalendarIcs({
       events: [ev({ id: "a", isAllDay: false })],
       usersByUid: users([]),
     });
-    expect(out).toContain("DTSTART;TZID=Europe/Prague:");
-    expect(out).toContain("DTEND;TZID=Europe/Prague:");
+    expect(out).toMatch(/DTSTART:\d{8}T\d{6}Z/);
+    expect(out).toMatch(/DTEND:\d{8}T\d{6}Z/);
+    expect(out).not.toContain("TZID=Europe/Prague");
   });
 
   it("používá VALUE=DATE pro all-day events", () => {

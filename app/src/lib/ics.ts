@@ -70,8 +70,12 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
       `DTEND;VALUE=DATE:${formatDateOnlyPlusOneDay(event.endAt)}`,
     );
   } else {
-    lines.push(`DTSTART;TZID=Europe/Prague:${formatDateTimeLocal(event.startAt)}`);
-    lines.push(`DTEND;TZID=Europe/Prague:${formatDateTimeLocal(event.endAt)}`);
+    // V18-S42 — datetime jako UTC s 'Z' suffix. Stejné jako server-side
+    // builder (functions/src/cal/ics.ts). Předtím TZID=Europe/Prague +
+    // local time bylo problematické na CF (UTC environment) → user viděl
+    // -2h posun. UTC + Z suffix je host-TZ independent.
+    lines.push(`DTSTART:${formatDateTimeUtcFromIso(event.startAt)}`);
+    lines.push(`DTEND:${formatDateTimeUtcFromIso(event.endAt)}`);
   }
 
   if (creator) {
@@ -174,6 +178,16 @@ export function formatDateTimeUtc(d: Date): string {
   const s = d.toISOString();
   // "2026-05-14T12:00:00.000Z" → "20260514T120000Z"
   return s.replace(/[-:.]/g, "").replace(/\.\d{3}/, "").slice(0, 15) + "Z";
+}
+
+/**
+ * V18-S42 — ISO string → YYYYMMDDTHHMMSSZ (UTC).
+ * Pro DTSTART/DTEND. Pomocný wrapper nad formatDateTimeUtc.
+ */
+export function formatDateTimeUtcFromIso(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatDateTimeUtc(d);
 }
 
 /**

@@ -95,12 +95,16 @@ function renderVevent(
       `DTEND;VALUE=DATE:${formatDateOnlyPlusOneDay(event.endAt)}`,
     );
   } else {
-    lines.push(
-      `DTSTART;TZID=Europe/Prague:${formatDateTimeLocal(event.startAt)}`,
-    );
-    lines.push(
-      `DTEND;TZID=Europe/Prague:${formatDateTimeLocal(event.endAt)}`,
-    );
+    // V18-S42 — datetime jako UTC s 'Z' suffix místo TZID=Europe/Prague.
+    // Důvod: server CF běží v UTC → původní formatDateTimeLocal volal
+    // d.getHours() který v UTC environmentu vrátil UTC hodiny, ale my
+    // jsme to labelovali jako Europe/Prague → kalendář interpretoval
+    // jako Praha local time = -2h posun (v letním čase).
+    // UTC + Z suffix je timezone-independent: Apple/Google Calendar si
+    // ho převede na uživatelovu lokální TZ správně. Žádný VTIMEZONE
+    // blok není potřeba.
+    lines.push(`DTSTART:${formatDateTimeUtcFromIso(event.startAt)}`);
+    lines.push(`DTEND:${formatDateTimeUtcFromIso(event.endAt)}`);
   }
 
   const creator = usersByUid.get(event.createdBy);
@@ -176,6 +180,17 @@ export function formatDateTimeLocal(iso: string): string {
 export function formatDateTimeUtc(d: Date): string {
   const s = d.toISOString();
   return s.replace(/[-:.]/g, "").replace(/\.\d{3}/, "").slice(0, 15) + "Z";
+}
+
+/**
+ * V18-S42 — ISO string → YYYYMMDDTHHMMSSZ (UTC).
+ * Stejný jako formatDateTimeUtc, ale bere ISO místo Date — pohodlnější
+ * pro DTSTART/DTEND z event objektu.
+ */
+export function formatDateTimeUtcFromIso(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatDateTimeUtc(d);
 }
 
 export function formatDateOnly(iso: string): string {

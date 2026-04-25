@@ -150,10 +150,11 @@ describe("buildEventIcs — základní struktura", () => {
 });
 
 describe("buildEventIcs — datetime", () => {
-  it("timed event má DTSTART/DTEND s TZID=Europe/Prague", () => {
+  it("V18-S42 — timed event má DTSTART/DTEND v UTC (Z suffix, žádný TZID)", () => {
     const ics = buildEventIcs({ event: mkEvent() });
-    expect(ics).toMatch(/DTSTART;TZID=Europe\/Prague:\d{8}T\d{6}/);
-    expect(ics).toMatch(/DTEND;TZID=Europe\/Prague:\d{8}T\d{6}/);
+    expect(ics).toMatch(/DTSTART:\d{8}T\d{6}Z/);
+    expect(ics).toMatch(/DTEND:\d{8}T\d{6}Z/);
+    expect(ics).not.toContain("TZID=Europe/Prague");
   });
 
   it("all-day event → VALUE=DATE, ne datetime", () => {
