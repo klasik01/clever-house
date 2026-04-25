@@ -16,11 +16,18 @@ import { SESSION_STORAGE } from "@/lib/storageKeys";
  */
 const VERSION_POLL_MS = 5 * 60 * 1000;
 
+type UpdateSwFn = (reloadPage?: boolean) => Promise<void>;
+
 export default function UpdateBanner() {
   const t = useT();
   const [needRefresh, setNeedRefresh] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  // V18-S41 — capture `updateSW` z vite-plugin-pwa pro orchestrovaný reload.
+  // updateSW(true) udělá: SKIP_WAITING signál → čekej na controllerchange →
+  // location.reload(). Battle-tested flow, nahrazuje custom skipWaiting +
+  // cache cleanup + URL change loop.
+  const [updateSwFn, setUpdateSwFn] = useState<UpdateSwFn | null>(null);
 
   // Wire SW listener (primary signal).
   useEffect(() => {
@@ -28,11 +35,12 @@ export default function UpdateBanner() {
     (async () => {
       try {
         const mod = await import("virtual:pwa-register");
-        mod.registerSW({
+        const updateSW = mod.registerSW({
           onNeedRefresh() {
             if (!cancelled) setNeedRefresh(true);
           },
         });
+        if (!cancelled) setUpdateSwFn(() => updateSW);
       } catch (e) {
         console.debug("PWA register unavailable", e);
       }
@@ -120,44 +128,44 @@ export default function UpdateBanner() {
   async function handleReload() {
     setReloading(true);
 
-    // V18-S22 — robustnější reload flow proti loop bugu:
+    // V18-S41 — preferovaný flow: vite-plugin-pwa updateSW(true).
+    //   - SKIP_WAITING postneme do `waiting` SW.
+    //   - Plugin si naváže controllerchange listener.
+    //   - Po activation zavolá window.location.reload() jednou — SW lifecycle
+    //     je v ten moment hotový, fresh fetch projde přes nový SW na network
+    //     (workbox precache obsahuje nové asset hash → nový bundle).
     //
-    // 1. SKIP_WAITING signál nedětrpělivému SW + race s controllerchange
-    //    (max 1.5s timeout). Když SW odpoví dřív, super; když ne,
-    //    pokračujeme dál — možná SW není v "waiting" stavu protože
-    //    autoUpdate ho už aplikoval.
-    //
-    // 2. NOVÉ: smazat všechny SW caches manuálně. Workbox cache-cleanup
-    //    je "nice-to-have" ale nepokrývá vše (zvlášť `runtimeCaching`
-    //    entries). Když cache zůstane stará, browser ji načte z disku
-    //    a polling vidí mismatch znovu → loop.
-    //
-    // 3. Hard-reload přes URL change s `?__update=<timestamp>` query.
-    //    `location.reload()` v moderních browserech respektuje HTTP
-    //    cache (ETag → 304 Not Modified → starý bundle z disku). Změna
-    //    URL = browser musí udělat fresh fetch z origin.
+    // Fallback (updateSW není dispoziční — dev mode, nebo pwa-register import
+    // selhal): URL cache buster přes `?__update=<ts>`. Tohle občas chytá až
+    // napodruhé/potřetí (V18-S22 origin) protože SW může vracet stale
+    // precache, ale je to lepší než nic.
+    if (updateSwFn) {
+      try {
+        // Reset settled marker pred refresh — nový bundle si ho dovytvoří
+        // sám až polling po reload uvidí match.
+        try { sessionStorage.removeItem(SESSION_STORAGE.updateSettledVersion); } catch { /* ignore */ }
+        await updateSwFn(true);
+        return; // updateSW(true) reloadne — sem se obvykle nedostaneme
+      } catch (err) {
+        console.warn("[update] updateSW failed, falling back na URL change:", err);
+      }
+    }
+
+    // ---- Fallback path ----
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg?.waiting) {
         reg.waiting.postMessage({ type: "SKIP_WAITING" });
         await Promise.race([
           new Promise<void>((resolve) => {
-            navigator.serviceWorker.addEventListener(
-              "controllerchange",
-              () => resolve(),
-              { once: true },
-            );
+            navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
           }),
           new Promise<void>((resolve) => setTimeout(resolve, 1500)),
         ]);
       }
     } catch (err) {
-      console.warn("[update] skipWaiting path failed, falling back to plain reload:", err);
+      console.warn("[update] skipWaiting fallback failed:", err);
     }
-
-    // Manuální cache cleanup — projdi všechny SW caches a smaž je.
-    // Workbox je vytváří dynamicky (precache-v2-...), nemá smysl
-    // matchovat jména — smaž vše.
     try {
       if ("caches" in window) {
         const keys = await caches.keys();
@@ -166,17 +174,7 @@ export default function UpdateBanner() {
     } catch (err) {
       console.warn("[update] cache cleanup failed:", err);
     }
-
-    // Reset sessionStorage update marker, jinak by guard v polling
-    // useEffect po reload bookmarknul starou verzi.
-    try {
-      sessionStorage.removeItem("update:settledVersion");
-    } catch {
-      /* ignore */
-    }
-
-    // Hard-reload přes URL change. `__update` query param + nový timestamp
-    // změní URL, browser stáhne `index.html` čerstvě z origin.
+    try { sessionStorage.removeItem(SESSION_STORAGE.updateSettledVersion); } catch { /* ignore */ }
     const next = new URL(window.location.href);
     next.searchParams.set("__update", Date.now().toString());
     window.location.replace(next.toString());

@@ -40,7 +40,10 @@ import { ROUTES, ROUTE_PATTERNS } from "./lib/routes";
 
 export default function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+    <BrowserRouter
+      basename={import.meta.env.BASE_URL.replace(/\/$/, "")}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <BusyProvider>
         <UpdateBanner />
         <Routes>

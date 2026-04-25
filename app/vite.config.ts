@@ -142,7 +142,9 @@ self.addEventListener("notificationclick", (event) => {
   let fullUrl = rawUrl;
   try {
     const scope = new URL(self.registration.scope);
-    const stripped = rawUrl.replace(/^\//, "");
+    // Nepoužívat regex literál — backslash-slash v template literalu
+    // collapsne na slash a serv. SW dostane neplatný regex (SyntaxError).
+    const stripped = rawUrl.charAt(0) === "/" ? rawUrl.slice(1) : rawUrl;
     fullUrl = new URL(stripped, scope).href;
   } catch (_) { /* fallback na rawUrl */ }
   event.waitUntil((async () => {
