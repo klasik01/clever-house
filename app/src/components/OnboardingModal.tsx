@@ -1,96 +1,126 @@
-import { useState } from "react";
-import { ArrowRight, Check, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Bell, Calendar, Check, User } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
+  markOnboardingCompleted,
   updateUserContactEmail,
   updateUserDisplayName,
 } from "@/lib/userProfile";
-import { useBusy } from "@/components/BusyOverlay";
+import { requestPermissionAndRegister } from "@/lib/messaging";
+import { useBusy } from "./BusyOverlay";
 
 /**
- * V18-S24 — onboarding modal pro nově přihlášené users co nemají vyplněné
- * základní fieldy (`displayName`, `contactEmail`). Renderuje se v Shell
- * jakmile je `useUserRole` ready a oba fieldy jsou null/empty. Po
- * dokončení (nebo "Přeskočit") modal zmizí — nabídne se pak až další
- * sign-in nebo když user manuálně klikne v Settings.
+ * V18-S30 — onboarding modal pro nové users.
  *
- * Dva kroky:
- *   1. Přezdívka (jak tě budou ostatní oslovovat v appce)
- *   2. Kontakt email (pro Apple Calendar Contacts vizitku)
+ * Triggeruje se podle `users/{uid}.onboardingCompletedAt`:
+ *   - undefined / null → modal aktivní, projdou se kroky
+ *   - jakákoliv ISO hodnota → modal už nikdy (V1 nemá reset)
  *
- * Skip cestou: user může každý krok preskočit pomocí "Později" — fields
- * zůstanou null. Default values forwardujeme z auth (email, displayName
- * z Google profilu) aby user jen kliknul "Hotovo" pokud nechce nic měnit.
+ * Čtyři kroky:
+ *   1. Přezdívka (pre-fill auth displayName, skip = nech null)
+ *   2. Kontakt email (pre-fill auth email, skip = nech null)
+ *   3. Notifikace — pokud `Notification.permission === "granted"` step
+ *      úplně přeskočíme (neukážeme). Jinak tlačítko "Povolit" zavolá
+ *      requestPermissionAndRegister. Skip nech permission "default".
+ *   4. Kalendář — jen info že existuje webcal subscription. CTA odkáže
+ *      na Settings → Kalendář (uložit krok proběhne v markCompleted).
+ *
+ * Skip / Hotovo na posledním kroku → markOnboardingCompleted = ISO now.
+ * Modal se po refreshi/další session už neukáže.
+ *
+ * Skip celého onboarding (X / Přeskočit) → také mark completed (user
+ * dal najevo že o onboarding nemá zájem; respektujeme).
  */
 export default function OnboardingModal() {
   const t = useT();
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  const [dismissed, setDismissed] = useState(false);
-  const [step, setStep] = useState<1 | 2>(1);
+  const busy = useBusy();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [nickname, setNickname] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Notifikační permission state (live — sleduje requestPermission výsledek).
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission,
+  );
 
-  const busy = useBusy();
+  // Pre-fill nickname z auth při vstupu na step 1.
+  useEffect(() => {
+    if (step === 1 && !nickname && user?.displayName) {
+      setNickname(user.displayName);
+    }
+  }, [step, nickname, user]);
+
+  // Pre-fill contactEmail z auth při vstupu na step 2.
+  useEffect(() => {
+    if (step === 2 && !contactEmail && user?.email) {
+      setContactEmail(user.email);
+    }
+  }, [step, contactEmail, user]);
+
   if (!user) return null;
-  if (dismissed) return null;
   if (roleState.status !== "ready") return null;
 
-  const profile = roleState.profile;
-  const hasNickname = Boolean(profile.displayName?.trim());
-  const hasContactEmail = Boolean(profile.contactEmail?.trim());
-
-  // Pokud user má oba fieldy, modal se nezobrazí.
-  if (hasNickname && hasContactEmail) return null;
-
-  // Default hodnoty z auth (Google sign-in) aby user jen potvrdil.
-  if (!nickname && user.displayName && step === 1) {
-    setNickname(user.displayName);
-  }
-  if (!contactEmail && user.email && step === 2) {
-    setContactEmail(user.email);
-  }
+  // V18-S30 — gate na DB flag místo na splnění individuálních fieldů.
+  if (roleState.profile.onboardingCompletedAt) return null;
 
   function isValidEmail(s: string): boolean {
     if (s.length === 0) return true;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
   }
 
-  async function handleStep1Next() {
-    setError(null);
-    const trimmed = nickname.trim();
-    if (!trimmed) {
-      // Skip = ponecháme null, přejdeme na krok 2
-      setStep(2);
-      return;
-    }
-    setSaving(true);
+  // V18-S30 — step 3 (notifikace) zobrazíme vždy: i když user permission
+  // už granted, chceme aby viděl info o granular ovládání. Tlačítko
+  // "Povolit" se renderuje jen pro "default" permission, jinak rovnou
+  // "Další".
+  function nextStepFrom(current: 1 | 2 | 3 | 4): 1 | 2 | 3 | 4 {
+    if (current === 1) return 2;
+    if (current === 2) return 3;
+    if (current === 3) return 4;
+    return 4;
+  }
+
+  async function finishOnboarding() {
+    if (!user) return;
     try {
       await busy.run(
-        () => updateUserDisplayName(user!.uid, trimmed),
+        () => markOnboardingCompleted(user.uid),
         t("busy.saving"),
       );
-      setStep(2);
     } catch (e) {
-      console.error("nickname save in onboarding failed", e);
+      console.error("markOnboardingCompleted failed", e);
       setError(t("onboarding.saveFailed"));
-    } finally {
-      setSaving(false);
     }
   }
 
-  async function handleStep2Done() {
+  async function handleStep1Next() {
+    setError(null);
+    const trimmed = nickname.trim();
+    try {
+      if (trimmed) {
+        await busy.run(
+          () => updateUserDisplayName(user!.uid, trimmed),
+          t("busy.saving"),
+        );
+      }
+      setStep(nextStepFrom(1));
+    } catch (e) {
+      console.error("nickname save in onboarding failed", e);
+      setError(t("onboarding.saveFailed"));
+    }
+  }
+
+  async function handleStep2Next() {
     setError(null);
     const trimmed = contactEmail.trim();
     if (trimmed && !isValidEmail(trimmed)) {
       setError(t("settings.contactEmailInvalid"));
       return;
     }
-    setSaving(true);
     try {
       if (trimmed) {
         await busy.run(
@@ -98,18 +128,68 @@ export default function OnboardingModal() {
           t("busy.saving"),
         );
       }
-      setDismissed(true);
+      setStep(nextStepFrom(2));
     } catch (e) {
       console.error("contactEmail save in onboarding failed", e);
       setError(t("onboarding.saveFailed"));
-    } finally {
-      setSaving(false);
     }
   }
 
-  function handleSkipAll() {
-    setDismissed(true);
+  async function handleEnableNotif() {
+    setError(null);
+    try {
+      const result = await busy.run(
+        () => requestPermissionAndRegister(user!.uid),
+        t("onboarding.notifWaiting"),
+      );
+      // Refresh permission state z výsledku.
+      if (result.status === "granted") {
+        setNotifPermission("granted");
+      } else if (result.status === "denied") {
+        setNotifPermission("denied");
+        setError(t("onboarding.notifDenied"));
+      }
+      // V každém případě posun na další krok — user uvidí stav a může jít dál.
+      setStep(4);
+    } catch (e) {
+      console.error("requestPermissionAndRegister in onboarding failed", e);
+      setError(t("onboarding.saveFailed"));
+    }
   }
+
+  async function handleSkipStep() {
+    setError(null);
+    if (step === 1) {
+      setStep(nextStepFrom(1));
+      return;
+    }
+    if (step === 2) {
+      setStep(nextStepFrom(2));
+      return;
+    }
+    if (step === 3) {
+      setStep(4);
+      return;
+    }
+    // step 4 → finish
+    await finishOnboarding();
+  }
+
+  async function handleFinish() {
+    await finishOnboarding();
+  }
+
+  async function handleSkipAll() {
+    // I při skip all uložíme completed — user explicitně řekl že o
+    // onboarding nestojí; nechceme ho otravovat při dalším otevření.
+    await finishOnboarding();
+  }
+
+  // V18-S30 — onboarding má vždy 4 kroky (přezdívka, email, notifikace,
+  // kalendář). Krok 3 zobrazuje info o notifikacích bez ohledu na to,
+  // jestli má user permission — granular note tam je vždy.
+  const totalSteps = 4;
+  const visualStepIndex = step;
 
   return (
     <div
@@ -124,7 +204,10 @@ export default function OnboardingModal() {
             aria-hidden
             className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent"
           >
-            <User size={20} aria-hidden />
+            {step === 1 && <User size={20} />}
+            {step === 2 && <User size={20} />}
+            {step === 3 && <Bell size={20} />}
+            {step === 4 && <Calendar size={20} />}
           </span>
           <div className="min-w-0 flex-1">
             <h2 id="onboarding-title" className="text-base font-semibold text-ink">
@@ -136,26 +219,26 @@ export default function OnboardingModal() {
           </div>
         </div>
 
-        {/* Progress indikátor */}
+        {/* Progress dots */}
         <div className="mt-4 flex items-center gap-2">
-          <span
-            className="size-2 rounded-full"
-            style={{
-              background:
-                step >= 1 ? "var(--color-accent)" : "var(--color-line)",
-            }}
-            aria-hidden
-          />
-          <span
-            className="size-2 rounded-full"
-            style={{
-              background:
-                step >= 2 ? "var(--color-accent)" : "var(--color-line)",
-            }}
-            aria-hidden
-          />
+          {Array.from({ length: totalSteps }).map((_, i) => (
+            <span
+              key={i}
+              className="size-2 rounded-full"
+              style={{
+                background:
+                  visualStepIndex - 1 >= i
+                    ? "var(--color-accent)"
+                    : "var(--color-line)",
+              }}
+              aria-hidden
+            />
+          ))}
           <span className="ml-1 text-xs text-ink-subtle">
-            {t("onboarding.stepOf", { current: step, total: 2 })}
+            {t("onboarding.stepOf", {
+              current: visualStepIndex,
+              total: totalSteps,
+            })}
           </span>
         </div>
 
@@ -214,7 +297,66 @@ export default function OnboardingModal() {
           </div>
         )}
 
-        {error && (
+        {/* Step 3 — Notifikace (vždy zobrazené, větví se podle permission) */}
+        {step === 3 && (
+          <div className="mt-4 flex flex-col gap-3">
+            <p className="text-sm text-ink">{t("onboarding.notifTitle")}</p>
+            {notifPermission === "default" && (
+              <p className="text-xs text-ink-subtle">
+                {t("onboarding.notifHint")}
+              </p>
+            )}
+            {notifPermission === "granted" && (
+              <p
+                className="text-xs text-[color:var(--color-status-success-fg)]"
+                role="status"
+              >
+                {t("onboarding.notifGranted")}
+              </p>
+            )}
+            {notifPermission === "denied" && (
+              <p
+                className="text-xs text-[color:var(--color-status-danger-fg)]"
+                role="status"
+              >
+                {t("onboarding.notifDeniedHint")}
+              </p>
+            )}
+            {notifPermission === "unsupported" && (
+              <p className="text-xs text-ink-subtle">
+                {t("onboarding.notifUnsupported")}
+              </p>
+            )}
+            {/* Granular note — vždy viditelná */}
+            <p className="rounded-md bg-bg-subtle px-3 py-2 text-xs text-ink-muted leading-relaxed">
+              {t("onboarding.notifGranularNote")}
+            </p>
+          </div>
+        )}
+
+        {/* Step 4 — Kalendář */}
+        {step === 4 && (
+          <div className="mt-4 flex flex-col gap-3">
+            <p className="text-sm text-ink">{t("onboarding.calendarTitle")}</p>
+            <p className="text-xs text-ink-subtle">
+              {t("onboarding.calendarHint")}
+            </p>
+            <Link
+              to="/nastaveni#kalendar"
+              className="inline-flex items-center gap-2 self-start rounded-md ring-1 ring-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle transition-colors"
+              onClick={() => {
+                // Klik na link → mark completed na pozadí, modal zavře
+                // přirozeně po navigaci.
+                void finishOnboarding();
+              }}
+            >
+              <Calendar aria-hidden size={16} />
+              {t("onboarding.calendarOpenSettings")}
+            </Link>
+          </div>
+        )}
+
+        {error && step !== 3 && (
           <p
             role="alert"
             className="mt-3 text-xs text-[color:var(--color-status-danger-fg)]"
@@ -227,18 +369,17 @@ export default function OnboardingModal() {
         <div className="mt-5 flex gap-2">
           <button
             type="button"
-            onClick={handleSkipAll}
-            disabled={saving}
-            className="min-h-tap rounded-md ring-1 ring-line bg-surface px-4 py-2.5 text-sm text-ink-muted hover:bg-bg-subtle disabled:opacity-60 transition-colors"
+            onClick={step === 4 ? handleSkipAll : handleSkipStep}
+            className="min-h-tap rounded-md ring-1 ring-line bg-surface px-4 py-2.5 text-sm text-ink-muted hover:bg-bg-subtle transition-colors"
           >
-            {t("onboarding.skipAll")}
+            {step === 4 ? t("onboarding.skipAll") : t("onboarding.skipStep")}
           </button>
+
           {step === 1 && (
             <button
               type="button"
               onClick={handleStep1Next}
-              disabled={saving}
-              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60 transition-colors"
+              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
             >
               {t("onboarding.next")}
               <ArrowRight aria-hidden size={16} />
@@ -247,12 +388,41 @@ export default function OnboardingModal() {
           {step === 2 && (
             <button
               type="button"
-              onClick={handleStep2Done}
-              disabled={saving}
-              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60 transition-colors"
+              onClick={handleStep2Next}
+              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
+            >
+              {t("onboarding.next")}
+              <ArrowRight aria-hidden size={16} />
+            </button>
+          )}
+          {step === 3 && notifPermission === "default" && (
+            <button
+              type="button"
+              onClick={handleEnableNotif}
+              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
+            >
+              <Bell aria-hidden size={16} />
+              {t("onboarding.notifEnableCta")}
+            </button>
+          )}
+          {step === 3 && notifPermission !== "default" && (
+            <button
+              type="button"
+              onClick={() => setStep(4)}
+              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
+            >
+              {t("onboarding.next")}
+              <ArrowRight aria-hidden size={16} />
+            </button>
+          )}
+          {step === 4 && (
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="ml-auto flex items-center gap-2 min-h-tap rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
             >
               <Check aria-hidden size={16} />
-              {saving ? t("onboarding.saving") : t("onboarding.done")}
+              {t("onboarding.done")}
             </button>
           )}
         </div>

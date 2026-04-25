@@ -28,6 +28,10 @@ export function subscribeUserProfile(
           typeof data.calendarLastFetchedAt === "string"
             ? data.calendarLastFetchedAt
             : undefined,
+        onboardingCompletedAt:
+          typeof data.onboardingCompletedAt === "string"
+            ? data.onboardingCompletedAt
+            : null,
         notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
       });
     },
@@ -56,6 +60,10 @@ export function subscribeUsers(
           role,
           displayName: data.displayName ?? null,
           contactEmail: data.contactEmail ?? null,
+          onboardingCompletedAt:
+            typeof data.onboardingCompletedAt === "string"
+              ? data.onboardingCompletedAt
+              : null,
           notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
         };
       });
@@ -101,5 +109,15 @@ export async function updateUserContactEmail(
   const next = contactEmail.trim();
   await updateDoc(doc(db, "users", uid), {
     contactEmail: next.length ? next : null,
+  });
+}
+
+/**
+ * V18-S30 — označit onboarding jako dokončený. Po set už onboarding modal
+ * pro tohoto user-a nepoběží (Shell ho gate-uje na undefined/null tom field).
+ */
+export async function markOnboardingCompleted(uid: string): Promise<void> {
+  await updateDoc(doc(db, "users", uid), {
+    onboardingCompletedAt: new Date().toISOString(),
   });
 }

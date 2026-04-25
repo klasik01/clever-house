@@ -131,9 +131,9 @@ describe("getLocation + runtime cache", () => {
     expect(getLocation("my-place")?.label).toBe("Moje místo");
   });
 
-  it("falls back to DEFAULT_LOCATIONS when cache lacks the id", () => {
+  it("V18-S29 — vrátí undefined když cache nemapuje id (no DEFAULT fallback)", () => {
     _setLocationsRuntimeCache([]);
-    expect(getLocation("kuchyn")?.label).toBe("Kuchyň");
+    expect(getLocation("kuchyn")).toBeUndefined();
   });
 
   it("returns undefined for null/undefined id", () => {

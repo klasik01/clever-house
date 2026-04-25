@@ -240,6 +240,10 @@ export interface UserProfile {
    *  ho updatuje throttled 1× za hodinu). Heuristic indikátor zda user má
    *  aktivní subscription v Apple Calendar (≤25h od fetchu = "Připojeno"). */
   calendarLastFetchedAt?: string;
+  /** V18-S30 — ISO kdy user dokončil/přeskočil onboarding modal. Jakmile
+   *  je set, modal se už nezobrazí. Undefined = nový/legacy user → modal
+   *  poběží (pre-fill smart skipuje již vyplněné kroky). */
+  onboardingCompletedAt?: string | null;
 }
 
 // ==================== V15 — Push notifications ====================

@@ -87,17 +87,21 @@ export function _setLocationsRuntimeCache(locations: Location[]): void {
 
 export function getLocation(id: string | null | undefined): Location | undefined {
   if (!id) return undefined;
-  if (runtimeCache) {
-    const hit = runtimeCache.get(id);
-    if (hit) return hit;
-  }
-  // Fallback: defaults. Covers boot before first snapshot + offline.
-  return DEFAULT_LOCATIONS.find((l) => l.id === id);
+  // V18-S29 — odstraněn DEFAULT_LOCATIONS fallback. Před hydratací
+  // runtime cache (= před prvním Firestore snapshotem) vrátíme undefined.
+  // Caller (cards, picker) musí undefined chytit a zobrazit
+  // skeleton/placeholder místo špatné default hodnoty.
+  return runtimeCache?.get(id);
 }
 
-/** Group the given list of locations into LOCATION_GROUPS-ordered sections. */
+/**
+ * Group the given list of locations into LOCATION_GROUPS-ordered sections.
+ *
+ * V18-S29 — pokud runtime cache je prázdná, vrátí jen empty groups.
+ * DEFAULT_LOCATIONS fallback odstraněn (flash of stale content).
+ */
 export function locationsByGroup(
-  source: Location[] = runtimeCache ? Array.from(runtimeCache.values()) : DEFAULT_LOCATIONS,
+  source: Location[] = runtimeCache ? Array.from(runtimeCache.values()) : [],
 ): {
   group: LocationGroup;
   i18nKey: string;

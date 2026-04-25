@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  DEFAULT_LOCATIONS,
   _setLocationsRuntimeCache,
   subscribeLocations,
 } from "@/lib/locations";
@@ -16,20 +15,22 @@ interface State {
  * V7 — subscribe to the /locations Firestore collection and keep the module
  * runtime cache in sync so synchronous getLocation() lookups resolve correctly.
  *
- * While the first snapshot is pending we expose DEFAULT_LOCATIONS so lists,
- * pickers, etc. never render empty. `loading` flips false once the first
- * real snapshot lands (or if `enabled=false`).
+ * V18-S29 — odstraněn fallback na DEFAULT_LOCATIONS jako initial state.
+ * Předtím komponenty zobrazily hard-coded seed defaults na ~100ms než
+ * dorazil první Firestore snapshot — flash of stale content. Teď začínáme
+ * s prázdným polem a `loading: true`. Caller je zodpovědný za skeleton /
+ * spinner do doby, než `loading` přepadne na false.
  */
 export function useLocations(enabled: boolean): State {
   const [state, setState] = useState<State>({
-    locations: DEFAULT_LOCATIONS,
+    locations: [],
     loading: Boolean(enabled),
     error: null,
   });
 
   useEffect(() => {
     if (!enabled) {
-      setState({ locations: DEFAULT_LOCATIONS, loading: false, error: null });
+      setState({ locations: [], loading: false, error: null });
       return;
     }
     const unsub = subscribeLocations(
