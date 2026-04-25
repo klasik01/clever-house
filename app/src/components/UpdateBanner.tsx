@@ -16,31 +16,34 @@ import { SESSION_STORAGE } from "@/lib/storageKeys";
  */
 const VERSION_POLL_MS = 5 * 60 * 1000;
 
-type UpdateSwFn = (reloadPage?: boolean) => Promise<void>;
-
 export default function UpdateBanner() {
   const t = useT();
   const [needRefresh, setNeedRefresh] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
-  // V18-S41 — capture `updateSW` z vite-plugin-pwa pro orchestrovaný reload.
-  // updateSW(true) udělá: SKIP_WAITING signál → čekej na controllerchange →
-  // location.reload(). Battle-tested flow, nahrazuje custom skipWaiting +
-  // cache cleanup + URL change loop.
-  const [updateSwFn, setUpdateSwFn] = useState<UpdateSwFn | null>(null);
 
-  // Wire SW listener (primary signal).
+  // Wire SW listener (primary signal). V18-S43 — `updateSW` funkci dál
+  // neukládáme: vlastní handleReload pipeline (skipWaiting + cache cleanup
+  // + URL cache buster) je robustnější než updateSW(true) auto-reload,
+  // který hangoval pokud nebyl waiting SW.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const mod = await import("virtual:pwa-register");
-        const updateSW = mod.registerSW({
+        mod.registerSW({
           onNeedRefresh() {
+            // V18-S43 — anti-loop: pokud user klikl za posledních 30s,
+            // suppressujeme i SW signál.
+            try {
+              const clickedAt = Number(
+                sessionStorage.getItem(SESSION_STORAGE.updateClickedAt) ?? 0,
+              );
+              if (clickedAt && Date.now() - clickedAt < 30_000) return;
+            } catch { /* ignore */ }
             if (!cancelled) setNeedRefresh(true);
           },
         });
-        if (!cancelled) setUpdateSwFn(() => updateSW);
       } catch (e) {
         console.debug("PWA register unavailable", e);
       }
@@ -81,6 +84,23 @@ export default function UpdateBanner() {
       }
     } catch {
       /* private mode — fall through */
+    }
+
+    // V18-S43 — anti-loop guard: pokud user klikl na update za posledních 30s,
+    // suppressujeme polling úplně. Dá to čas SW lifecycle dokončit a chrání
+    // proti scénářům kdy reload neaktualizuje bundle (cached SW, network glitch,
+    // server ještě nestihl propagovat). User po 30s může kliknout znovu pokud
+    // se modal vrátí.
+    try {
+      const clickedAt = Number(
+        sessionStorage.getItem(SESSION_STORAGE.updateClickedAt) ?? 0,
+      );
+      if (clickedAt && Date.now() - clickedAt < 30_000) {
+        // Stále v anti-loop window — neukazuj modal.
+        return;
+      }
+    } catch {
+      /* ignore */
     }
 
     let cancelled = false;
@@ -128,44 +148,45 @@ export default function UpdateBanner() {
   async function handleReload() {
     setReloading(true);
 
-    // V18-S41 — preferovaný flow: vite-plugin-pwa updateSW(true).
-    //   - SKIP_WAITING postneme do `waiting` SW.
-    //   - Plugin si naváže controllerchange listener.
-    //   - Po activation zavolá window.location.reload() jednou — SW lifecycle
-    //     je v ten moment hotový, fresh fetch projde přes nový SW na network
-    //     (workbox precache obsahuje nové asset hash → nový bundle).
+    // V18-S43 — robust flow proti loop bugu (nahrazuje V18-S41 updateSW(true)
+    // přístup, který občas hangoval bez waiting SW). Vždy projde stejným
+    // pipeline:
     //
-    // Fallback (updateSW není dispoziční — dev mode, nebo pwa-register import
-    // selhal): URL cache buster přes `?__update=<ts>`. Tohle občas chytá až
-    // napodruhé/potřetí (V18-S22 origin) protože SW může vracet stale
-    // precache, ale je to lepší než nic.
-    if (updateSwFn) {
-      try {
-        // Reset settled marker pred refresh — nový bundle si ho dovytvoří
-        // sám až polling po reload uvidí match.
-        try { sessionStorage.removeItem(SESSION_STORAGE.updateSettledVersion); } catch { /* ignore */ }
-        await updateSwFn(true);
-        return; // updateSW(true) reloadne — sem se obvykle nedostaneme
-      } catch (err) {
-        console.warn("[update] updateSW failed, falling back na URL change:", err);
-      }
-    }
+    //   1. Anti-loop marker — set hned, použije se po reload abychom modal
+    //      nezobrazili znova hned (30s grace period).
+    //   2. SW skipWaiting (best-effort) — pokud existuje waiting SW, aktivuj.
+    //   3. Cache cleanup — workbox runtime + precache.
+    //   4. Reset settled marker — nový bundle si nastaví sám až polling
+    //      po reload uvidí match.
+    //   5. Hard-reload přes URL change (?__update=<ts>) — bypass HTTP cache.
+    try {
+      sessionStorage.setItem(
+        SESSION_STORAGE.updateClickedAt,
+        Date.now().toString(),
+      );
+    } catch { /* private mode — fall through, anti-loop nebude fungovat */ }
 
-    // ---- Fallback path ----
+    // SW skipWaiting (best-effort, max 1.5s).
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg?.waiting) {
         reg.waiting.postMessage({ type: "SKIP_WAITING" });
         await Promise.race([
           new Promise<void>((resolve) => {
-            navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+            navigator.serviceWorker.addEventListener(
+              "controllerchange",
+              () => resolve(),
+              { once: true },
+            );
           }),
           new Promise<void>((resolve) => setTimeout(resolve, 1500)),
         ]);
       }
     } catch (err) {
-      console.warn("[update] skipWaiting fallback failed:", err);
+      console.warn("[update] skipWaiting failed:", err);
     }
+
+    // Cache cleanup.
     try {
       if ("caches" in window) {
         const keys = await caches.keys();
@@ -174,7 +195,12 @@ export default function UpdateBanner() {
     } catch (err) {
       console.warn("[update] cache cleanup failed:", err);
     }
-    try { sessionStorage.removeItem(SESSION_STORAGE.updateSettledVersion); } catch { /* ignore */ }
+
+    // Reset settled marker.
+    try { sessionStorage.removeItem(SESSION_STORAGE.updateSettledVersion); }
+    catch { /* ignore */ }
+
+    // Hard-reload přes URL change.
     const next = new URL(window.location.href);
     next.searchParams.set("__update", Date.now().toString());
     window.location.replace(next.toString());

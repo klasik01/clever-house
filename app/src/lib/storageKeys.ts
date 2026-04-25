@@ -41,6 +41,10 @@ export const SESSION_STORAGE = {
   /** V18-S22 — version string aktuálního "settled" (post-update) state pro
    *  detekci dokončeného force-reload cyklu. */
   updateSettledVersion: "update:settledVersion",
+  /** V18-S43 — timestamp posledního click na "Obnovit aplikaci". Anti-loop
+   *  guard: po reload se po danou dobu (30s) modal nezobrazí, i kdyby polling
+   *  nebo SW signál hlásil mismatch. Po expiraci se pravidla vrátí. */
+  updateClickedAt: "update:clickedAt",
 } as const;
 
 // ---------- Dynamic filter keys (sessionStorage, keyed per-route) ----------

@@ -109,13 +109,12 @@ function renderVevent(
 
   const creator = usersByUid.get(event.createdBy);
   if (creator) {
+    // V18-S44 — autor jen jako ATTENDEE, bez ORGANIZER (Apple Calendar
+    // deduplikuje shodný mailto a skryje ho z attendee listu). Stejný
+    // důvod jako v klientu — viz src/lib/ics.ts.
     const { name, email } = nameAndEmail(creator);
     lines.push(
-      `ORGANIZER;CN=${escapeIcsText(name)}:mailto:${email}`,
-    );
-    // V18-S37 — autor taky jako ATTENDEE s ROLE=CHAIR (consistent s UI v appce).
-    lines.push(
-      `ATTENDEE;CN=${escapeIcsText(name)};ROLE=CHAIR:mailto:${email}`,
+      `ATTENDEE;CN=${escapeIcsText(name)}:mailto:${email}`,
     );
   }
 

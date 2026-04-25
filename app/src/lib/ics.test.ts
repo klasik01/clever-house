@@ -178,23 +178,23 @@ describe("buildEventIcs — datetime", () => {
 });
 
 describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
-  it("ORGANIZER pokud je creator dodán", () => {
+  it("V18-S44 — ATTENDEE pro autora pokud je creator dodán", () => {
     const ics = buildEventIcs({
       event: mkEvent(),
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
     });
     expect(ics).toContain(
-      "ORGANIZER;CN=Stanislav:mailto:stanislav@example.cz",
+      "ATTENDEE;CN=Stanislav:mailto:stanislav@example.cz",
     );
   });
 
-  it("V18-S37 — autor je taky ATTENDEE s ROLE=CHAIR", () => {
+  it("V18-S44 — autor je rovnocenný ATTENDEE (žádný ORGANIZER)", () => {
     const ics = buildEventIcs({
       event: mkEvent(),
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
     });
     expect(ics).toContain(
-      "ATTENDEE;CN=Stanislav;ROLE=CHAIR:mailto:stanislav@example.cz",
+      "ATTENDEE;CN=Stanislav:mailto:stanislav@example.cz",
     );
   });
 
@@ -209,7 +209,7 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
     });
     // Autor je tam jen jednou (s CHAIR rolí, ne jako ne-chair attendee).
     const chairCount = (
-      ics.match(/ATTENDEE;CN=Stanislav;ROLE=CHAIR/g) ?? []
+      ics.match(/ATTENDEE;CN=Stanislav:/g) ?? []
     ).length;
     const nonChairCount = (
       ics.match(/ATTENDEE;CN=Stanislav:mailto/g) ?? []

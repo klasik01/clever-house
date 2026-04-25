@@ -79,9 +79,12 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   }
 
   if (creator) {
-    // V18-S24 — mailto = contactEmail (iCloud kontakt) || email (auth)
-    // || synthesized fallback. CN = přezdívka pro friendly view; Apple
-    // Calendar ji zobrazí vedle email matchovaným kontaktem v Contacts.
+    // V18-S44 — autor jen jako ATTENDEE, bez ORGANIZER property.
+    // Důvod: Apple Calendar deduplikuje ATTENDEE mailto, který se shoduje
+    // s ORGANIZER → autor mizel z "All Invitees" listu na iPhone. Ani
+    // ROLE=CHAIR (V18-S37) nepomohlo. METHOD:PUBLISH ORGANIZER nevyžaduje
+    // (jen METHOD:REQUEST). Vypuštění → autor je rovnocenný ATTENDEE,
+    // Apple ho zobrazí jako prvního v listu (consistent s UI v appce S36).
     const creatorEmail =
       creator.contactEmail || creator.email || `${creator.uid}@chytrydum.local`;
     const creatorCn = resolveUserName({
@@ -90,14 +93,7 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
       uid: creator.uid,
     });
     lines.push(
-      `ORGANIZER;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
-    );
-    // V18-S37 — autor také jako ATTENDEE (s ROLE=CHAIR per RFC 5545).
-    // Důvod: Apple Calendar zobrazí ORGANIZER odděleně, ale v "All
-    // Invitees" listu autor mizí. Konzistentní s UI v appce (S36) kde je
-    // autor první mezi účastníky. ROLE=CHAIR semantic = "host/moderator".
-    lines.push(
-      `ATTENDEE;CN=${escapeIcsText(creatorCn)};ROLE=CHAIR:mailto:${creatorEmail}`,
+      `ATTENDEE;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
     );
   }
 
