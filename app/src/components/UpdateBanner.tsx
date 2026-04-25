@@ -45,9 +45,35 @@ export default function UpdateBanner() {
   // Covers the case where the SW cache hasn’t yet picked up a new deploy
   // (e.g. long-lived tab on a slow network). We only use this to *suggest* a
   // reload — actual reload uses location.reload() regardless of SW state.
+  //
+  // V18-S22 — anti-loop guards:
+  //   1. Po reloadu (?__update= flag v URL) **2 minuty** polling neodjede.
+  //      Dá to SW a browser cache čas se srovnat. Bez toho jsme měli loop:
+  //      reload → polling spustí ihned → vidí stale version (ETag cache 304)
+  //      → modal znovu → reload → ad infinitum.
+  //   2. Pokud detekujeme `latest === mine` po předchozí refresh, vyhodíme
+  //      sessionStorage flag co označí "update už proběhl" — další polling
+  //      cyklus do session-end nepustí modal.
   useEffect(() => {
     const mine = import.meta.env.VITE_APP_VERSION;
     if (!mine) return; // no version embedded (dev mode) — skip the poll
+
+    const url = new URL(window.location.href);
+    const isPostUpdate = url.searchParams.has("__update");
+    const initialDelay = isPostUpdate ? 2 * 60 * 1000 : 0;
+
+    // Already-updated guard: jakmile detekujeme že náš bundle == latest po
+    // refresh, sessionStorage zapamatuje to do dalšího session reset.
+    const STORAGE_KEY = "update:settledVersion";
+    try {
+      if (sessionStorage.getItem(STORAGE_KEY) === mine) {
+        // Předchozí cyklus skončil OK — neukazujeme modal dokud session žije.
+        return;
+      }
+    } catch {
+      /* private mode — fall through */
+    }
+
     let cancelled = false;
     async function check() {
       try {
@@ -59,18 +85,31 @@ export default function UpdateBanner() {
         if (!res.ok) return;
         const data = (await res.json()) as { version?: string };
         if (cancelled) return;
-        if (data.version && data.version !== mine) {
-          setLatestVersion(data.version);
-          setNeedRefresh(true);
+        if (!data.version) return;
+        if (data.version === mine) {
+          // V souladu — uložíme a od teď ignorujeme polling result do
+          // další session.
+          try {
+            sessionStorage.setItem(STORAGE_KEY, mine);
+          } catch {
+            /* ignore */
+          }
+          return;
         }
+        // Mismatch → modal.
+        setLatestVersion(data.version);
+        setNeedRefresh(true);
       } catch {
         // Offline / 404 — silent
       }
     }
-    void check();
+    const startTimer = window.setTimeout(() => {
+      void check();
+    }, initialDelay);
     const id = window.setInterval(check, VERSION_POLL_MS);
     return () => {
       cancelled = true;
+      window.clearTimeout(startTimer);
       window.clearInterval(id);
     };
   }, []);
@@ -80,16 +119,22 @@ export default function UpdateBanner() {
   async function handleReload() {
     setReloading(true);
 
-    // Iteration history:
-    //   V12.2 — volali jsme updater.updateSW(true) (workbox-coordinated
-    //   skip-wait + reload). Na iOS PWA ale interní waiter občas
-    //   nedostane controllerchange event a tlačítko "Obnovit" se točí
-    //   donekonečna. Uživatel musel forcequitnout PWA.
+    // V18-S22 — robustnější reload flow proti loop bugu:
     //
-    // V15 fix: obejít workbox helper, poslat SKIP_WAITING ručně a dát
-    // tvrdý 1.5s timeout. Když controllerchange přijde, super; když ne,
-    // stejně pokračujeme na location.reload() — browser si nové SW a
-    // bundle stáhne na dalším navigation cyklu.
+    // 1. SKIP_WAITING signál nedětrpělivému SW + race s controllerchange
+    //    (max 1.5s timeout). Když SW odpoví dřív, super; když ne,
+    //    pokračujeme dál — možná SW není v "waiting" stavu protože
+    //    autoUpdate ho už aplikoval.
+    //
+    // 2. NOVÉ: smazat všechny SW caches manuálně. Workbox cache-cleanup
+    //    je "nice-to-have" ale nepokrývá vše (zvlášť `runtimeCaching`
+    //    entries). Když cache zůstane stará, browser ji načte z disku
+    //    a polling vidí mismatch znovu → loop.
+    //
+    // 3. Hard-reload přes URL change s `?__update=<timestamp>` query.
+    //    `location.reload()` v moderních browserech respektuje HTTP
+    //    cache (ETag → 304 Not Modified → starý bundle z disku). Změna
+    //    URL = browser musí udělat fresh fetch z origin.
     try {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg?.waiting) {
@@ -109,7 +154,31 @@ export default function UpdateBanner() {
       console.warn("[update] skipWaiting path failed, falling back to plain reload:", err);
     }
 
-    window.location.reload();
+    // Manuální cache cleanup — projdi všechny SW caches a smaž je.
+    // Workbox je vytváří dynamicky (precache-v2-...), nemá smysl
+    // matchovat jména — smaž vše.
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch (err) {
+      console.warn("[update] cache cleanup failed:", err);
+    }
+
+    // Reset sessionStorage update marker, jinak by guard v polling
+    // useEffect po reload bookmarknul starou verzi.
+    try {
+      sessionStorage.removeItem("update:settledVersion");
+    } catch {
+      /* ignore */
+    }
+
+    // Hard-reload přes URL change. `__update` query param + nový timestamp
+    // změní URL, browser stáhne `index.html` čerstvě z origin.
+    const next = new URL(window.location.href);
+    next.searchParams.set("__update", Date.now().toString());
+    window.location.replace(next.toString());
   }
 
   const mine = import.meta.env.VITE_APP_VERSION;

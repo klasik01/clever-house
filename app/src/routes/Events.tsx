@@ -146,12 +146,15 @@ function EventCard({ event }: { event: Event }) {
   const t = useT();
   const start = new Date(event.startAt);
   const end = new Date(event.endAt);
+  // V18-S23 — pro all-day bereme UTC parts (floating date), aby se datum
+  // shodovalo s tím co je v Apple Calendar / detailu.
   const dateLabel = Number.isNaN(start.getTime())
     ? "—"
     : start.toLocaleDateString("cs-CZ", {
         weekday: "short",
         day: "numeric",
         month: "numeric",
+        ...(event.isAllDay ? { timeZone: "UTC" } : {}),
       });
   const timeLabel = event.isAllDay
     ? "celý den"

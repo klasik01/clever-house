@@ -74,19 +74,47 @@ function toLocalInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** "YYYY-MM-DDTHH:MM" v lokální TZ → ISO UTC. */
-function localInputToIso(local: string): string {
+/**
+ * "YYYY-MM-DDTHH:MM" v lokální TZ → ISO UTC.
+ *
+ * V18-S22 — `isAllDay`: pro celodenní eventy interpretujeme date part
+ * jako "floating date" (UTC midnight literálně). Bez tohoto trikem by
+ * `new Date("2026-04-30T00:00")` v CZ TZ (UTC+2) vrátilo ISO
+ * `2026-04-29T22:00:00Z` — a Apple Calendar pak zobrazí event 29. dubna
+ * místo 30. dubna. Pro non-all-day pokračujeme s lokální TZ konverzí
+ * (čas má smysl).
+ */
+function localInputToIso(local: string, isAllDay = false): string {
   if (!local) return "";
+  if (isAllDay) {
+    // Bere jen datum část, zbytek ignoruje. Vrací UTC midnight.
+    const datePart = local.slice(0, 10); // "YYYY-MM-DD"
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return "";
+    return `${datePart}T00:00:00.000Z`;
+  }
   const d = new Date(local);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString();
 }
 
-/** ISO UTC → "YYYY-MM-DDTHH:MM" v lokální TZ (pro edit pre-fill). */
-function isoToLocalInput(iso: string): string {
+/**
+ * ISO UTC → "YYYY-MM-DDTHH:MM" v lokální TZ (pro edit pre-fill).
+ *
+ * V18-S22 — `isAllDay`: pro celodenní bere UTC date část (ne lokální),
+ * jinak by user v jiné TZ než CZ viděl při edit jiný den než ten, co
+ * vytvořil event. Plus konzistence s ukládáním (taky UTC parts).
+ */
+function isoToLocalInput(iso: string, isAllDay = false): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
+  if (isAllDay) {
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return (
+      `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}` +
+      `T00:00`
+    );
+  }
   return toLocalInput(d);
 }
 
@@ -162,8 +190,8 @@ export default function EventComposer() {
     const ev = editState.event;
     setDraft({
       title: ev.title,
-      startAt: isoToLocalInput(ev.startAt),
-      endAt: isoToLocalInput(ev.endAt),
+      startAt: isoToLocalInput(ev.startAt, ev.isAllDay),
+      endAt: isoToLocalInput(ev.endAt, ev.isAllDay),
       isAllDay: ev.isAllDay,
       address: ev.address,
       description: ev.description,
@@ -186,14 +214,14 @@ export default function EventComposer() {
   // Auto-fix: pokud user změní startAt tak, že endAt je před ním, posuň endAt na start+1h.
   useEffect(() => {
     if (!draft.startAt || !draft.endAt) return;
-    const startMs = Date.parse(localInputToIso(draft.startAt));
-    const endMs = Date.parse(localInputToIso(draft.endAt));
+    const startMs = Date.parse(localInputToIso(draft.startAt, draft.isAllDay));
+    const endMs = Date.parse(localInputToIso(draft.endAt, draft.isAllDay));
     if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
     if (endMs <= startMs) {
       const fixed = new Date(startMs + HOUR_MS);
       setDraft((d) => ({ ...d, endAt: toLocalInput(fixed) }));
     }
-  }, [draft.startAt, draft.endAt]);
+  }, [draft.startAt, draft.endAt, draft.isAllDay]);
 
   // V18-S15 — tasks pro linkedTaskId picker. Moje nebo assignuté mi.
   // Top 20 podle updatedAt DESC aby picker nebyl přetížený.
@@ -230,8 +258,8 @@ export default function EventComposer() {
     if (!draft.title.trim()) return t("events.composer.errorTitleRequired");
     if (draft.inviteeUids.length === 0)
       return t("events.composer.errorNoInvitees");
-    const startIso = localInputToIso(draft.startAt);
-    const endIso = localInputToIso(draft.endAt);
+    const startIso = localInputToIso(draft.startAt, draft.isAllDay);
+    const endIso = localInputToIso(draft.endAt, draft.isAllDay);
     if (!startIso || !endIso) return t("events.composer.errorEndBeforeStart");
     if (Date.parse(endIso) <= Date.parse(startIso))
       return t("events.composer.errorEndBeforeStart");
@@ -250,8 +278,8 @@ export default function EventComposer() {
         await updateEvent(editId, {
           title: draft.title.trim(),
           description: draft.description.trim(),
-          startAt: localInputToIso(draft.startAt),
-          endAt: localInputToIso(draft.endAt),
+          startAt: localInputToIso(draft.startAt, draft.isAllDay),
+          endAt: localInputToIso(draft.endAt, draft.isAllDay),
           isAllDay: draft.isAllDay,
           address: draft.address.trim(),
           inviteeUids: draft.inviteeUids,
@@ -265,8 +293,8 @@ export default function EventComposer() {
           {
             title: draft.title.trim(),
             description: draft.description.trim(),
-            startAt: localInputToIso(draft.startAt),
-            endAt: localInputToIso(draft.endAt),
+            startAt: localInputToIso(draft.startAt, draft.isAllDay),
+            endAt: localInputToIso(draft.endAt, draft.isAllDay),
             isAllDay: draft.isAllDay,
             address: draft.address.trim(),
             inviteeUids: draft.inviteeUids,

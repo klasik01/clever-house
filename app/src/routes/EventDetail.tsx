@@ -328,12 +328,17 @@ function DateTimeDisplay({ event }: { event: Event }) {
 
   if (!bothValid) return null;
 
+  // V18-S23 — pro all-day události bereme UTC parts (event.startAt je
+  // ukládáno jako floating date "YYYY-MM-DDT00:00:00.000Z"). Bez `timeZone:
+  // "UTC"` by user mimo CZ (např. na cestách) viděl jiný den než ten,
+  // který je v Apple Calendar.
   const dateStr = start
     .toLocaleDateString("cs-CZ", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
+      ...(event.isAllDay ? { timeZone: "UTC" } : {}),
     })
     .toUpperCase();
 
