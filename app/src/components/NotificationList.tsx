@@ -129,17 +129,26 @@ function NotificationRow({
   const Icon = EVENT_ICON[item.eventType] ?? Bell;
   const isUnread = !item.readAt;
   const created = new Date(item.createdAt);
-  // V18 — preferuj pre-rendered deepLink z katalogu; fallback na legacy
-  //   taskId/commentId path pro záznamy zapsané před rozšířením schématu.
+  // V18-S26 — preferuj pre-rendered deepLink z katalogu. Fallback path:
+  //   1. event-scope event types (`event_*`) → /event/{eventId} pokud je
+  //      eventId přítomný — i kdyby item měl i taskId (linkedTaskId
+  //      reference), prioritou je vždy event detail.
+  //   2. comment-scope → /t/{taskId}#comment-{commentId}
+  //   3. task-scope → /t/{taskId}
+  //   4. event-scope bez deepLink → /event/{eventId}
+  //   5. nic → /
+  const isEventScope = item.eventType.startsWith("event_");
   const url =
     item.deepLink ??
-    (item.commentId
-      ? `/t/${item.taskId ?? ""}#comment-${item.commentId}`
-      : item.taskId
-        ? `/t/${item.taskId}`
-        : item.eventId
-          ? `/event/${item.eventId}`
-          : "/");
+    (isEventScope && item.eventId
+      ? `/event/${item.eventId}`
+      : item.commentId
+        ? `/t/${item.taskId ?? ""}#comment-${item.commentId}`
+        : item.taskId
+          ? `/t/${item.taskId}`
+          : item.eventId
+            ? `/event/${item.eventId}`
+            : "/");
 
   return (
     <Link

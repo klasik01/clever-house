@@ -75,6 +75,7 @@ service cloud.firestore {
                          'contactEmail',
                          'calendarToken',
                          'calendarTokenRotatedAt',
+                         'calendarLastFetchedAt',
                          'updatedAt',
                        ]);
 

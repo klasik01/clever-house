@@ -24,6 +24,10 @@ export function subscribeUserProfile(
         role,
         displayName: data.displayName ?? null,
         contactEmail: data.contactEmail ?? null,
+        calendarLastFetchedAt:
+          typeof data.calendarLastFetchedAt === "string"
+            ? data.calendarLastFetchedAt
+            : undefined,
         notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
       });
     },

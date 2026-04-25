@@ -152,6 +152,35 @@ export const calendarSubscription = onRequest(
     // 4. Build ICS
     const body = buildCalendarIcs({ events, usersByUid });
 
+    // V18-S25 — throttled write `calendarLastFetchedAt` na user doc.
+    // Apple Calendar fetchuje hourly (default 15-60 min), takže by tady
+    // byl write ~24-96× za den/user → drahé. Throttle: aktualizujeme
+    // jen pokud `lastFetchedAt` je starší než 60 min. Klient si to čte
+    // přes useUserRole subscription — pro UI "Připojeno (sync před X min)"
+    // detekci.
+    try {
+      const userData = userSnap.data() ?? {};
+      const last =
+        typeof userData.calendarLastFetchedAt === "string"
+          ? Date.parse(userData.calendarLastFetchedAt)
+          : 0;
+      const now = Date.now();
+      const THROTTLE_MS = 60 * 60 * 1000; // 1h
+      if (Number.isNaN(last) || now - last > THROTTLE_MS) {
+        await db
+          .collection("users")
+          .doc(uid)
+          .update({ calendarLastFetchedAt: new Date(now).toISOString() })
+          .catch((err) => {
+            // Non-fatal — pokud write selže, klient prostě uvidí starší
+            // timestamp. Nechceme rozbít serve flow.
+            logger.warn("lastFetchedAt write failed (non-fatal)", { uid, err });
+          });
+      }
+    } catch (err) {
+      logger.warn("lastFetchedAt throttle check failed", { uid, err });
+    }
+
     logger.info("calendarSubscription — served", {
       uid,
       events: events.length,

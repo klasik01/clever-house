@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useEvent } from "@/hooks/useEvent";
 import { useTask } from "@/hooks/useTask";
+import { subscriptionStatus } from "@/lib/subscriptionStatus";
 import { canEditEvent } from "@/lib/permissions";
 import { useRsvps } from "@/hooks/useRsvps";
 import { useUsers } from "@/hooks/useUsers";
@@ -249,8 +250,17 @@ export default function EventDetail() {
         </section>
       )}
 
-      {/* V18-S06 — Přidat do kalendáře (ICS download) */}
-      <AddToCalendarButton event={event} byUid={byUid} />
+      {/* V18-S25 — Přidat do kalendáře: heuristic detection.
+          Pokud user má aktivní webcal subscription (CF zaznamenala fetch
+          ≤25h zpátky), event už je v jeho kalendáři automaticky → jen
+          drobný hint. Jinak nabídneme manuální ICS download. */}
+      <AddToCalendarSection event={event} byUid={byUid} subscriptionInfo={
+        subscriptionStatus(
+          roleState.status === "ready"
+            ? roleState.profile.calendarLastFetchedAt
+            : undefined,
+        )
+      } />
 
       {/* Meta footer */}
       <MetaFooter event={event} byUid={byUid} />
@@ -585,6 +595,83 @@ function MetaFooter({
       <p>
         {t("events.detail.metaCreatedBy", { name: creatorName })}{" "}
         <span className="text-ink-subtle">· {relTime}</span>
+      </p>
+    </section>
+  );
+}
+
+/**
+ * V18-S25 — wrapper kolem AddToCalendarButton. Heuristicky detekuje
+ * jestli má user aktivní webcal subscription a podle toho rozhoduje:
+ *   - active → jen text "Tato událost je v tvém kalendáři" + collapse
+ *     pro fallback download (kdyby user chtěl manuálně)
+ *   - stale/unknown → původní viditelný [Přidat do kalendáře] button
+ *     (s odkazem na Settings pro automatické připojení)
+ */
+function AddToCalendarSection({
+  event,
+  byUid,
+  subscriptionInfo,
+}: {
+  event: Event;
+  byUid: Map<string, UserProfile>;
+  subscriptionInfo: ReturnType<typeof subscriptionStatus>;
+}) {
+  const t = useT();
+  const [showManual, setShowManual] = useState(false);
+
+  if (subscriptionInfo.status === "active") {
+    const mins = subscriptionInfo.staleMinutes ?? 0;
+    const syncLabel =
+      mins < 60
+        ? t("events.detail.syncedMinutesAgo", { n: mins })
+        : t("events.detail.syncedHoursAgo", {
+            n: Math.floor(mins / 60),
+          });
+    return (
+      <section className="mt-6">
+        <div className="flex items-start gap-2 rounded-md bg-surface ring-1 ring-line px-3 py-2 text-sm">
+          <CalendarPlus
+            aria-hidden
+            size={16}
+            className="mt-0.5 shrink-0 text-[color:var(--color-status-success-fg)]"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-ink">{t("events.detail.alreadyInCalendar")}</p>
+            <p className="mt-0.5 text-xs text-ink-subtle">{syncLabel}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowManual((v) => !v)}
+          aria-expanded={showManual}
+          className="mt-2 text-xs text-ink-muted hover:text-ink underline-offset-2 hover:underline"
+        >
+          {showManual
+            ? t("events.detail.manualHide")
+            : t("events.detail.manualShow")}
+        </button>
+        {showManual && (
+          <div className="mt-2">
+            <AddToCalendarButton event={event} byUid={byUid} />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // unknown / stale → původní visible button + tip na automatické připojení
+  return (
+    <section className="mt-6 flex flex-col gap-2">
+      <AddToCalendarButton event={event} byUid={byUid} />
+      <p className="text-xs text-ink-subtle">
+        {t("events.detail.connectHint")}{" "}
+        <Link
+          to="/nastaveni#kalendar"
+          className="underline underline-offset-2 hover:text-ink"
+        >
+          {t("events.detail.connectCta")}
+        </Link>
       </p>
     </section>
   );

@@ -172,6 +172,53 @@
   height: 0;
 }
 
+
+/* --- V18-S27 — iOS PWA zoom + long-press lock ---
+ * Mobile Safari pinch-zoom + double-tap-zoom je vypnutý přes viewport
+ * meta v index.html (user-scalable=no, maximum-scale=1). Tady řeším:
+ *
+ * 1. Long-press menu (callout) na obrázcích/odkazech, který v PWA
+ *    překryje UI a nelze ho zavřít back-tlačítkem (uživatel ztratí
+ *    spodní lištu navigace).
+ * 2. Tap highlight (gray flash) na klikatelných elementech — působí
+ *    lacině v native-feel UI.
+ * 3. Drag-to-select textu na neinputových plochách — častý zdroj
+ *    accidental selectů při scrollu.
+ *
+ * Inputy / textarea / contenteditable / select MUSÍ user-select dostat,
+ * jinak by user nemohl zaznamenat / kopírovat. Stejně tak text v
+ * komentech a popisech (chce-li ho user kopírovat).
+ *
+ * touch-action: manipulation — vypne double-tap-to-zoom (browser
+ * 300ms delay) na všech klikatelných elementech, aniž by porušil
+ * scroll/pan gesture v listech.
+ */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+button,
+a,
+[role="button"],
+[role="tab"],
+[role="link"] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Vrátit user-select pro form controls a copy-paste-able obsah. */
+input,
+textarea,
+select,
+[contenteditable="true"],
+[role="textbox"],
+.user-selectable {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* --- iOS Safari zoom-on-focus fix ---
  * Mobile Safari zooms the viewport in when the user taps any form control
  * whose computed font-size is < 16px. The zoom survives blur, breaks our

@@ -236,6 +236,10 @@ export interface UserProfile {
   calendarToken?: string;
   /** V18-S12 — ISO kdy byl token naposledy vygenerován/rotován. */
   calendarTokenRotatedAt?: string;
+  /** V18-S25 — ISO timestamp posledního GET requestu na webcal feed (CF
+   *  ho updatuje throttled 1× za hodinu). Heuristic indikátor zda user má
+   *  aktivní subscription v Apple Calendar (≤25h od fetchu = "Připojeno"). */
+  calendarLastFetchedAt?: string;
 }
 
 // ==================== V15 — Push notifications ====================
