@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import { ArrowLeft, Ban, CalendarCheck, CalendarPlus, CalendarX, Check, MapPin, Pencil, Trash2, X as XIcon } from "lucide-react";
@@ -8,6 +7,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useEvent } from "@/hooks/useEvent";
 import { useTask } from "@/hooks/useTask";
 import { subscriptionStatus } from "@/lib/subscriptionStatus";
+import {
+  formatEventDateLong,
+  formatEventTimeRange,
+  statusBadgeTokens,
+} from "@/lib/eventFormatting";
 import { canEditEvent } from "@/lib/permissions";
 import { useRsvps } from "@/hooks/useRsvps";
 import { useUsers } from "@/hooks/useUsers";
@@ -312,67 +316,27 @@ function LinkedTaskChip({ taskId }: { taskId: string }) {
 
 function StatusBadge({ status }: { status: Event["status"] }) {
   const t = useT();
-  if (status === "UPCOMING") return <span className="w-10" aria-hidden />;
-  const label =
-    status === "AWAITING_CONFIRMATION"
-      ? t("events.status.awaiting")
-      : status === "HAPPENED"
-      ? t("events.status.happened")
-      : t("events.status.cancelled");
-  const color =
-    status === "AWAITING_CONFIRMATION"
-      ? "var(--color-status-danger-fg)"
-      : status === "HAPPENED"
-      ? "var(--color-status-success-fg)"
-      : "var(--color-ink-subtle)";
-  const bg =
-    status === "AWAITING_CONFIRMATION"
-      ? "var(--color-priority-p1-bg)"
-      : status === "HAPPENED"
-      ? "var(--color-status-success-bg)"
-      : "var(--color-bg-subtle)";
+  // V18-S35 — token mapping extrakcí do lib/eventFormatting.
+  // UPCOMING vrátí null → render prázdný spacer (zachová layout v top baru).
+  const tokens = statusBadgeTokens(status);
+  if (!tokens) return <span className="w-10" aria-hidden />;
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-medium"
-      style={{ color, background: bg }}
+      style={{ color: tokens.color, background: tokens.background }}
     >
-      {label}
+      {t(tokens.i18nKey)}
     </span>
   );
 }
 
 function DateTimeDisplay({ event }: { event: Event }) {
   const t = useT();
-  const start = useMemo(() => new Date(event.startAt), [event.startAt]);
-  const end = useMemo(() => new Date(event.endAt), [event.endAt]);
-  const bothValid =
-    !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime());
-
-  if (!bothValid) return null;
-
-  // V18-S23 — pro all-day události bereme UTC parts (event.startAt je
-  // ukládáno jako floating date "YYYY-MM-DDT00:00:00.000Z"). Bez `timeZone:
-  // "UTC"` by user mimo CZ (např. na cestách) viděl jiný den než ten,
-  // který je v Apple Calendar.
-  const dateStr = start
-    .toLocaleDateString("cs-CZ", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      ...(event.isAllDay ? { timeZone: "UTC" } : {}),
-    })
-    .toUpperCase();
-
-  const timeStr = event.isAllDay
-    ? t("events.detail.allDayLabel")
-    : `${start.toLocaleTimeString("cs-CZ", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })} – ${end.toLocaleTimeString("cs-CZ", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
+  // V18-S35 — formátování delegováno do lib/eventFormatting.
+  // Helpery defenzivně handlují invalid ISO (vrátí prázdný string).
+  const dateStr = formatEventDateLong(event);
+  if (!dateStr) return null;
+  const timeStr = formatEventTimeRange(event, t("events.detail.allDayLabel"));
 
   return (
     <div className="mt-4">

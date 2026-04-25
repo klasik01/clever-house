@@ -5,6 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
 import { subscribeEvents } from "@/lib/events";
 import type { Event } from "@/types";
+import {
+  formatEventDateShort,
+  formatEventTimeRange,
+} from "@/lib/eventFormatting";
 
 /**
  * V18-S01 — Events list route.
@@ -144,27 +148,9 @@ export default function Events() {
 
 function EventCard({ event }: { event: Event }) {
   const t = useT();
-  const start = new Date(event.startAt);
-  const end = new Date(event.endAt);
-  // V18-S23 — pro all-day bereme UTC parts (floating date), aby se datum
-  // shodovalo s tím co je v Apple Calendar / detailu.
-  const dateLabel = Number.isNaN(start.getTime())
-    ? "—"
-    : start.toLocaleDateString("cs-CZ", {
-        weekday: "short",
-        day: "numeric",
-        month: "numeric",
-        ...(event.isAllDay ? { timeZone: "UTC" } : {}),
-      });
-  const timeLabel = event.isAllDay
-    ? "celý den"
-    : `${start.toLocaleTimeString("cs-CZ", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}–${end.toLocaleTimeString("cs-CZ", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
+  // V18-S35 — formátování přes lib/eventFormatting (DRY se EventDetail).
+  const dateLabel = formatEventDateShort(event);
+  const timeLabel = formatEventTimeRange(event, "celý den");
 
   // Status badge — jen pokud ne-UPCOMING (neutrální default je čistší).
   const statusKey: Record<string, string> = {
