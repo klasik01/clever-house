@@ -11,6 +11,7 @@ import { subscriptionStatus } from "@/lib/subscriptionStatus";
 import { canEditEvent } from "@/lib/permissions";
 import { useRsvps } from "@/hooks/useRsvps";
 import { useUsers } from "@/hooks/useUsers";
+import { useBusy } from "@/components/BusyOverlay";
 import { cancelEvent, confirmEventHappened, deleteEvent } from "@/lib/events";
 import { buildEventIcs } from "@/lib/ics";
 import { setRsvp } from "@/lib/rsvp";
@@ -36,6 +37,7 @@ export default function EventDetail() {
   const { user } = useAuth();
   const { byUid } = useUsers(Boolean(user));
   const roleState = useUserRole(user?.uid);
+  const busy = useBusy();
 
   // Loading / missing / error render. Detail render pod.
   if (state.status === "loading") {
@@ -75,19 +77,23 @@ export default function EventDetail() {
   async function handleDelete() {
     if (!window.confirm(t("events.detail.deleteConfirm"))) return;
     try {
-      await deleteEvent(event.id);
-      navigate("/events");
+      await busy.run(async () => {
+        await deleteEvent(event.id);
+        navigate("/events");
+      }, t("busy.deleting"));
     } catch (e) {
       console.error("deleteEvent failed", e);
+      window.alert(t("events.detail.deleteFailed"));
     }
   }
 
   async function handleCancel() {
     if (!window.confirm(t("events.detail.cancelConfirm"))) return;
     try {
-      await cancelEvent(event.id);
-      // Zůstáváme na detailu — user vidí strike-through + "Zrušeno" badge
-      // a potvrzení proběhlo v UI optimisticky přes Firestore snapshot.
+      await busy.run(
+        () => cancelEvent(event.id),
+        t("busy.cancelling"),
+      );
     } catch (e) {
       console.error("cancelEvent failed", e);
       window.alert(t("events.detail.cancelFailed"));
@@ -96,7 +102,10 @@ export default function EventDetail() {
 
   async function handleConfirmHappened() {
     try {
-      await confirmEventHappened(event.id);
+      await busy.run(
+        () => confirmEventHappened(event.id),
+        t("busy.saving"),
+      );
     } catch (e) {
       console.error("confirmEventHappened failed", e);
       window.alert(t("events.detail.retroFailed"));
@@ -106,7 +115,10 @@ export default function EventDetail() {
   async function handleRetroCancel() {
     if (!window.confirm(t("events.detail.retroCancelConfirm"))) return;
     try {
-      await cancelEvent(event.id);
+      await busy.run(
+        () => cancelEvent(event.id),
+        t("busy.cancelling"),
+      );
     } catch (e) {
       console.error("retro cancel failed", e);
       window.alert(t("events.detail.retroFailed"));
@@ -501,6 +513,7 @@ function RsvpActions({ event }: { event: Event }) {
   const { byUid } = useRsvps(event.id);
   const [pending, setPending] = useState<RsvpAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const busy = useBusy();
 
   const myRsvp = user ? byUid.get(user.uid) : undefined;
 
@@ -509,7 +522,10 @@ function RsvpActions({ event }: { event: Event }) {
     setPending(response);
     setError(null);
     try {
-      await setRsvp(event.id, user.uid, response);
+      await busy.run(
+        () => setRsvp(event.id, user.uid, response),
+        t("busy.saving"),
+      );
     } catch (e) {
       console.error("setRsvp failed", e);
       setError(t("events.composer.saveFailed"));

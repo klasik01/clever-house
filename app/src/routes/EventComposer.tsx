@@ -9,6 +9,7 @@ import { useEvent } from "@/hooks/useEvent";
 import { useTasks } from "@/hooks/useTasks";
 import { createEvent, updateEvent } from "@/lib/events";
 import { canEditEvent } from "@/lib/permissions";
+import { useBusy } from "@/components/BusyOverlay";
 import { resolveUserName } from "@/lib/names";
 
 /**
@@ -203,6 +204,7 @@ export default function EventComposer() {
 
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const busy = useBusy();
 
   // Debounce draft save — jen v new mode, v edit nechceme míchat draft
   //   s live Firestore daty.
@@ -274,23 +276,9 @@ export default function EventComposer() {
     setSubmitError(null);
     setSaving(true);
     try {
-      if (isEditMode && editId) {
-        await updateEvent(editId, {
-          title: draft.title.trim(),
-          description: draft.description.trim(),
-          startAt: localInputToIso(draft.startAt, draft.isAllDay),
-          endAt: localInputToIso(draft.endAt, draft.isAllDay),
-          isAllDay: draft.isAllDay,
-          address: draft.address.trim(),
-          inviteeUids: draft.inviteeUids,
-          linkedTaskId: draft.linkedTaskId,
-        });
-        navigate(`/event/${editId}`, { replace: true });
-      } else {
-        const authorRole =
-          roleState.status === "ready" ? roleState.profile.role : "OWNER";
-        const newId = await createEvent(
-          {
+      await busy.run(async () => {
+        if (isEditMode && editId) {
+          await updateEvent(editId, {
             title: draft.title.trim(),
             description: draft.description.trim(),
             startAt: localInputToIso(draft.startAt, draft.isAllDay),
@@ -299,13 +287,29 @@ export default function EventComposer() {
             address: draft.address.trim(),
             inviteeUids: draft.inviteeUids,
             linkedTaskId: draft.linkedTaskId,
-          },
-          user.uid,
-          authorRole,
-        );
-        clearDraft();
-        navigate(`/event/${newId}`, { replace: true });
-      }
+          });
+          navigate(`/event/${editId}`, { replace: true });
+        } else {
+          const authorRole =
+            roleState.status === "ready" ? roleState.profile.role : "OWNER";
+          const newId = await createEvent(
+            {
+              title: draft.title.trim(),
+              description: draft.description.trim(),
+              startAt: localInputToIso(draft.startAt, draft.isAllDay),
+              endAt: localInputToIso(draft.endAt, draft.isAllDay),
+              isAllDay: draft.isAllDay,
+              address: draft.address.trim(),
+              inviteeUids: draft.inviteeUids,
+              linkedTaskId: draft.linkedTaskId,
+            },
+            user.uid,
+            authorRole,
+          );
+          clearDraft();
+          navigate(`/event/${newId}`, { replace: true });
+        }
+      }, t("busy.saving"));
     } catch (e) {
       console.error("save event failed", e);
       setSubmitError(t("events.composer.saveFailed"));

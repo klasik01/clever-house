@@ -7,6 +7,7 @@ import {
   updateUserContactEmail,
   updateUserDisplayName,
 } from "@/lib/userProfile";
+import { useBusy } from "@/components/BusyOverlay";
 
 /**
  * V18-S24 — onboarding modal pro nově přihlášené users co nemají vyplněné
@@ -34,6 +35,7 @@ export default function OnboardingModal() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const busy = useBusy();
   if (!user) return null;
   if (dismissed) return null;
   if (roleState.status !== "ready") return null;
@@ -68,7 +70,10 @@ export default function OnboardingModal() {
     }
     setSaving(true);
     try {
-      await updateUserDisplayName(user!.uid, trimmed);
+      await busy.run(
+        () => updateUserDisplayName(user!.uid, trimmed),
+        t("busy.saving"),
+      );
       setStep(2);
     } catch (e) {
       console.error("nickname save in onboarding failed", e);
@@ -88,7 +93,10 @@ export default function OnboardingModal() {
     setSaving(true);
     try {
       if (trimmed) {
-        await updateUserContactEmail(user!.uid, trimmed);
+        await busy.run(
+          () => updateUserContactEmail(user!.uid, trimmed),
+          t("busy.saving"),
+        );
       }
       setDismissed(true);
     } catch (e) {

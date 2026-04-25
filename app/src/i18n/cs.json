@@ -651,6 +651,7 @@
       "edit": "Upravit",
       "delete": "Smazat",
       "deleteConfirm": "Opravdu smazat tuto událost? Akce je nevratná.",
+      "deleteFailed": "Smazání se nepovedlo. Zkus to znovu.",
       "notFoundTitle": "Událost nenalezena",
       "notFoundBody": "Událost byla smazána nebo k ní nemáš přístup.",
       "loadFailed": "Událost se nepodařilo načíst.",
@@ -709,5 +710,13 @@
     "saving": "Ukládám…",
     "skipAll": "Přeskočit",
     "saveFailed": "Uložení se nepovedlo. Zkus to znovu."
+  }
+,
+  "busy": {
+    "defaultLabel": "Pracuji…",
+    "saving": "Ukládám…",
+    "deleting": "Mažu…",
+    "cancelling": "Ruším…",
+    "loading": "Načítám…"
   }
 }

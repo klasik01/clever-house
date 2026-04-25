@@ -10,6 +10,7 @@ import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useT } from "@/i18n/useT";
 import { updateUserContactEmail, updateUserDisplayName } from "@/lib/userProfile";
+import { useBusy } from "@/components/BusyOverlay";
 import {
   buildCalendarUrl,
   ensureCalendarToken,
@@ -503,11 +504,16 @@ function CalendarSection({ uid }: { uid: string }) {
     }
   }
 
+  const busy = useBusy();
+
   async function handleReset() {
     if (!window.confirm(t("settings.calendarResetConfirm"))) return;
     setResetting(true);
     try {
-      const next = await rotateCalendarToken(uid);
+      const next = await busy.run(
+        () => rotateCalendarToken(uid),
+        t("busy.saving"),
+      );
       setToken(next);
     } catch (e) {
       console.error("rotateCalendarToken failed", e);

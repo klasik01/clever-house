@@ -33,14 +33,16 @@ import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
 import UpdateBanner from "./components/UpdateBanner";
+import { BusyProvider } from "./components/BusyOverlay";
 import { signOut } from "./lib/auth";
 import { useT } from "./i18n/useT";
 
 export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <UpdateBanner />
-      <Routes>
+      <BusyProvider>
+        <UpdateBanner />
+        <Routes>
         <Route path="/auth/prihlaseni" element={<Login />} />
 
         <Route element={<ProtectedLayout />}>
@@ -67,7 +69,8 @@ export default function App() {
           <Route path="/lokace" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
-      </Routes>
+        </Routes>
+      </BusyProvider>
     </BrowserRouter>
   );
 }
