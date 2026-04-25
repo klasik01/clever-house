@@ -4,7 +4,7 @@ vi.mock("firebase/firestore", () => import("@/test/firestoreMock"));
 vi.mock("@/lib/firebase", () => ({ db: {} }));
 
 import { __firestoreState } from "@/test/firestoreMock";
-import { createComment } from "./comments";
+import { computeReactionDelta, createComment } from "./comments";
 
 beforeEach(() => __firestoreState.reset());
 
@@ -176,5 +176,65 @@ describe("createComment — V17.3 priorAssigneeUid snapshot", () => {
       unknown
     >;
     expect(stored.priorAssigneeUid).toBeNull();
+  });
+});
+
+
+// V18-S32 — pure helper testy pro reaction toggle logiku.
+describe("computeReactionDelta (pure)", () => {
+  it("přidá uid pokud reactionu ještě nemá", () => {
+    const next = computeReactionDelta({}, "👍", "alice");
+    expect(next).toEqual({ "👍": ["alice"] });
+  });
+
+  it("přidá uid na konec existujícího listu", () => {
+    const next = computeReactionDelta({ "👍": ["bob"] }, "👍", "alice");
+    expect(next).toEqual({ "👍": ["bob", "alice"] });
+  });
+
+  it("odebere uid pokud už reactionu má (toggle off)", () => {
+    const next = computeReactionDelta({ "👍": ["bob", "alice"] }, "👍", "alice");
+    expect(next).toEqual({ "👍": ["bob"] });
+  });
+
+  it("smaže klíč emoji když je list prázdný", () => {
+    const next = computeReactionDelta({ "👍": ["alice"] }, "👍", "alice");
+    expect(next).not.toHaveProperty("👍");
+    expect(next).toEqual({});
+  });
+
+  it("nezasahuje do jiných emoji", () => {
+    const next = computeReactionDelta(
+      { "👍": ["alice"], "❤️": ["bob"] },
+      "👍",
+      "alice",
+    );
+    expect(next).toEqual({ "❤️": ["bob"] });
+  });
+
+  it("undefined input → empty + add", () => {
+    expect(computeReactionDelta(undefined, "🎉", "alice")).toEqual({
+      "🎉": ["alice"],
+    });
+  });
+
+  it("null input → empty + add", () => {
+    expect(computeReactionDelta(null, "🎉", "alice")).toEqual({
+      "🎉": ["alice"],
+    });
+  });
+
+  it("idempotent — toggle 2× vrátí original", () => {
+    const initial = { "👍": ["bob"] };
+    const after1 = computeReactionDelta(initial, "👍", "alice");
+    expect(after1).toEqual({ "👍": ["bob", "alice"] });
+    const after2 = computeReactionDelta(after1, "👍", "alice");
+    expect(after2).toEqual({ "👍": ["bob"] });
+  });
+
+  it("nemodifikuje vstupní objekt (immutable)", () => {
+    const input = { "👍": ["bob"] };
+    computeReactionDelta(input, "👍", "alice");
+    expect(input).toEqual({ "👍": ["bob"] });
   });
 });

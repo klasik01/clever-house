@@ -167,6 +167,34 @@ export async function deleteComment(
 }
 
 /**
+ * Pure helper — kompute next ReactionMap state pro toggle akci.
+ * Extrahovaný z toggleReaction transaction body, aby šel unit-testovat
+ * bez Firestore mocku.
+ *
+ * Pravidla:
+ *   - Pokud user už emoji reactionu má → odebrat (idempotentní toggle)
+ *   - Pokud nemá → přidat na konec listu
+ *   - Pokud po toggle list emoji je prázdný → smazat klíč úplně
+ *     (nezachovávat `[]` aby render nezobrazoval prázdné chips)
+ */
+export function computeReactionDelta(
+  current: ReactionMap | undefined | null,
+  emoji: string,
+  uid: string,
+): ReactionMap {
+  const reactions: ReactionMap = { ...(current ?? {}) };
+  const list = reactions[emoji] ?? [];
+  const has = list.includes(uid);
+  const next = has ? list.filter((x) => x !== uid) : [...list, uid];
+  if (next.length === 0) {
+    delete reactions[emoji];
+  } else {
+    reactions[emoji] = next;
+  }
+  return reactions;
+}
+
+/**
  * Toggle emoji reaction — idempotent add/remove for current user.
  * Uses a Firestore transaction to avoid racing concurrent reactions.
  */
@@ -181,15 +209,7 @@ export async function toggleReaction(
     const snap = await tx.get(ref);
     if (!snap.exists()) return;
     const data = snap.data() as { reactions?: ReactionMap };
-    const reactions: ReactionMap = { ...(data.reactions ?? {}) };
-    const list = reactions[emoji] ?? [];
-    const has = list.includes(uid);
-    const next = has ? list.filter((x) => x !== uid) : [...list, uid];
-    if (next.length === 0) {
-      delete reactions[emoji];
-    } else {
-      reactions[emoji] = next;
-    }
+    const reactions = computeReactionDelta(data.reactions, emoji, uid);
     tx.update(ref, { reactions });
   });
 }
