@@ -75,36 +75,35 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   }
 
   if (creator) {
-    // V18-S20 — CN = email (ne přezdívka). Apple Calendar pak zobrazuje
-    // "stanislav.kasika@gmail.com" místo "Stáňa", což je jednoznačnější
-    // pro multi-account user (vidím přesně kdo to organizuje, ne ambig.
-    // přezdívku). Fallback na resolveUserName když email chybí (legacy).
-    const creatorEmail = creator.email || `${creator.uid}@chytrydum.local`;
-    const creatorCn = creator.email
-      ? creator.email
-      : resolveUserName({
-          profileDisplayName: creator.displayName,
-          email: creator.email,
-          uid: creator.uid,
-        });
+    // V18-S24 — mailto = contactEmail (iCloud kontakt) || email (auth)
+    // || synthesized fallback. CN = přezdívka pro friendly view; Apple
+    // Calendar ji zobrazí vedle email matchovaným kontaktem v Contacts.
+    const creatorEmail =
+      creator.contactEmail || creator.email || `${creator.uid}@chytrydum.local`;
+    const creatorCn = resolveUserName({
+      profileDisplayName: creator.displayName,
+      email: creator.email,
+      uid: creator.uid,
+    });
     lines.push(
       `ORGANIZER;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
     );
   }
 
   // ATTENDEE per invitee. Bez PARTSTAT — viz R1 mitigation.
-  // V18-S20 — CN = email (důvod viz ORGANIZER výše). Email je primární
-  // identifikátor, přezdívka jen v UI appky.
+  // V18-S24 — mailto bere contactEmail (pokud user v Settings nastavil
+  // svůj iCloud email) jinak fallback na auth email. CN = přezdívka pro
+  // friendly view — Apple Calendar pak zobrazí "Stáňa <stana@icloud.com>"
+  // a klik na účastníka najde vizitku v iCloud Contacts.
   for (const uid of event.inviteeUids) {
     const profile = inviteeUsers?.get(uid);
-    const email = profile?.email || `${uid}@chytrydum.local`;
-    const cn = profile?.email
-      ? profile.email
-      : resolveUserName({
-          profileDisplayName: profile?.displayName,
-          email: profile?.email,
-          uid,
-        });
+    const email =
+      profile?.contactEmail || profile?.email || `${uid}@chytrydum.local`;
+    const cn = resolveUserName({
+      profileDisplayName: profile?.displayName,
+      email: profile?.email,
+      uid,
+    });
     lines.push(
       `ATTENDEE;CN=${escapeIcsText(cn)}:mailto:${email}`,
     );

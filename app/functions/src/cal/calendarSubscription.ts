@@ -143,6 +143,8 @@ export const calendarSubscription = onRequest(
           displayName:
             typeof d.displayName === "string" ? d.displayName : null,
           email: typeof d.email === "string" ? d.email : null,
+          contactEmail:
+            typeof d.contactEmail === "string" ? d.contactEmail : null,
         });
       }
     }

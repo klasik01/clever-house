@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotificationPermission } from "@/hooks/useNotificationPermission";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useT } from "@/i18n/useT";
-import { updateUserDisplayName } from "@/lib/userProfile";
+import { updateUserContactEmail, updateUserDisplayName } from "@/lib/userProfile";
 import {
   buildCalendarUrl,
   ensureCalendarToken,
@@ -57,6 +57,17 @@ export default function Settings() {
           />
         )}
         <Row label={t("settings.email")} value={user?.email ?? "—"} />
+        {user && (
+          <ContactEmailRow
+            uid={user.uid}
+            initialValue={
+              roleState.status === "ready"
+                ? roleState.profile.contactEmail ?? ""
+                : ""
+            }
+            authEmail={user.email ?? ""}
+          />
+        )}
         <Row label={t("settings.role")} value={roleLabel} />
       </SettingsGroup>
 
@@ -284,6 +295,117 @@ function NicknameRow({
         className="w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none focus:ring-1 focus:ring-line-focus"
       />
       <p className="text-xs text-ink-subtle">{t("settings.nameHint")}</p>
+    </div>
+  );
+}
+
+/**
+ * V18-S24 — kontakt email pro Apple Calendar Contacts matching.
+ * User vyplní svůj iCloud / preferovaný email. ICS pak v ATTENDEE
+ * mailto: použije tento email — Apple Calendar v iCloud Contacts najde
+ * vizitku a zobrazí ji při kliknutí na účastníka.
+ *
+ * Commit on blur stejně jako NicknameRow. Light validation: musí obsahovat
+ * @ a aspoň jeden tečku, jinak `setSavedVisible(false)` + UI toast.
+ */
+function ContactEmailRow({
+  uid,
+  initialValue,
+  authEmail,
+}: {
+  uid: string;
+  initialValue: string;
+  authEmail: string;
+}) {
+  const t = useT();
+  const [value, setValue] = useState(initialValue);
+  const [saving, setSaving] = useState(false);
+  const [savedVisible, setSavedVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const lastCommittedRef = useRef(initialValue);
+
+  useEffect(() => {
+    if (!saving) {
+      setValue(initialValue);
+      lastCommittedRef.current = initialValue;
+    }
+  }, [initialValue, saving]);
+
+  function isValidEmail(s: string): boolean {
+    if (s.length === 0) return true; // empty = clear, OK
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  }
+
+  async function commit() {
+    const next = value.trim();
+    if (next === lastCommittedRef.current.trim()) return;
+    if (!isValidEmail(next)) {
+      setError(t("settings.contactEmailInvalid"));
+      setValue(lastCommittedRef.current);
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      await updateUserContactEmail(uid, next);
+      lastCommittedRef.current = next;
+      setSavedVisible(true);
+      window.setTimeout(() => setSavedVisible(false), 1500);
+    } catch (e) {
+      console.error("contactEmail save failed", e);
+      setValue(lastCommittedRef.current);
+      setError(t("settings.contactEmailFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="settings-contact-email" className="text-sm text-ink">
+          {t("settings.contactEmailLabel")}
+        </label>
+        <span className="text-xs text-ink-subtle" aria-live="polite">
+          {saving
+            ? t("settings.nameSaving")
+            : savedVisible
+            ? t("settings.nameSaved")
+            : ""}
+        </span>
+      </div>
+      <input
+        id="settings-contact-email"
+        type="email"
+        autoComplete="email"
+        inputMode="email"
+        value={value}
+        onChange={(e) => {
+          setValue(e.target.value);
+          if (error) setError(null);
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+        placeholder={authEmail || "kontakt@example.cz"}
+        className="w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none focus:ring-1 focus:ring-line-focus"
+      />
+      {error ? (
+        <p
+          role="alert"
+          className="text-xs text-[color:var(--color-status-danger-fg)]"
+        >
+          {error}
+        </p>
+      ) : (
+        <p className="text-xs text-ink-subtle">
+          {t("settings.contactEmailHint")}
+        </p>
+      )}
     </div>
   );
 }

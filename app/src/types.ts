@@ -222,6 +222,12 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   displayName?: string | null;
+  /** V18-S24 — kontakt email pro Apple Calendar matchování s Contacts.
+   *  Lišit se od `email` (= auth email z Google sign-in). User si vyplní
+   *  v Settings, aby Apple Calendar v ATTENDEE listu matchnul kontakt
+   *  v iCloud Contacts a zobrazil vizitku.
+   *  Pokud null/prázdné, ICS použije `email` (auth) jako fallback. */
+  contactEmail?: string | null;
   /** V15 — push notification preferences. Undefined = legacy record;
    *  readers merge with DEFAULT_PREFS (see lib/notifications.ts). */
   notificationPrefs?: NotificationPrefs;

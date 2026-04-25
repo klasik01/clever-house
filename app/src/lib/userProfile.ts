@@ -23,6 +23,7 @@ export function subscribeUserProfile(
         email: data.email ?? "",
         role,
         displayName: data.displayName ?? null,
+        contactEmail: data.contactEmail ?? null,
         notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
       });
     },
@@ -50,6 +51,7 @@ export function subscribeUsers(
           email: data.email ?? "",
           role,
           displayName: data.displayName ?? null,
+          contactEmail: data.contactEmail ?? null,
           notificationPrefs: mergePrefsWithDefaults(data.notificationPrefs),
         };
       });
@@ -74,5 +76,26 @@ export async function updateUserDisplayName(
   const next = displayName.trim();
   await updateDoc(doc(db, "users", uid), {
     displayName: next.length ? next : null,
+  });
+}
+
+/**
+ * V18-S24 — self-update contactEmail (kontakt email pro Apple Calendar
+ * matchování s iCloud Contacts). User v Settings vyplní svůj iCloud
+ * email aby v ATTENDEE listu Apple Calendaru fungovala vizitka kontaktu.
+ *
+ * Validace: pokud trim() vrátí prázdný string → null (= fallback na auth
+ * email v ICS). Jinak ujistit že obsahuje "@" (light validation; prawd
+ * RFC 5322 nemá smysl v UI, server-side ani Firestore žádnou má).
+ *
+ * Rules povolují tento field v diff.affectedKeys vedle displayName.
+ */
+export async function updateUserContactEmail(
+  uid: string,
+  contactEmail: string,
+): Promise<void> {
+  const next = contactEmail.trim();
+  await updateDoc(doc(db, "users", uid), {
+    contactEmail: next.length ? next : null,
   });
 }

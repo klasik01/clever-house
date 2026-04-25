@@ -25,11 +25,14 @@ export interface IcsEvent {
   status: "UPCOMING" | "AWAITING_CONFIRMATION" | "HAPPENED" | "CANCELLED";
 }
 
-/** Lehký user tvar pro resolve name + email v ORGANIZER/ATTENDEE. */
+/** Lehký user tvar pro resolve name + email v ORGANIZER/ATTENDEE.
+ *  V18-S24 — `contactEmail` je preferovaný mailto: pro Apple Contacts
+ *  matchování. Pokud není, fallback na `email` (auth). */
 export interface IcsUser {
   uid: string;
   displayName?: string | null;
   email?: string | null;
+  contactEmail?: string | null;
 }
 
 export interface BuildCalendarIcsInput {
@@ -130,17 +133,19 @@ function renderVevent(
 // ---------- helpers (pure) ----------
 
 function nameAndEmail(u: IcsUser): { name: string; email: string } {
-  // V18-S20 — pro ICS (Apple Calendar attendee zobrazování) preferujeme
-  // **email** jako CN. Důvod: multi-account user vidí jednoznačně, kdo
-  // je zván — místo "Stáňa" (ambig.) uvidí "stanislav.kasika@gmail.com".
-  // Přezdívka zůstává v UI appky pro friendly UX.
-  const e = u.email?.trim();
-  const email = e || `${u.uid}@chytrydum.local`;
-  // Fallback na displayName / uid jen pokud email úplně chybí (legacy
-  // user docs před V15.2 sync).
-  const name = e
-    ? e
-    : u.displayName?.trim() || u.uid.slice(0, 6) || "—";
+  // V18-S24 — mailto: bere `contactEmail` (iCloud kontakt z Settings)
+  // pokud existuje, jinak `email` (auth z Google), jinak synth fallback.
+  // CN je friendly přezdívka pro Apple Calendar zobrazení vedle emailu —
+  // Apple pak v Contacts vyhledá podle email a ukáže vizitku.
+  const contact = u.contactEmail?.trim();
+  const auth = u.email?.trim();
+  const email = contact || auth || `${u.uid}@chytrydum.local`;
+  const displayName = u.displayName?.trim();
+  const name =
+    displayName ||
+    (auth && auth.split("@")[0]) ||
+    u.uid.slice(0, 6) ||
+    "—";
   return { name, email };
 }
 

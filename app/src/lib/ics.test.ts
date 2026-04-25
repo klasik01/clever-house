@@ -183,7 +183,7 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
       creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
     });
     expect(ics).toContain(
-      "ORGANIZER;CN=stanislav@example.cz:mailto:stanislav@example.cz",
+      "ORGANIZER;CN=Stanislav:mailto:stanislav@example.cz",
     );
   });
 
@@ -200,32 +200,73 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
         ["u2", mkUser("u2", "Honza", "honza@example.cz")],
       ]),
     });
-    expect(ics).toContain("ATTENDEE;CN=marie@example.cz:mailto:marie@example.cz");
-    expect(ics).toContain("ATTENDEE;CN=honza@example.cz:mailto:honza@example.cz");
+    expect(ics).toContain("ATTENDEE;CN=Marie:mailto:marie@example.cz");
+    expect(ics).toContain("ATTENDEE;CN=Honza:mailto:honza@example.cz");
   });
 
-  it("V18-S20 — CN=email (ne přezdívka) pro multi-account jednoznačnost", () => {
+  it("V18-S24 — CN=přezdívka, mailto=contactEmail || email (Apple Contacts matching)", () => {
     const ics = buildEventIcs({
       event: mkEvent({ inviteeUids: ["u1"] }),
       inviteeUsers: new Map([
-        ["u1", mkUser("u1", "Stáňa", "stanislav.kasika@gmail.com")],
+        [
+          "u1",
+          {
+            uid: "u1",
+            email: "stanislav.kasika@gmail.com",
+            role: "OWNER",
+            displayName: "Stáňa",
+            // contactEmail nezadané → fallback na auth email
+          },
+        ],
       ]),
     });
-    // CN MÁ být email, NE přezdívka
+    // CN = friendly přezdívka (pro display), mailto = email (pro Contacts match).
+    // Apple Calendar pak v ATTENDEE listu zobrazí "Stáňa <stanislav...>" a
+    // klik na účastníka najde vizitku v iCloud Contacts podle mailto.
     expect(ics).toContain(
-      "ATTENDEE;CN=stanislav.kasika@gmail.com:mailto:stanislav.kasika@gmail.com",
+      "ATTENDEE;CN=Stáňa:mailto:stanislav.kasika@gmail.com",
     );
-    expect(ics).not.toContain("CN=Stáňa");
+  });
+
+  it("V18-S24 — contactEmail (iCloud) má přednost před auth email v mailto", () => {
+    const ics = buildEventIcs({
+      event: mkEvent({ inviteeUids: ["u1"] }),
+      inviteeUsers: new Map([
+        [
+          "u1",
+          {
+            uid: "u1",
+            email: "stana.work@gmail.com", // auth (Google sign-in)
+            role: "OWNER",
+            displayName: "Stáňa",
+            contactEmail: "stana@icloud.com", // iCloud kontakt — Apple Contacts matchuje
+          },
+        ],
+      ]),
+    });
+    expect(ics).toContain("ATTENDEE;CN=Stáňa:mailto:stana@icloud.com");
+    expect(ics).not.toContain("stana.work@gmail.com");
   });
 
   it("V18-S20 — fallback: bez emailu → CN=displayName (legacy data)", () => {
+    // mkUser factory by automaticky vyplnil email — obejdeme rovnou
+    // objektem s prázdným emailem (legacy data před V15.2 user-doc bootstrap).
     const ics = buildEventIcs({
       event: mkEvent({ inviteeUids: ["legacy-uid"] }),
       inviteeUsers: new Map([
-        ["legacy-uid", mkUser("legacy-uid", "OldUser", null)],
+        [
+          "legacy-uid",
+          {
+            uid: "legacy-uid",
+            email: "",
+            role: "OWNER",
+            displayName: "OldUser",
+          },
+        ],
       ]),
     });
-    // Email synthesized z uid → @chytrydum.local fallback
+    // Email synthesized z uid → @chytrydum.local fallback;
+    // CN fallback na displayName (žádný email).
     expect(ics).toContain("CN=OldUser:mailto:legacy-uid@chytrydum.local");
   });
   it("ATTENDEE bez PARTSTAT (R1 mitigation — no Apple RSVP prompt)", () => {

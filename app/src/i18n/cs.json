@@ -107,6 +107,10 @@
     "calendarResetConfirm": "Resetovat token? Staré subscription URL přestane fungovat na všech zařízeních; budeš muset připojit znovu s novou URL.",
     "calendarResetFailed": "Reset se nepovedl. Zkus to znovu.",
     "calendarResetHint": "Reset použij, když máš podezření, že někdo má tvou URL (sdílená historie prohlížeče, omylem publikované screenshoty apod.).",
+    "contactEmailLabel": "Email do kalendáře",
+    "contactEmailHint": "Pro zobrazení vizitky v Apple Calendar (klikni na účastníka). Necháš-li prázdné, použije se přihlašovací email.",
+    "contactEmailInvalid": "Neplatný formát emailu.",
+    "contactEmailFailed": "Email se nepodařilo uložit. Zkus to znovu.",
     "todoTitle": "Pracuje se na",
     "todoHint": "Funkce jsou rozpracované, přijdou v další verzi.",
     "todoRozpocet": "Rozpočet a cenové nabídky",
@@ -682,5 +686,21 @@
       "retroCancelConfirm": "Označit událost jako zrušenou? Pozvaným se neposílá notifikace (už se to stalo).",
       "retroFailed": "Potvrzení se nepodařilo uložit. Zkus to znovu."
     }
+  }
+,
+  "onboarding": {
+    "welcomeTitle": "Vítej v aplikaci",
+    "welcomeBody": "Pojďme rychle nastavit pár věcí — zabere to chviličku.",
+    "stepOf": "Krok {current} z {total}",
+    "nicknameLabel": "Jak ti budou ostatní říkat?",
+    "nicknamePlaceholder": "Stáňa",
+    "nicknameHint": "Tvoje přezdívka v komentářích a u událostí. Můžeš ji vyplnit i později v Nastavení.",
+    "contactEmailLabel": "Tvůj kontakt email",
+    "contactEmailHint": "Slouží k tomu, aby Apple Calendar našel tvou vizitku v Contacts. Většinou je to tvoje primární email — můžeš nechat výchozí.",
+    "next": "Další",
+    "done": "Hotovo",
+    "saving": "Ukládám…",
+    "skipAll": "Přeskočit",
+    "saveFailed": "Uložení se nepovedlo. Zkus to znovu."
   }
 }

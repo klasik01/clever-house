@@ -148,7 +148,7 @@ describe("buildCalendarIcs", () => {
         { uid: "owner-1", displayName: "Stáňa", email: "st@example.com" },
       ]),
     });
-    expect(out).toContain("ORGANIZER;CN=st@example.com:mailto:st@example.com");
+    expect(out).toContain("ORGANIZER;CN=Stáňa:mailto:st@example.com");
   });
 
   it("ATTENDEE line per invitee, s fallbackem na placeholder email", () => {
@@ -163,9 +163,39 @@ describe("buildCalendarIcs", () => {
         { uid: "u1", displayName: "Marie", email: "marie@x.cz" },
       ]),
     });
-    expect(out).toContain("ATTENDEE;CN=marie@x.cz:mailto:marie@x.cz");
-    // ghost dostane fallback email + CN je placeholder uid (nemá email)
+    expect(out).toContain("ATTENDEE;CN=Marie:mailto:marie@x.cz");
+    // ghost (bez user docu): CN fallback na placeholder uid + synth email
     expect(out).toContain("ATTENDEE;CN=u2-gho:mailto:u2-ghost@chytrydum.local");
+  });
+
+  it("V18-S24 — contactEmail (iCloud) má přednost před auth email v mailto", () => {
+    const out = buildCalendarIcs({
+      events: [ev({ id: "a", inviteeUids: ["u1"], createdBy: "u1" })],
+      usersByUid: users([
+        {
+          uid: "u1",
+          displayName: "Stáňa",
+          email: "stana.work@gmail.com",
+          contactEmail: "stana@icloud.com",
+        },
+      ]),
+    });
+    // ORGANIZER + ATTENDEE oba berou contactEmail jako mailto
+    expect(out).toContain("ORGANIZER;CN=Stáňa:mailto:stana@icloud.com");
+    expect(out).toContain("ATTENDEE;CN=Stáňa:mailto:stana@icloud.com");
+    expect(out).not.toContain("stana.work@gmail.com");
+  });
+
+  it("V18-S24 — bez contactEmail: mailto = auth email (fallback)", () => {
+    const out = buildCalendarIcs({
+      events: [ev({ id: "a", inviteeUids: ["u1"], createdBy: "u1" })],
+      usersByUid: users([
+        { uid: "u1", displayName: "Marie", email: "marie@gmail.com" },
+        // contactEmail nezadáno
+      ]),
+    });
+    expect(out).toContain("ORGANIZER;CN=Marie:mailto:marie@gmail.com");
+    expect(out).toContain("ATTENDEE;CN=Marie:mailto:marie@gmail.com");
   });
 
   it("DTSTAMP je UTC Z-suffix (generated at build time)", () => {

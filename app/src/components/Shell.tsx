@@ -10,6 +10,7 @@ import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import NotificationBell from "./NotificationBell";
+import OnboardingModal from "./OnboardingModal";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,7 @@ export default function Shell({ children, role }: Props) {
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <OfflineBanner />
       <NotificationPermissionBanner />
+      <OnboardingModal />
       <Header />
       <main
         id="main"
