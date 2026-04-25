@@ -186,7 +186,7 @@ describe("buildCalendarIcs", () => {
     });
     // ORGANIZER + ATTENDEE oba berou contactEmail jako mailto
     expect(out).toContain("ORGANIZER;CN=Stáňa:mailto:stana@icloud.com");
-    expect(out).toContain("ATTENDEE;CN=Stáňa:mailto:stana@icloud.com");
+    expect(out).toContain("ATTENDEE;CN=Stáňa;ROLE=CHAIR:mailto:stana@icloud.com");
     expect(out).not.toContain("stana.work@gmail.com");
   });
 
@@ -199,7 +199,7 @@ describe("buildCalendarIcs", () => {
       ]),
     });
     expect(out).toContain("ORGANIZER;CN=Marie:mailto:marie@gmail.com");
-    expect(out).toContain("ATTENDEE;CN=Marie:mailto:marie@gmail.com");
+    expect(out).toContain("ATTENDEE;CN=Marie;ROLE=CHAIR:mailto:marie@gmail.com");
   });
 
   it("DTSTAMP je UTC Z-suffix (generated at build time)", () => {
