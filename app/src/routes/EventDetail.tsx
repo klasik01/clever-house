@@ -371,11 +371,29 @@ function InviteesList({
   rsvpByUid: Map<string, Rsvp>;
 }) {
   const t = useT();
-  const total = event.inviteeUids.length;
-  const yesCount = event.inviteeUids.reduce(
-    (acc, uid) => (rsvpByUid.get(uid)?.response === "yes" ? acc + 1 : acc),
-    0,
-  );
+  // V18-S36 — sjednocené UI: autor je vždy první v listu, pak invitees
+  // (deduped pokud autor sám sebe pozval). Autor má badge "Autor"
+  // místo RSVP indikátoru — implicitně potvrzeno, není potřeba RSVPnout.
+  const seenUids = new Set<string>();
+  const orderedUids: string[] = [];
+  if (event.createdBy) {
+    orderedUids.push(event.createdBy);
+    seenUids.add(event.createdBy);
+  }
+  for (const uid of event.inviteeUids) {
+    if (seenUids.has(uid)) continue;
+    orderedUids.push(uid);
+    seenUids.add(uid);
+  }
+
+  // Yes count — autor counts implicitně (jeho akce = vytvoření = potvrzení),
+  // plus kdokoliv s rsvp "yes". Total = unique participants.
+  const total = orderedUids.length;
+  const yesCount = orderedUids.reduce((acc, uid) => {
+    if (uid === event.createdBy) return acc + 1;
+    return rsvpByUid.get(uid)?.response === "yes" ? acc + 1 : acc;
+  }, 0);
+
   return (
     <section className="mt-6" aria-labelledby="event-invitees-heading">
       <div className="mb-2 flex items-baseline justify-between gap-3">
@@ -390,7 +408,7 @@ function InviteesList({
         </span>
       </div>
       <ul className="flex flex-col rounded-md ring-1 ring-line bg-surface divide-y divide-line">
-        {event.inviteeUids.map((uid) => {
+        {orderedUids.map((uid) => {
           const profile = byUid.get(uid);
           const name = resolveUserName({
             profileDisplayName: profile?.displayName,
@@ -398,6 +416,7 @@ function InviteesList({
             uid,
           });
           const rsvp = rsvpByUid.get(uid);
+          const isAuthor = uid === event.createdBy;
           return (
             <li
               key={uid}
@@ -410,7 +429,16 @@ function InviteesList({
                 size="sm"
               />
               <span className="flex-1 truncate">{name}</span>
-              <RsvpIndicator response={rsvp?.response} />
+              {isAuthor ? (
+                <span
+                  className="rounded-pill bg-bg-subtle px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-subtle"
+                  aria-label={t("events.detail.authorBadge")}
+                >
+                  {t("events.detail.authorBadge")}
+                </span>
+              ) : (
+                <RsvpIndicator response={rsvp?.response} />
+              )}
             </li>
           );
         })}

@@ -127,20 +127,35 @@ messaging.onBackgroundMessage(async (payload) => {
 
 // Deep-link click handler — reuse an already-open window if we find one,
 // otherwise spawn a new tab. Target path is passed via payload.data.url.
+//
+// V18-S36 — clients.openWindow(url) interpretuje relativní path vůči
+// origin (ne vůči SW scope). Když je app deployed na sub-path (např.
+// GitHub Pages /clever-house/), "/event/abc" skončí na rootu domény
+// místo v PWA scope → 404 / fallback na home. Resolver via
+// "new URL(path, scope)" to opraví.
+//
+// Pro postMessage cestu (app už otevřená) ponecháme původní rawUrl —
+// react-router s basename ho zpracuje korektně sám.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/";
+  const rawUrl = (event.notification.data && event.notification.data.url) || "/";
+  let fullUrl = rawUrl;
+  try {
+    const scope = new URL(self.registration.scope);
+    const stripped = rawUrl.replace(/^\//, "");
+    fullUrl = new URL(stripped, scope).href;
+  } catch (_) { /* fallback na rawUrl */ }
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of all) {
       if ("focus" in client) {
         try { await client.focus(); } catch (_) {}
-        try { client.postMessage({ type: "NAVIGATE", url }); } catch (_) {}
+        try { client.postMessage({ type: "NAVIGATE", url: rawUrl }); } catch (_) {}
         return;
       }
     }
     if (self.clients.openWindow) {
-      await self.clients.openWindow(url);
+      await self.clients.openWindow(fullUrl);
     }
   })());
 });

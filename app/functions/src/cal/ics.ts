@@ -109,9 +109,15 @@ function renderVevent(
     lines.push(
       `ORGANIZER;CN=${escapeIcsText(name)}:mailto:${email}`,
     );
+    // V18-S37 — autor taky jako ATTENDEE s ROLE=CHAIR (consistent s UI v appce).
+    lines.push(
+      `ATTENDEE;CN=${escapeIcsText(name)};ROLE=CHAIR:mailto:${email}`,
+    );
   }
 
   for (const uid of event.inviteeUids) {
+    // V18-S37 — skip autor (už přidán výše s ROLE=CHAIR).
+    if (uid === event.createdBy) continue;
     const profile = usersByUid.get(uid);
     const { name, email } = nameAndEmail(profile ?? { uid });
     lines.push(

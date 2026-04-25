@@ -149,6 +149,10 @@ describe("buildCalendarIcs", () => {
       ]),
     });
     expect(out).toContain("ORGANIZER;CN=Stáňa:mailto:st@example.com");
+    // V18-S37 — autor je taky ATTENDEE s ROLE=CHAIR
+    expect(out).toContain(
+      "ATTENDEE;CN=Stáňa;ROLE=CHAIR:mailto:st@example.com",
+    );
   });
 
   it("ATTENDEE line per invitee, s fallbackem na placeholder email", () => {

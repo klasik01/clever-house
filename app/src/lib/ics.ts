@@ -88,6 +88,13 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
     lines.push(
       `ORGANIZER;CN=${escapeIcsText(creatorCn)}:mailto:${creatorEmail}`,
     );
+    // V18-S37 — autor také jako ATTENDEE (s ROLE=CHAIR per RFC 5545).
+    // Důvod: Apple Calendar zobrazí ORGANIZER odděleně, ale v "All
+    // Invitees" listu autor mizí. Konzistentní s UI v appce (S36) kde je
+    // autor první mezi účastníky. ROLE=CHAIR semantic = "host/moderator".
+    lines.push(
+      `ATTENDEE;CN=${escapeIcsText(creatorCn)};ROLE=CHAIR:mailto:${creatorEmail}`,
+    );
   }
 
   // ATTENDEE per invitee. Bez PARTSTAT — viz R1 mitigation.
@@ -95,7 +102,11 @@ export function buildEventIcs(input: BuildEventIcsInput): string {
   // svůj iCloud email) jinak fallback na auth email. CN = přezdívka pro
   // friendly view — Apple Calendar pak zobrazí "Stáňa <stana@icloud.com>"
   // a klik na účastníka najde vizitku v iCloud Contacts.
+  // V18-S37 — skip autor (už přidán výše s ROLE=CHAIR), aby se nezobrazil
+  // dvakrát kdyby byl v inviteeUids zařazen i sám.
+  const creatorUid = creator?.uid;
   for (const uid of event.inviteeUids) {
+    if (creatorUid && uid === creatorUid) continue;
     const profile = inviteeUsers?.get(uid);
     const email =
       profile?.contactEmail || profile?.email || `${uid}@chytrydum.local`;

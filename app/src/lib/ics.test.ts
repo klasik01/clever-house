@@ -187,6 +187,38 @@ describe("buildEventIcs — ATTENDEE / ORGANIZER", () => {
     );
   });
 
+  it("V18-S37 — autor je taky ATTENDEE s ROLE=CHAIR", () => {
+    const ics = buildEventIcs({
+      event: mkEvent(),
+      creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
+    });
+    expect(ics).toContain(
+      "ATTENDEE;CN=Stanislav;ROLE=CHAIR:mailto:stanislav@example.cz",
+    );
+  });
+
+  it("V18-S37 — skip duplicitního autora pokud je v inviteeUids", () => {
+    const ics = buildEventIcs({
+      event: mkEvent({ inviteeUids: ["owner-uid", "u2"] }),
+      creator: mkUser("owner-uid", "Stanislav", "stanislav@example.cz"),
+      inviteeUsers: new Map([
+        ["owner-uid", mkUser("owner-uid", "Stanislav", "stanislav@example.cz")],
+        ["u2", mkUser("u2", "Marie", "marie@x.cz")],
+      ]),
+    });
+    // Autor je tam jen jednou (s CHAIR rolí, ne jako ne-chair attendee).
+    const chairCount = (
+      ics.match(/ATTENDEE;CN=Stanislav;ROLE=CHAIR/g) ?? []
+    ).length;
+    const nonChairCount = (
+      ics.match(/ATTENDEE;CN=Stanislav:mailto/g) ?? []
+    ).length;
+    expect(chairCount).toBe(1);
+    expect(nonChairCount).toBe(0);
+    // Marie je tam normálně.
+    expect(ics).toContain("ATTENDEE;CN=Marie:mailto:marie@x.cz");
+  });
+
   it("žádný ORGANIZER pokud creator není dodán", () => {
     const ics = buildEventIcs({ event: mkEvent() });
     expect(ics).not.toContain("ORGANIZER");

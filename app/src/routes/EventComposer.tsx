@@ -158,11 +158,16 @@ export default function EventComposer() {
     saveDraft(draft);
   }, [draft, isEditMode]);
 
-  // Auto-fix: pokud user změní startAt tak, že endAt je před ním, posuň endAt na start+1h.
+  // Auto-fix: pokud user změní startAt tak, že endAt je před ním, posuň endAt
+  // na start+1h. V18-S36 — pro all-day skipnout: localInputToIso s isAllDay
+  // ignoruje time, takže start === end pro single-day = nekonečný re-render
+  // loop (oprava posune endAt o 1h, nový loop, …). All-day default je
+  // single-day a multi-day se řeší jinou cestou (date input ne datetime-local).
   useEffect(() => {
+    if (draft.isAllDay) return;
     if (!draft.startAt || !draft.endAt) return;
-    const startMs = Date.parse(localInputToIso(draft.startAt, draft.isAllDay));
-    const endMs = Date.parse(localInputToIso(draft.endAt, draft.isAllDay));
+    const startMs = Date.parse(localInputToIso(draft.startAt, false));
+    const endMs = Date.parse(localInputToIso(draft.endAt, false));
     if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
     if (endMs <= startMs) {
       const fixed = new Date(startMs + HOUR_MS);
@@ -208,8 +213,15 @@ export default function EventComposer() {
     const startIso = localInputToIso(draft.startAt, draft.isAllDay);
     const endIso = localInputToIso(draft.endAt, draft.isAllDay);
     if (!startIso || !endIso) return t("events.composer.errorEndBeforeStart");
-    if (Date.parse(endIso) <= Date.parse(startIso))
+    // V18-S36 — pro all-day povolit start === end (single-day event).
+    // Pro timed events platí strict less-than (event musí mít trvání).
+    if (draft.isAllDay) {
+      if (Date.parse(endIso) < Date.parse(startIso)) {
+        return t("events.composer.errorEndBeforeStart");
+      }
+    } else if (Date.parse(endIso) <= Date.parse(startIso)) {
       return t("events.composer.errorEndBeforeStart");
+    }
     return null;
   }, [draft, t]);
 

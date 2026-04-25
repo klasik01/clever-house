@@ -657,6 +657,7 @@
       "loadFailed": "Událost se nepodařilo načíst.",
       "allDayLabel": "CELÝ DEN",
       "inviteesTitle": "Pozvaní",
+      "authorBadge": "Autor",
       "inviteesCount": "{yes} z {total} potvrzeno",
       "descriptionTitle": "Popis",
       "addressTitle": "Místo",
