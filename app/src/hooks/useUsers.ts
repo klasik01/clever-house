@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { subscribeUsers } from "@/lib/userProfile";
+import { LOCAL_STORAGE } from "@/lib/storageKeys";
+import { USERS_CACHE_TTL_MS } from "@/lib/limits";
 import type { UserProfile } from "@/types";
 
 interface UsersState {
@@ -24,8 +26,8 @@ interface UsersState {
  * dalším otevření aplikace cache zahodíme a začínáme znova s "loading"
  * (žádný stale obsah).
  */
-const STORAGE_KEY = "users:cache:v1";
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1h
+const STORAGE_KEY = LOCAL_STORAGE.usersCache;
+const CACHE_TTL_MS = USERS_CACHE_TTL_MS;
 
 interface CachedUsers {
   ts: number;

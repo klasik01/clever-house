@@ -1,6 +1,8 @@
 export type ThemePreference = "system" | "light" | "dark";
 
-const KEY = "theme-preference";
+import { LOCAL_STORAGE } from "./storageKeys";
+
+const KEY = LOCAL_STORAGE.themePreference;
 
 export function loadTheme(): ThemePreference {
   try {

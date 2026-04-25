@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { useT } from "@/i18n/useT";
+import { SESSION_STORAGE } from "@/lib/storageKeys";
 
 /**
  * V12.2 — force-update modal. Shown when the service worker has fetched a new
@@ -64,7 +65,7 @@ export default function UpdateBanner() {
 
     // Already-updated guard: jakmile detekujeme že náš bundle == latest po
     // refresh, sessionStorage zapamatuje to do dalšího session reset.
-    const STORAGE_KEY = "update:settledVersion";
+    const STORAGE_KEY = SESSION_STORAGE.updateSettledVersion;
     try {
       if (sessionStorage.getItem(STORAGE_KEY) === mine) {
         // Předchozí cyklus skončil OK — neukazujeme modal dokud session žije.

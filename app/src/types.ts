@@ -33,6 +33,10 @@ export type TaskStatus =
   | "ON_PM_SITE"
   | "OPEN"
   | "BLOCKED"
+  // CANCELED (US, jedno L) — V10/V14 origin pro tasks. Záměrně se liší od
+  // EventStatus.CANCELLED (UK, dvě L) — events musí používat dvě L kvůli
+  // ICS RFC 5545 spec compliance (STATUS:CANCELLED). Nesjednocujeme — žádná
+  // hodnota se nepoužívá v obou doménách současně, takže drift neškodí.
   | "CANCELED"
   | "DONE";
 
@@ -145,7 +149,11 @@ export type EventStatus =
   | "UPCOMING"                 // Vytvořen, termín nadchází
   | "AWAITING_CONFIRMATION"    // Uplynul termín, autor nepotvrdil (červený v UI)
   | "HAPPENED"                 // Autor potvrdil "proběhlo"
-  | "CANCELLED";               // Zrušen (pre-termín nebo retro)
+  | "CANCELLED";               // Zrušen (pre-termín nebo retro).
+                               //   POZOR: dvě L (UK spelling) je požadavek
+                               //   ICS RFC 5545 (STATUS:CANCELLED). Tasks
+                               //   používají "CANCELED" (US, jedno L) —
+                               //   záměrný drift, viz Status type výše.
 
 export interface Event {
   id: string;

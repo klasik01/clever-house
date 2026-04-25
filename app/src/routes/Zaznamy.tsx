@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { applySearch } from "@/lib/search";
+import { filterKey } from "@/lib/storageKeys";
 import {
   applyCategory,
   applyLocation,
@@ -44,11 +45,11 @@ export default function Zaznamy() {
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
   const [query, setQuery] = useState<string>(() => {
-    try { return sessionStorage.getItem("filter:napady:q") ?? ""; } catch { return ""; }
+    try { return sessionStorage.getItem(filterKey("napady", "q")) ?? ""; } catch { return ""; }
   });
   function setQueryPersist(next: string) {
     setQuery(next);
-    try { sessionStorage.setItem("filter:napady:q", next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("napady", "q"), next); } catch { /* ignore */ }
   }
 
   // V10: OWNER sees every OWNER's napady (workspace = household).

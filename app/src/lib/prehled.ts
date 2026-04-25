@@ -1,7 +1,12 @@
 import type { Task } from "@/types";
+import { STUCK_TASK_THRESHOLD_DAYS, STUCK_TASK_THRESHOLD_MS } from "./limits";
 
 export type PrehledFilterId = "waiting-me" | "waiting-others" | "overdue" | "stuck";
-export const STUCK_DAYS = 5;
+/**
+ * @deprecated Pojmenování zachováno pro existing imports;
+ * delegujeme na `STUCK_TASK_THRESHOLD_DAYS` z `limits.ts`.
+ */
+export const STUCK_DAYS = STUCK_TASK_THRESHOLD_DAYS;
 export const M2_TARGET = 3;
 
 /**
@@ -13,7 +18,7 @@ export function computePrehledGroups(
   uid: string,
   now = Date.now()
 ): Record<PrehledFilterId, Task[]> {
-  const stuckThresholdMs = STUCK_DAYS * 24 * 60 * 60 * 1000;
+  const stuckThresholdMs = STUCK_TASK_THRESHOLD_MS;
   // V14 — Přehled covers both otázka and úkol (both are actionable).
   const onlyOtazky = tasks.filter((t) => t.type === "otazka" || t.type === "ukol");
 

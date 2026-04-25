@@ -13,7 +13,9 @@
  * Pure funkce, žádný side effect.
  */
 
-const ACTIVE_WINDOW_MS = 25 * 60 * 60 * 1000; // 25h
+import { CALENDAR_SUBSCRIPTION_ACTIVE_WINDOW_MS } from "./limits";
+
+const ACTIVE_WINDOW_MS = CALENDAR_SUBSCRIPTION_ACTIVE_WINDOW_MS;
 
 export type SubscriptionStatus = "unknown" | "active" | "stale";
 

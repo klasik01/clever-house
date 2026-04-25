@@ -410,6 +410,21 @@ Jediný jazyk: **čeština** (`app/src/i18n/cs.json`).
 
 ---
 
+### CANCELED vs CANCELLED — záměrný drift (V18-S39)
+
+- **Tasks** používají `"CANCELED"` (US, jedno L) — viz `Status` v `types.ts`.
+- **Events** používají `"CANCELLED"` (UK, dvě L) — viz `EventStatus`.
+
+**Nesjednocujeme.** Důvod: ICS RFC 5545 spec vyžaduje `STATUS:CANCELLED` pro
+canceled události (`buildCalendarIcs` v `lib/ics.ts`). Tasks nemají vnější
+contract, jen V10/V14 origin. Hodnoty se nikde nemíchají (jiné domény, jiné
+typy), takže drift nezpůsobuje confusion v běžném code review.
+
+Když přidáváš nové místo, kde se srovnává status, mrkni do typu (TS ti to
+stejně označí), ať voláš správnou variantu.
+
+---
+
 ## 11. Co NEDĚLAT
 
 - ❌ Neměň `switch` v `copy.ts` — jen v `catalog.ts`.

@@ -135,7 +135,9 @@ export async function updateUserPrefs(
 
 // ---------- Device registration (FCM tokens live here) ----------
 
-const DEVICE_ID_STORAGE_KEY = "notif:deviceId";
+import { LOCAL_STORAGE } from "./storageKeys";
+
+const DEVICE_ID_STORAGE_KEY = LOCAL_STORAGE.notifDeviceId;
 
 /**
  * Return a stable per-browser-profile device id. Persisted in

@@ -19,8 +19,11 @@ import { requestPermissionAndRegister } from "@/lib/messaging";
  * gesture — the button click satisfies that requirement).
  */
 
-const DISMISS_STORAGE_KEY = "notif:bannerDismissedAt";
-const DISMISS_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+import { LOCAL_STORAGE } from "@/lib/storageKeys";
+import { NOTIF_BANNER_DISMISS_COOLDOWN_MS } from "@/lib/limits";
+
+const DISMISS_STORAGE_KEY = LOCAL_STORAGE.notifBannerDismissedAt;
+const DISMISS_COOLDOWN_MS = NOTIF_BANNER_DISMISS_COOLDOWN_MS;
 
 function wasRecentlyDismissed(): boolean {
   try {

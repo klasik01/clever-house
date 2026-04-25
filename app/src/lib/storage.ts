@@ -1,7 +1,9 @@
 // localStorage for client-only state (draft, theme preference).
 // Tasks moved to Firestore in S02 (see src/lib/tasks.ts).
 
-const DRAFT_KEY = "chytry-dum:capture-draft";
+import { LOCAL_STORAGE } from "./storageKeys";
+
+const DRAFT_KEY = LOCAL_STORAGE.taskDraft;
 
 export function loadDraft(): string {
   try {

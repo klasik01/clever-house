@@ -22,6 +22,7 @@ import {
 } from "@/lib/filters";
 import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus } from "@/lib/status";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
+import { filterKey } from "@/lib/storageKeys";
 
 const KEY = "ukoly";
 
@@ -49,11 +50,11 @@ export default function Ukoly() {
   const [priority, setPriority] = useState<TaskPriority | null>(null);
   const [status, setStatus] = useState<TaskStatus | null>(null);
   const [query, setQuery] = useState<string>(() => {
-    try { return sessionStorage.getItem("filter:ukoly:q") ?? ""; } catch { return ""; }
+    try { return sessionStorage.getItem(filterKey("ukoly", "q")) ?? ""; } catch { return ""; }
   });
   function setQueryPersist(next: string) {
     setQuery(next);
-    try { sessionStorage.setItem("filter:ukoly:q", next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("ukoly", "q"), next); } catch { /* ignore */ }
   }
   // V14.9 — default view hides closed tasks (DONE + CANCELED). User can
   // flip to "Vše" to include them. This is the pill that most filters the
@@ -61,7 +62,7 @@ export default function Ukoly() {
   type StateMode = "active" | "all";
   const [stateMode, setStateMode] = useState<StateMode>(() => {
     try {
-      const v = sessionStorage.getItem("filter:ukoly:state");
+      const v = sessionStorage.getItem(filterKey("ukoly", "state"));
       return v === "all" ? "all" : "active";
     } catch {
       return "active";
@@ -69,14 +70,14 @@ export default function Ukoly() {
   });
   function setStateModePersist(next: StateMode) {
     setStateMode(next);
-    try { sessionStorage.setItem("filter:ukoly:state", next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("ukoly", "state"), next); } catch { /* ignore */ }
   }
   // V14 — "Otázky / Úkoly / Vše" type pill. Default "all" so both types are
   // visible on first load; user can narrow via pill.
   type TypeMode = "otazka" | "ukol" | "all";
   const [typeMode, setTypeMode] = useState<TypeMode>(() => {
     try {
-      const v = sessionStorage.getItem("filter:ukoly:type");
+      const v = sessionStorage.getItem(filterKey("ukoly", "type"));
       if (v === "otazka" || v === "ukol" || v === "all") return v;
       return "all";
     } catch {
@@ -85,13 +86,13 @@ export default function Ukoly() {
   });
   function setTypeModePersist(next: TypeMode) {
     setTypeMode(next);
-    try { sessionStorage.setItem("filter:ukoly:type", next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("ukoly", "type"), next); } catch { /* ignore */ }
   }
   // V10 — "Moje / Všechny" filter. Defaults to "mine" so the tab feels like
   // a personal inbox; user can flip to "all" for cross-workspace view.
   const [ownerMode, setOwnerMode] = useState<"mine" | "all">(() => {
     try {
-      const v = sessionStorage.getItem("filter:ukoly:owner");
+      const v = sessionStorage.getItem(filterKey("ukoly", "owner"));
       return v === "all" ? "all" : "mine";
     } catch {
       return "mine";
@@ -99,7 +100,7 @@ export default function Ukoly() {
   });
   function setOwnerModePersist(next: "mine" | "all") {
     setOwnerMode(next);
-    try { sessionStorage.setItem("filter:ukoly:owner", next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("ukoly", "owner"), next); } catch { /* ignore */ }
   }
 
   const isFilterActive =

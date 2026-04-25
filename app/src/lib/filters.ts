@@ -2,7 +2,9 @@ import type { Task } from "@/types";
 
 export type OpenClosedFilter = "all" | "open" | "done";
 
-const PREFIX = "filter:";
+import { FILTER_KEY_PREFIX } from "./storageKeys";
+
+const PREFIX = FILTER_KEY_PREFIX;
 
 // ---------- Open/Closed ----------
 

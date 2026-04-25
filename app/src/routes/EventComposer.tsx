@@ -31,7 +31,9 @@ import {
  *   - detail redirect po save — S03 přidá /event/:id; zatím redirect /events
  */
 
-const DRAFT_KEY = "draft:event:new";
+import { LOCAL_STORAGE } from "@/lib/storageKeys";
+
+const DRAFT_KEY = LOCAL_STORAGE.eventDraft;
 const HOUR_MS = 60 * 60 * 1000;
 
 interface DraftState {
