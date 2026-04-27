@@ -68,3 +68,4 @@ Historie je cenná:
 | 2026-04-24 | V17.8 | `2026-04-24-V17.8-authorRole.mjs` | Backfill authorRole do historických tasků (před V17.1 deploy) |
 | 2026-04-24 | V17.8 | `2026-04-24-V17.8-authorRole.mjs` | Backfill authorRole do historických tasků (před V17.1 deploy) |
 | 2026-04-25 | V18.S12 | `2026-04-25-V18.S12-calendar-tokens.mjs` | Backfill calendarToken do users/{uid} pro webcal subscription |
+| 2026-04-27 | V19 | `2026-04-27-V19-sharedWithRoles.mjs` | Backfill sharedWithPm: true → sharedWithRoles: ["PROJECT_MANAGER"] on nápad tasks. |
