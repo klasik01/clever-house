@@ -49,7 +49,7 @@ export default function App() {
       <BusyProvider>
         <UpdateBanner />
         <Routes>
-        <Route path={ROUTES.login} element={<Login />} />
+        <Route path={ROUTES.login} element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
 
         <Route element={<ProtectedLayout />}>
           <Route path={ROUTES.home} element={<LokaceForOwner />} />
@@ -227,6 +227,15 @@ function LokaceDetailForOwner() {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <LokaceDetail />;
+}
+
+/** V20 — redirect signed-in users away from /auth/prihlaseni. */
+function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const t = useT();
+  if (loading) return <Splash message={t("app.loading")} />;
+  if (user) return <Navigate to={ROUTES.home} replace />;
+  return <>{children}</>;
 }
 
 function Splash({ message }: { message: string }) {

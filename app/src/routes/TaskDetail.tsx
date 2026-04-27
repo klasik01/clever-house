@@ -36,6 +36,7 @@ const CommentThread = lazy(() => import("@/components/CommentThread"));
 const DocumentUploadModal = lazy(() => import("@/components/DocumentUploadModal"));
 const AuditTimeline = lazy(() => import("@/components/AuditTimeline"));
 const DocumentPickerModal = lazy(() => import("@/components/DocumentPickerModal"));
+import SwipeReveal from "@/components/SwipeReveal";
 
 // ---------- LinkedList (V14.1) ----------
 
@@ -1657,6 +1658,88 @@ export default function TaskDetail() {
       </section>
       )}
 
+      {/* V20 — Linked dokumentace (for napad/otazka/ukol) */}
+      {task.type !== "dokumentace" && (
+        <section className="mt-4" aria-labelledby="linked-docs-heading">
+          <h2 id="linked-docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("dokumentace.linkSectionTitle")}
+          </h2>
+          {(task.linkedDocIds?.length ?? 0) > 0 && (
+            <ul className="mb-2 flex flex-col gap-2">
+              {task.linkedDocIds!.map((docId) => {
+                const linkedDoc = allTasks.find((x) => x.id === docId);
+                if (!linkedDoc) return null;
+                return (
+                  <li key={docId}>
+                    <SwipeReveal
+                      disabled={!canEdit}
+                      action={
+                        <button
+                          type="button"
+                          onClick={() => handleUnlinkDoc(docId)}
+                          disabled={saving}
+                          aria-label={t("dokumentace.unlinkDoc")}
+                          className="flex h-full w-full items-center justify-center bg-[color:var(--color-status-danger-fg)] text-white text-xs font-semibold disabled:opacity-40"
+                        >
+                          {t("dokumentace.unlinkDoc")}
+                        </button>
+                      }
+                    >
+                      <Link
+                        to={taskDetail(docId)}
+                        className="flex items-center gap-3 min-w-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:bg-bg-subtle transition-colors"
+                      >
+                        <FileText aria-hidden size={18} className="shrink-0 text-accent-visual" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-ink truncate">
+                            {linkedDoc.title?.trim() || t("detail.noTitle")}
+                          </p>
+                          <p className="text-xs text-ink-muted">
+                            {(linkedDoc.documents?.length ?? 0)} {t("dokumentace.linkDocCount")}
+                          </p>
+                        </div>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnlinkDoc(docId); }}
+                            disabled={saving}
+                            aria-label={t("dokumentace.unlinkDoc")}
+                            className="shrink-0 grid size-8 place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40 transition-colors"
+                          >
+                            <XIcon aria-hidden size={16} />
+                          </button>
+                        )}
+                      </Link>
+                    </SwipeReveal>
+                  </li>
+                );
+              }).filter(Boolean)}
+            </ul>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setDocPickerOpen(true)}
+              disabled={saving}
+              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+            >
+              <FileText aria-hidden size={18} />
+              {t("dokumentace.linkAdd")}
+            </button>
+          )}
+          {docPickerOpen && (
+            <Suspense fallback={null}>
+              <DocumentPickerModal
+                documents={allTasks.filter((x) => x.type === "dokumentace")}
+                alreadyLinked={task.linkedDocIds ?? []}
+                onConfirm={handleLinkDocsConfirm}
+                onClose={() => setDocPickerOpen(false)}
+              />
+            </Suspense>
+          )}
+        </section>
+      )}
+
       {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (() => {
         // V14.1 — split linked children into Otázky / Úkoly lists so the
         // user sees both flows at a glance. An unknown-typed link (orphan)
@@ -1714,73 +1797,6 @@ export default function TaskDetail() {
           </Link>
         );
       })()}
-
-      {/* V20 — Linked dokumentace (for napad/otazka/ukol) */}
-      {task.type !== "dokumentace" && (
-        <section className="mt-4" aria-labelledby="linked-docs-heading">
-          <h2 id="linked-docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("dokumentace.linkSectionTitle")}
-          </h2>
-          {(task.linkedDocIds?.length ?? 0) > 0 && (
-            <ul className="mb-2 flex flex-col gap-2">
-              {task.linkedDocIds!.map((docId) => {
-                const linkedDoc = allTasks.find((x) => x.id === docId);
-                if (!linkedDoc) return null;
-                return (
-                  <li key={docId}>
-                    <Link
-                      to={taskDetail(docId)}
-                      className="flex items-center gap-3 min-w-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:bg-bg-subtle transition-colors"
-                    >
-                      <FileText aria-hidden size={18} className="shrink-0 text-accent-visual" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink truncate">
-                          {linkedDoc.title?.trim() || t("detail.noTitle")}
-                        </p>
-                        <p className="text-xs text-ink-muted">
-                          {(linkedDoc.documents?.length ?? 0)} {t("dokumentace.linkDocCount")}
-                        </p>
-                      </div>
-                      {canEdit && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnlinkDoc(docId); }}
-                          disabled={saving}
-                          aria-label={t("common.delete")}
-                          className="shrink-0 grid size-8 place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40 transition-colors"
-                        >
-                          <XIcon aria-hidden size={16} />
-                        </button>
-                      )}
-                    </Link>
-                  </li>
-                );
-              }).filter(Boolean)}
-            </ul>
-          )}
-          {canEdit && (
-            <button
-              type="button"
-              onClick={() => setDocPickerOpen(true)}
-              disabled={saving}
-              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-            >
-              <FileText aria-hidden size={18} />
-              {t("dokumentace.linkAdd")}
-            </button>
-          )}
-          {docPickerOpen && (
-            <Suspense fallback={null}>
-              <DocumentPickerModal
-                documents={allTasks.filter((x) => x.type === "dokumentace")}
-                alreadyLinked={task.linkedDocIds ?? []}
-                onConfirm={handleLinkDocsConfirm}
-                onClose={() => setDocPickerOpen(false)}
-              />
-            </Suspense>
-          )}
-        </section>
-      )}
 
       {task.type === "napad" && (
         <div className="mt-6 flex flex-wrap items-center gap-2">
