@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   AlertTriangle,
   ChevronDown,
+  FileText,
   Flag,
   HelpCircle,
   Image as ImageIcon,
@@ -72,6 +73,8 @@ export default function NapadCard({ task, categories }: Props) {
       ? HelpCircle
       : task.type === "ukol"
       ? Target
+      : task.type === "dokumentace"
+      ? FileText
       : Notebook;
   const categoryIds = task.categoryIds?.length
     ? task.categoryIds
@@ -92,6 +95,7 @@ export default function NapadCard({ task, categories }: Props) {
 
   const hasImage = (task.attachmentImages?.length ?? 0) > 0 || Boolean(task.attachmentImageUrl);
   const hasLink = (task.attachmentLinks?.length ?? 0) > 0 || Boolean(task.attachmentLinkUrl);
+  const docCount = task.documents?.length ?? 0;
 
   // V14.10 — in-list Výstup peek. Only nápady with a non-empty vystup get
   // the chevron; everyone else keeps the flat card look. State is local to
@@ -157,6 +161,8 @@ export default function NapadCard({ task, categories }: Props) {
             ? t("aria.typeOtazka")
             : task.type === "ukol"
             ? t("aria.typeUkol")
+            : task.type === "dokumentace"
+            ? t("aria.typeDokumentace")
             : t("aria.typeNapad")
         } · ${titleDisplay}`}
         className="block px-4 py-3 focus:outline-none"
@@ -169,13 +175,15 @@ export default function NapadCard({ task, categories }: Props) {
                   ? t("aria.typeOtazka")
                   : task.type === "ukol"
                   ? t("aria.typeUkol")
+                  : task.type === "dokumentace"
+                  ? t("aria.typeDokumentace")
                   : t("aria.typeNapad")}
               </span>
               <TypeIcon
                 aria-hidden
                 size={18}
                 className={
-                  (task.type === "otazka" || task.type === "ukol")
+                  (task.type === "otazka" || task.type === "ukol" || task.type === "dokumentace")
                     ? "text-accent-visual"
                     : "text-ink-subtle"
                 }
@@ -252,6 +260,15 @@ export default function NapadCard({ task, categories }: Props) {
                     title={t("aria.hasLink")}
                   >
                     <LinkIcon aria-hidden size={12} />
+                  </span>
+                )}
+                {docCount > 0 && (
+                  <span
+                    className="inline-flex items-center gap-0.5 rounded-pill bg-bg-subtle px-1.5 py-0.5 text-xs text-ink-subtle"
+                    aria-label={`${docCount} ${docCount === 1 ? "dokument" : "dokumenty"}`}
+                  >
+                    <FileText aria-hidden size={12} />
+                    {docCount}
                   </span>
                 )}
                 <span className="text-xs text-ink-subtle">

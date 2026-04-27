@@ -27,9 +27,10 @@ export default function NewTask() {
   // V14 — pokud user nesmí vytvořit nápad (PM, později WORKER), composer
   // mu povolí jen { otazka, ukol }. Pokud smí všechno, prop nenastavuje
   // a composer nabídne plné menu (defaultní chování OWNER).
+  // V19 — PM can also create dokumentace (alongside otazka/ukol).
   const allowedTypes: TaskType[] | undefined = canCreateNapad
     ? undefined
-    : ["otazka", "ukol"];
+    : ["otazka", "ukol", "dokumentace"];
   const { show: showToast } = useToast();
   const navigate = useNavigate();
 

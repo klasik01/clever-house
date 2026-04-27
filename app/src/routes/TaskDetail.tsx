@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, HelpCircle, MapPin, Notebook, Tag, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, HelpCircle, MapPin, Notebook, Tag, Target, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
@@ -33,6 +33,7 @@ import { taskDetail } from "@/lib/routes";
 
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
+const DocumentUploadModal = lazy(() => import("@/components/DocumentUploadModal"));
 
 // ---------- LinkedList (V14.1) ----------
 
@@ -165,6 +166,14 @@ export default function TaskDetail() {
   // V14.1 — Výstup section is collapsed by default. User explicitly opens it
   // via the toggle or via the "Doplň výstup" banner CTA. Reset on route change.
   const [vystupExpanded, setVystupExpanded] = useState(false);
+
+  // V20 — Dokumentace document upload state
+  const [docModal, setDocModal] = useState<{
+    open: boolean;
+    prefill?: { docType: string; displayName: string };
+    replaceId?: string;
+  }>({ open: false });
+  const [docUploading, setDocUploading] = useState(false);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -545,6 +554,89 @@ export default function TaskDetail() {
     navigate(-1);
   }
 
+  // V20 — Dokumentace document handlers
+  async function handleDocUploadConfirm(result: import("@/components/DocumentUploadModal").DocumentUploadResult) {
+    if (state.status !== "ready" || !user) return;
+    setDocModal({ open: false });
+    setDocUploading(true);
+    try {
+      const task = state.task;
+      const upload = isImageFile(result.file)
+        ? await uploadTaskImage({ file: result.file, uid: user.uid, taskId: task.id })
+        : await uploadTaskFile({ file: result.file, uid: user.uid, taskId: task.id });
+
+      const newDoc: import("@/types").DocumentAttachment = {
+        id: newId(),
+        fileUrl: upload.url,
+        filePath: upload.path,
+        contentType: result.file.type || "application/octet-stream",
+        sizeBytes: result.file.size,
+        docType: result.docType,
+        displayName: result.displayName,
+        uploadedBy: user.uid,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      const existingDocs = task.documents ?? [];
+      const auditEntry: import("@/types").AuditEntry = {
+        action: docModal.replaceId ? "replaced" : "uploaded",
+        actorUid: user.uid,
+        timestamp: new Date().toISOString(),
+        details: result.displayName,
+      };
+
+      let nextDocs: import("@/types").DocumentAttachment[];
+      if (docModal.replaceId) {
+        // Replace: remove old, add new
+        const oldDoc = existingDocs.find((d) => d.id === docModal.replaceId);
+        if (oldDoc) {
+          deleteTaskImage(oldDoc.filePath).catch(console.warn);
+        }
+        nextDocs = existingDocs.filter((d) => d.id !== docModal.replaceId).concat(newDoc);
+      } else {
+        nextDocs = [...existingDocs, newDoc];
+      }
+
+      await updateTask(task.id, {
+        documents: nextDocs,
+        auditLog: [...(task.auditLog ?? []), auditEntry],
+      });
+    } catch (e) {
+      console.error("doc upload failed", e);
+      setAttachError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDocUploading(false);
+    }
+  }
+
+  function handleReplaceDoc(docId: string) {
+    if (state.status !== "ready") return;
+    const doc = (state.task.documents ?? []).find((d) => d.id === docId);
+    if (!doc) return;
+    setDocModal({
+      open: true,
+      prefill: { docType: doc.docType, displayName: doc.displayName },
+      replaceId: docId,
+    });
+  }
+
+  async function handleDeleteDoc(docId: string, filePath: string) {
+    if (state.status !== "ready" || !user) return;
+    if (!window.confirm(t("dokumentace.deleteDocument"))) return;
+    const task = state.task;
+    const nextDocs = (task.documents ?? []).filter((d) => d.id !== docId);
+    const auditEntry: import("@/types").AuditEntry = {
+      action: "deleted",
+      actorUid: user.uid,
+      timestamp: new Date().toISOString(),
+    };
+    await updateTask(task.id, {
+      documents: nextDocs,
+      auditLog: [...(task.auditLog ?? []), auditEntry],
+    });
+    deleteTaskImage(filePath).catch(console.warn);
+  }
+
   // ---- Render states ----
 
   // V6.2 — also skeleton while we're waiting for the init useEffect to sync
@@ -596,6 +688,8 @@ export default function TaskDetail() {
       ? HelpCircle
       : task.type === "ukol"
       ? Target
+      : task.type === "dokumentace"
+      ? FileText
       : Notebook;
 
   // ---------- Read-only view (V17.2) ----------
@@ -829,6 +923,95 @@ export default function TaskDetail() {
         </article>
       );
     }
+
+    // V20 — Dokumentace read-only view. Minimal: title + description + location/categories + documents list.
+    if (task.type === "dokumentace") {
+      const categoryIdsDok = task.categoryIds?.length
+        ? task.categoryIds
+        : task.categoryId ? [task.categoryId] : [];
+      const taskCategoriesDok = categoryIdsDok
+        .map((id) => categories.find((c) => c.id === id))
+        .filter((c): c is NonNullable<typeof c> => Boolean(c));
+      const locationDok = task.locationId ? getLocation(task.locationId) : null;
+
+      return (
+        <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="ro-dok-heading">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label={t("detail.back")}
+              className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
+            >
+              <ArrowLeft aria-hidden size={20} />
+            </button>
+            <div
+              className="flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-xs font-medium text-ink-muted"
+              aria-label={t("detail.typeDokumentace")}
+            >
+              <FileText aria-hidden size={14} />
+              <span>{t("detail.typeDokumentace")}</span>
+            </div>
+            <span className="w-10" aria-hidden />
+          </div>
+
+          <h1 id="ro-dok-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
+            {task.title || t("detail.noTitle")}
+          </h1>
+
+          {(locationDok || taskCategoriesDok.length > 0) && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {locationDok && (
+                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <MapPin aria-hidden size={11} />
+                  {locationDok.label}
+                </span>
+              )}
+              {taskCategoriesDok.map((c) => (
+                <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                  <Tag aria-hidden size={11} />
+                  {c.label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {task.body ? (
+            <div className="mt-4">
+              <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
+                <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
+              </Suspense>
+            </div>
+          ) : null}
+
+          {/* Documents list — read-only */}
+          <section className="mt-6" aria-labelledby="ro-docs-heading">
+            <h2 id="ro-docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              {t("dokumentace.sectionTitle")}
+            </h2>
+            {(task.documents?.length ?? 0) === 0 ? (
+              <p className="text-sm text-ink-muted">{t("dokumentace.emptyDocuments")}</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {task.documents!.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className="flex items-center gap-3 rounded-md border border-line bg-surface px-3 py-2"
+                  >
+                    <FileText aria-hidden size={18} className="shrink-0 text-ink-subtle" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink truncate">{doc.displayName}</p>
+                      <p className="text-xs text-ink-muted">{doc.docType}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </article>
+      );
+    }
+
     // V5 — PM otazka view: title + meta chips + body + attachments + comments.
     // Parallels the PM napad view so PM always lands on a consistent layout.
     const categoryIdsPm = task.categoryIds?.length
@@ -956,6 +1139,8 @@ export default function TaskDetail() {
       ? t("detail.typeOtazka")
       : task.type === "ukol"
       ? t("detail.typeUkol")
+      : task.type === "dokumentace"
+      ? t("detail.typeDokumentace")
       : t("detail.typeNapad");
   // V14 — both otázka and úkol use the same rich meta layout (deadline,
   // priority, assignee). Nápad gets the simpler layout + Výstup section.
@@ -1170,6 +1355,118 @@ export default function TaskDetail() {
             </section>
           </div>
         </>
+      ) : task.type === "dokumentace" ? (
+        <>
+          {/* V20 — Dokumentace: sharedWithRoles + location + categories + empty documents */}
+          {task.createdBy === user?.uid && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
+                <label
+                  key={role}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(task.sharedWithRoles ?? []).includes(role)}
+                    onChange={(e) => handleShareRoleToggle(role, e.target.checked)}
+                    disabled={saving}
+                    className="size-3 rounded border-line"
+                    style={{ accentColor: "var(--color-accent-visual)" }}
+                  />
+                  {t(`detail.role.${role}`)}
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Location */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <LocationPickerInline
+              value={task.locationId ?? null}
+              onChange={handleLocationChange}
+              disabled={saving}
+            />
+          </div>
+
+          {/* Categories */}
+          <section className="mt-4" aria-labelledby="cat-heading-dok">
+            <h2 id="cat-heading-dok" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              {t("detail.categoryLabel")}
+            </h2>
+            <CategoryPicker
+              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
+              categories={categories}
+              onChange={handleCategoryChange}
+              disabled={saving}
+            />
+          </section>
+
+          {/* Documents — upload + cards */}
+          <section className="mt-6" aria-labelledby="docs-heading">
+            <h2 id="docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              {t("dokumentace.sectionTitle")}
+            </h2>
+            {(task.documents?.length ?? 0) > 0 && (
+              <ul className="mb-3 flex flex-col gap-2">
+                {task.documents!.map((docItem) => (
+                  <li
+                    key={docItem.id}
+                    className="group flex items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-bg-subtle"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => window.open(docItem.fileUrl, "_blank")}
+                      className="flex flex-1 items-center gap-3 min-w-0 text-left"
+                      aria-label={docItem.displayName}
+                    >
+                      <FileText aria-hidden size={20} className="shrink-0 text-accent-visual" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink truncate">{docItem.displayName}</p>
+                        <p className="text-xs text-ink-muted">{docItem.docType}</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReplaceDoc(docItem.id)}
+                      disabled={docUploading}
+                      aria-label={t("dokumentace.replaceDocument")}
+                      className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
+                    >
+                      <Pencil aria-hidden size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDoc(docItem.id, docItem.filePath)}
+                      disabled={docUploading}
+                      aria-label={t("dokumentace.deleteDocument")}
+                      className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-[color:var(--color-status-danger-fg)] transition-opacity"
+                    >
+                      <Trash2 aria-hidden size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={() => setDocModal({ open: true })}
+              disabled={docUploading}
+              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+            >
+              <FileText aria-hidden size={18} />
+              {docUploading ? t("dokumentace.uploadingDocument") : t("dokumentace.addDocument")}
+            </button>
+            {docModal.open && (
+              <Suspense fallback={null}>
+                <DocumentUploadModal
+                  prefill={docModal.prefill}
+                  onConfirm={handleDocUploadConfirm}
+                  onClose={() => setDocModal({ open: false })}
+                />
+              </Suspense>
+            )}
+          </section>
+        </>
       ) : (
         <>
           {/* V19 — Visible for roles */}
@@ -1230,6 +1527,7 @@ export default function TaskDetail() {
         </>
       )}
 
+      {task.type !== "dokumentace" && (
       <section className="mt-4" aria-labelledby="att-heading">
         <h2 id="att-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("detail.attachmentLabel")}
@@ -1290,11 +1588,13 @@ export default function TaskDetail() {
           </p>
         )}
       </section>
+      )}
 
       {lightbox && (
         <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
       )}
 
+      {task.type !== "dokumentace" && (
       <section className="mt-4" aria-labelledby="link-heading">
         <h2 id="link-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
           {t("detail.linkLabel")}
@@ -1346,7 +1646,7 @@ export default function TaskDetail() {
           {t("detail.linkAdd")}
         </button>
       </section>
-
+      )}
 
       {task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0 && (() => {
         // V14.1 — split linked children into Otázky / Úkoly lists so the

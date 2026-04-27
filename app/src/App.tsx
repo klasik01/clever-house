@@ -23,6 +23,7 @@ import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import Lokace from "./routes/Lokace";
 import LokaceManage from "./routes/LokaceManage";
+import DocumentTypesManage from "./routes/DocumentTypesManage";
 import Rozpocet from "./routes/Rozpocet";
 import Harmonogram from "./routes/Harmonogram";
 import Ukoly from "./routes/Ukoly";
@@ -63,6 +64,7 @@ export default function App() {
           <Route path={ROUTES.nastaveni} element={<Settings />} />
           <Route path={ROUTES.kategorie} element={<KategorieForOwner />} />
           <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
+          <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
           <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
           <Route path={ROUTES.harmonogram} element={<HarmonogramForPm />} />
           <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
@@ -170,6 +172,16 @@ function LokaceManageForOwner() {
   return <LokaceManage />;
 }
 
+
+/** PM redirects away from `/nastaveni/typy-dokumentu`. */
+function DocTypesForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to={ROUTES.ukoly} replace />;
+  }
+  return <DocumentTypesManage />;
+}
 /** PM redirects away from `/kategorie`. */
 function KategorieForOwner() {
   const { user } = useAuth();

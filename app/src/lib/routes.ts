@@ -45,6 +45,9 @@ export const ROUTES = {
   /** Settings → manage lokace (OWNER-only). */
   nastaveniLokace: "/nastaveni/lokace",
 
+  /** Settings → manage document types (OWNER-only). */
+  nastaveniTypyDokumentu: "/nastaveni/typy-dokumentu",
+
   /** Top-level kategorie list (OWNER-only). */
   kategorie: "/kategorie",
 

@@ -1,4 +1,4 @@
-import { Notebook, RotateCcw } from "lucide-react";
+import { FileText, Notebook, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
@@ -27,13 +27,12 @@ import {
 
 const KEY = "napady";
 
+type TypeFilter = "all" | "napad" | "dokumentace";
+
 /**
- * V6.1 /zaznamy — Nápady-only, flat list.
+ * V6.1 /zaznamy — Nápady + Dokumentace, flat list.
  *
- * Group-by (Plochý/Lokace/Kategorie) was removed in V6.1 — filters alone are
- * sufficient and the toggle was noise. Visibility:
- *   - OWNER sees own napady (all statuses; filters control what's shown).
- *   - PM sees napady the owner explicitly shared (sharedWithRoles includes 'PROJECT_MANAGER').
+ * V20 — type filter chip to toggle between nápady and dokumentace.
  */
 export default function Zaznamy() {
   const t = useT();
@@ -42,6 +41,7 @@ export default function Zaznamy() {
   const { categories } = useCategories(Boolean(user));
 
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
   const [query, setQuery] = useState<string>(() => {
@@ -52,38 +52,43 @@ export default function Zaznamy() {
     try { sessionStorage.setItem(filterKey("napady", "q"), next); } catch { /* ignore */ }
   }
 
-  // V10: OWNER sees every OWNER's napady (workspace = household).
-  // PM sees only those explicitly shared via `sharedWithRoles`. Firestore rules
-  // now enforce this on read — the client filter is defensive.
-  const napady = tasks.filter((tk) => {
-    if (tk.type !== "napad") return false;
+  // V20: include both napad and dokumentace
+  const zaznamy = tasks.filter((tk) => {
+    if (tk.type !== "napad" && tk.type !== "dokumentace") return false;
+    if (typeFilter === "napad") return tk.type === "napad";
+    if (typeFilter === "dokumentace") return tk.type === "dokumentace";
     return true;
   });
 
   const counts = {
-    all: napady.length,
-    open: napady.filter((x) => x.status !== "Hotovo").length,
-    done: napady.filter((x) => x.status === "Hotovo").length,
+    all: zaznamy.length,
+    open: zaznamy.filter((x) => x.status !== "Hotovo").length,
+    done: zaznamy.filter((x) => x.status === "Hotovo").length,
   };
 
   const visible = applySearch(
     applyLocation(
-      applyCategory(applyOpenClosed(napady, filter), categoryId),
+      applyCategory(applyOpenClosed(zaznamy, filter), categoryId),
       locationId,
     ),
     query,
   );
 
   const isFilterActive =
-    filter !== "open" || categoryId !== null || locationId !== null || query.trim() !== "";
+    filter !== "open" || typeFilter !== "all" || categoryId !== null || locationId !== null || query.trim() !== "";
 
   function handleResetFilters() {
     setFilter("open");
+    setTypeFilter("all");
     setCategoryId(null);
     setLocationId(null);
     setQueryPersist("");
     clearAllFilters(KEY);
   }
+
+  // Type counts for chips
+  const napadCount = tasks.filter((tk) => tk.type === "napad").length;
+  const dokCount = tasks.filter((tk) => tk.type === "dokumentace").length;
 
   return (
     <section
@@ -101,6 +106,34 @@ export default function Zaznamy() {
 
       <div className="mb-4">
         <SearchInput value={query} onChange={setQueryPersist} />
+      </div>
+
+      {/* Type filter chips */}
+      <div className="mb-2 flex gap-1.5">
+        {([
+          { key: "all" as TypeFilter, label: t("zaznamy.typeAll"), count: napadCount + dokCount },
+          { key: "napad" as TypeFilter, label: t("zaznamy.typeNapad"), count: napadCount },
+          { key: "dokumentace" as TypeFilter, label: t("zaznamy.typeDokumentace"), count: dokCount },
+        ]).map(({ key, label, count }) => {
+          const active = typeFilter === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTypeFilter(key)}
+              className={
+                active
+                  ? "inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-semibold bg-accent text-accent-on"
+                  : "inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-xs font-medium bg-bg-subtle text-ink-muted hover:bg-bg-muted transition-colors"
+              }
+            >
+              {key === "dokumentace" && <FileText aria-hidden size={12} />}
+              {key === "napad" && <Notebook aria-hidden size={12} />}
+              {label}
+              <span className="opacity-60">{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

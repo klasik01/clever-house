@@ -33,7 +33,7 @@ void _userRolesCheck;
 
 // ---------- Task types ----------
 
-export const TASK_TYPES = ["napad", "otazka", "ukol"] as const;
+export const TASK_TYPES = ["napad", "otazka", "ukol", "dokumentace"] as const;
 const _taskTypesCheck: readonly TaskType[] = TASK_TYPES;
 void _taskTypesCheck;
 

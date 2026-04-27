@@ -1,16 +1,11 @@
 /**
- * V14 — three task kinds:
- *   "napad"  — OWNER's captured thought / watch-out. Container; can embed a
- *              "výstup" summary when it resolves.
- *   "otazka" — clarification ping-pong with PM. Short-lived.
- *   "ukol"   — actionable work item with deadline + dependency text. Longer-
- *              lived. Can be standalone or linked to a nápad.
- *
- * Both "otazka" and "ukol" share the V10 canonical status set + assignee +
- * comment thread; they differ mostly in what shows on the card and in the
- * TaskDetail meta block.
+ * V14 — four task kinds:
+ *   "napad"       — OWNER's captured thought / watch-out.
+ *   "otazka"      — clarification ping-pong with PM.
+ *   "ukol"        — actionable work item with deadline.
+ *   "dokumentace" — V19 document record (no workflow status).
  */
-export type TaskType = "napad" | "otazka" | "ukol";
+export type TaskType = "napad" | "otazka" | "ukol" | "dokumentace";
 
 /**
  * Union of every status a Task can have. Historically role-based values
@@ -47,6 +42,30 @@ export interface ImageAttachment {
   url: string;     // Firebase Storage download URL
   path: string;    // Firebase Storage object path (for deleteObject)
 }
+/** V19 — a document (PDF or image) attached to a "dokumentace" task record. */
+export interface DocumentAttachment {
+  id: string;
+  fileUrl: string;
+  filePath: string;
+  contentType: string;
+  sizeBytes: number;
+  /** Admin-managed document type label (e.g. "Smlouva", "Cenová nabídka"). */
+  docType: string;
+  /** User-specified display name. Defaults to original filename. */
+  displayName: string;
+  uploadedBy: string;
+  uploadedAt: string;
+}
+
+/** V19 — audit log entry for a dokumentace record. */
+export interface AuditEntry {
+  action: "uploaded" | "replaced" | "deleted" | "metadata_changed";
+  actorUid: string;
+  timestamp: string;
+  /** Free-form details — e.g. which document was affected. */
+  details?: string;
+}
+
 
 // ---- V3 additions ----
 
@@ -127,6 +146,12 @@ export interface Task {
    *  when the nápad resolves; it's the durable record of what was decided.
    *  Shown in detail as a second editor below the body. Null for other types. */
   vystup?: string | null;
+  /** V19 — documents attached to a "dokumentace" record. */
+  documents?: DocumentAttachment[];
+  /** V19 — audit trail for dokumentace record. */
+  auditLog?: AuditEntry[];
+  /** V19 — IDs of "dokumentace" tasks linked from this task. */
+  linkedDocIds?: string[];
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -204,6 +229,13 @@ export interface Rsvp {
 }
 
 export interface Category {
+  id: string;
+  label: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface DocumentType {
   id: string;
   label: string;
   createdBy: string;

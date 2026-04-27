@@ -41,7 +41,9 @@
     "linkAttached": "Odkaz připojen",
     "maxImages": "Maximálně {n} obrázků",
     "typeUkol": "Úkol",
-    "placeholderUkol": "Co je potřeba udělat?"
+    "placeholderUkol": "Co je potřeba udělat?",
+    "typeDokumentace": "Dokumentace",
+    "placeholderDokumentace": "Název dokumentace (např. Elektroinstalace)…"
   },
   "list": {
     "emptyTitle": "Tady začne tvůj seznam nápadů.",
@@ -92,6 +94,7 @@
     "comingSoon": "Brzy",
     "categories": "Kategorie",
     "locationsManage": "Lokace",
+    "documentTypes": "Typy dokumentů",
     "export": "Export do PDF",
     "install": "Instalace",
     "calendarSectionTitle": "Kalendář",
@@ -207,6 +210,7 @@
     "bodyEmpty": "Bez popisu.",
     "ballOnMe": "K vyjádření",
     "typeUkol": "Úkol",
+    "typeDokumentace": "Dokumentace",
     "convertToUkol": "Nový úkol",
     "convertToUkolAgain": "Další úkol",
     "convertingUkol": "Vytvářím úkol…",
@@ -424,7 +428,8 @@
     "lokaceOtazkyList": "Seznam otázek v této lokaci",
     "lokaceTabs": "Přepínač typů",
     "categoriesGrid": "Mřížka kategorií",
-    "typeUkol": "Typ: Úkol"
+    "typeUkol": "Typ: Úkol",
+    "typeDokumentace": "Typ: Dokumentace"
   },
   "toast": {
     "saved": "Uloženo",
@@ -531,7 +536,10 @@
   },
   "zaznamy": {
     "pageTitle": "Záznamy",
-    "typeToggleLabel": "Typ záznamu"
+    "typeToggleLabel": "Typ záznamu",
+    "typeAll": "Vše",
+    "typeNapad": "Nápady",
+    "typeDokumentace": "Dokumentace"
   },
   "notifikace": {
     "sectionTitle": "Notifikace",
@@ -700,8 +708,7 @@
       "retroCancelConfirm": "Označit událost jako zrušenou? Pozvaným se neposílá notifikace (už se to stalo).",
       "retroFailed": "Potvrzení se nepodařilo uložit. Zkus to znovu."
     }
-  }
-,
+  },
   "onboarding": {
     "welcomeTitle": "Vítej v aplikaci",
     "welcomeBody": "Pojďme rychle nastavit pár věcí — zabere to chviličku.",
@@ -729,13 +736,64 @@
     "skipStep": "Přeskočit krok",
     "skipAll": "Přeskočit vše",
     "saveFailed": "Uložení se nepovedlo. Zkus to znovu."
-  }
-,
+  },
   "busy": {
     "defaultLabel": "Pracuji…",
     "saving": "Ukládám…",
     "deleting": "Mažu…",
     "cancelling": "Ruším…",
     "loading": "Načítám…"
+  },
+  "dokumentace": {
+    "emptyDocuments": "Zatím žádné dokumenty.",
+    "emptyDocumentsHint": "Nahrajte první dokument.",
+    "addDocument": "Přidat dokument",
+    "replaceDocument": "Nahradit dokument",
+    "deleteDocument": "Smazat dokument",
+    "confirmDelete": "Opravdu smazat tento dokument? Akce je nevratná.",
+    "confirmReplace": "Nahradit stávající dokument novým?",
+    "uploadTitle": "Nahrát dokument",
+    "replaceTitle": "Nahradit dokument",
+    "docTypeLabel": "Typ dokumentu",
+    "docTypePlaceholder": "Vyberte typ…",
+    "displayNameLabel": "Zobrazovaný název",
+    "displayNamePlaceholder": "Název dokumentu…",
+    "uploadCta": "Nahrát",
+    "replaceCta": "Nahradit",
+    "cancelCta": "Zrušit",
+    "auditTitle": "Historie změn",
+    "auditUploaded": "{name} nahrál {doc}",
+    "auditReplaced": "{name} nahradil {doc}",
+    "auditDeleted": "{name} smazal {doc}",
+    "auditMetadataChanged": "{name} změnil údaje {doc}",
+    "linkedDocs": "Přiložená dokumentace",
+    "linkDocCta": "Připojit dokumentaci",
+    "linkDocPickerTitle": "Vybrat dokumentaci",
+    "linkDocConfirm": "Připojit",
+    "unlinkDoc": "Odpojit",
+    "docsCount": "{n} dokumentů",
+    "docsCountOne": "1 dokument",
+    "sectionTitle": "Dokumenty",
+    "uploadModalTitle": "Nahrát dokument",
+    "uploadFile": "Soubor",
+    "uploadPickFile": "Vyberte soubor",
+    "uploadDocType": "Typ dokumentu",
+    "uploadDisplayName": "Zobrazený název",
+    "uploadDisplayNamePlaceholder": "Volitelný název…",
+    "uploadingDocument": "Nahrávání…"
+  },
+  "docTypes": {
+    "pageTitle": "Typy dokumentů",
+    "addCta": "Přidat typ",
+    "labelPlaceholder": "Název typu…",
+    "confirmDelete": "Opravdu smazat tento typ? Existující dokumenty s tímto typem nebudou ovlivněny.",
+    "emptyState": "Žádné typy dokumentů. Přidejte první.",
+    "defaultSmlouva": "Smlouva",
+    "defaultCenovaNabidka": "Cenová nabídka",
+    "defaultProjektovaDokumentace": "Projektová dokumentace",
+    "defaultStavebniPovoleni": "Stavební povolení",
+    "defaultFaktura": "Faktura",
+    "defaultProtokol": "Protokol",
+    "defaultZapis": "Zápis"
   }
 }

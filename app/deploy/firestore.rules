@@ -127,7 +127,7 @@ service cloud.firestore {
       //   ale nové writes je musí obsahovat.
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.resource.data.type in ['napad', 'otazka', 'ukol']
+                    && request.resource.data.type in ['napad', 'otazka', 'ukol', 'dokumentace']
                     && request.resource.data.status is string
                     && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER'];
 
@@ -194,6 +194,13 @@ service cloud.firestore {
       allow create, update: if isOwner()
                             && request.resource.data.taskId is string;
       allow delete: if isOwner();
+    }
+
+
+    // ------ Document Types (V19: admin-managed taxonomy) ------
+    match /documentTypes/{docTypeId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
     }
 
     // ------ Events (V18) ------

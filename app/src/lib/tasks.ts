@@ -62,8 +62,10 @@ export async function createTask(
   authorRole: import("@/types").UserRole,
 ): Promise<string> {
   // V17.2 — PM vytvoří úkol/otázku unassigned; OWNER si je self-assignuje.
+  // V19 — dokumentace nemá assignee (ani status workflow).
+  const isActionable = data.type === "otazka" || data.type === "ukol";
   const defaultAssignee =
-    data.type !== "napad" && authorRole === "OWNER" ? uid : null;
+    isActionable && authorRole === "OWNER" ? uid : null;
   const ref = await addDoc(collection(db, TASKS), {
     ...data,
     assigneeUid: defaultAssignee,
@@ -89,7 +91,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup" | "documents" | "auditLog" | "linkedDocIds">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -139,6 +141,9 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     commentCount: typeof data.commentCount === "number" ? data.commentCount : 0,
     sharedWithRoles: Array.isArray(data.sharedWithRoles) ? data.sharedWithRoles : data.sharedWithPm === true ? ["PROJECT_MANAGER"] : [],
     dependencyText: typeof data.dependencyText === "string" ? data.dependencyText : null,
+    documents: Array.isArray(data.documents) ? data.documents : [],
+    auditLog: Array.isArray(data.auditLog) ? data.auditLog : [],
+    linkedDocIds: Array.isArray(data.linkedDocIds) ? data.linkedDocIds : [],
     vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",
     // V17.1/V17.8 — authorRole je snapshot role autora při create. Pokud

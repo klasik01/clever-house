@@ -40,7 +40,7 @@ const MAX_COMPOSER_IMAGES = 10;
 export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
   const types: TaskType[] = allowedTypes && allowedTypes.length > 0
     ? allowedTypes
-    : ["napad", "otazka", "ukol"];
+    : ["napad", "otazka", "ukol", "dokumentace"];
   const t = useT();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,6 +174,8 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
       ? t("composer.placeholder")
       : type === "ukol"
       ? t("composer.placeholderUkol")
+      : type === "dokumentace"
+      ? t("composer.placeholderDokumentace")
       : t("composer.placeholderOtazka");
 
   return (
@@ -195,6 +197,8 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
                     ? "composer.typeNapad"
                     : tp === "otazka"
                     ? "composer.typeOtazka"
+                    : tp === "dokumentace"
+                    ? "composer.typeDokumentace"
                     : "composer.typeUkol"
                 )}
               />

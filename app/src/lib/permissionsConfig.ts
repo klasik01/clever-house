@@ -30,6 +30,7 @@ export type ActionKey =
   | "task.create.napad"
   | "task.create.otazka"
   | "task.create.ukol"
+  | "task.create.dokumentace"
   | "task.edit"
   | "task.delete"
   | "task.comment"
@@ -42,6 +43,8 @@ export type ActionKey =
   // ---------- Taxonomy (OWNER-managed workspace data) ----------
   | "categories.manage"
   | "locations.manage"
+  // ---------- Document types ----------
+  | "documentTypes.manage"
   // ---------- Settings ----------
   | "settings.profile"
   | "settings.calendarToken";
@@ -105,6 +108,12 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
     description: "Vytvořit úkol.",
     rulesAt: "tasks/create + composer allowedTypes",
   },
+  "task.create.dokumentace": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    description:
+      "Vytvořit dokumentaci. OWNER i PM (v budoucnu i další role).",
+    rulesAt: "tasks/create + composer allowedTypes",
+  },
   "task.edit": {
     roles: ["OWNER", "PROJECT_MANAGER"],
     ownership: "author-or-cross-owner",
@@ -158,7 +167,12 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
     rulesAt: "events/{id}/rsvps/{userId}/write = self",
   },
 
-  // ---------- Taxonomy ----------
+  // ---------- Taxonomy (OWNER-managed workspace data) ----------
+  "documentTypes.manage": {
+    roles: ["OWNER"],
+    description: "Spravovat typy dokumentů (admin seznam pro upload modal).",
+    rulesAt: "documentTypes/write = isOwner()",
+  },
   "categories.manage": {
     roles: ["OWNER"],
     description: "Spravovat kategorie (workspace-wide taxonomy).",

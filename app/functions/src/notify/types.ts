@@ -36,7 +36,7 @@ export interface NotificationDevice {
 }
 
 export interface TaskDoc {
-  type: "napad" | "otazka" | "ukol";
+  type: "napad" | "otazka" | "ukol" | "dokumentace";
   title?: string;
   body?: string;
   assigneeUid?: string | null;

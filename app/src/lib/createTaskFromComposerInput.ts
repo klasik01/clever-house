@@ -29,11 +29,12 @@ export async function createTaskFromComposerInput(opts: {
   const parsedBody = rest || (firstLine.length > 120 ? firstLine : "");
 
   // V14 — seed status by type.
-  //   nápad  → "Nápad" (legacy label, still canonical for this type)
-  //   otázka → "OPEN"  (V10 canonical)
-  //   úkol   → "OPEN"  (V14 canonical, same set as otázka)
+  //   nápad       → "Nápad" (legacy label, still canonical for this type)
+  //   otázka      → "OPEN"  (V10 canonical)
+  //   úkol        → "OPEN"  (V14 canonical, same set as otázka)
+  //   dokumentace → "Nápad" (no workflow status — stored but never displayed)
   const seedStatus =
-    type === "napad" ? "Nápad" : "OPEN";
+    type === "napad" || type === "dokumentace" ? "Nápad" : "OPEN";
   const taskId = await createTask(
     {
       type,
