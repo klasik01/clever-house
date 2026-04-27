@@ -799,6 +799,25 @@
     "linkAdd": "Připojit dokumentaci",
     "linkRemoveConfirm": "Odebrat link na tuto dokumentaci?"
   },
+  "titleFirst": {
+    "titleLabel": "Název",
+    "titlePlaceholder": "Zadejte název…",
+    "create": "Vytvořit",
+    "saving": "Vytvářím…",
+    "cancel": "Zrušit",
+    "leaveTitle": "Opravdu chcete odejít?",
+    "leaveBody": "Záznam nebyl dokončen a bude smazán.",
+    "leaveStay": "Zůstat",
+    "leaveConfirm": "Odejít a smazat"
+  },
+  "fab": {
+    "napad": "Nápad",
+    "otazka": "Otázka",
+    "ukol": "Úkol",
+    "dokumentace": "Dokumentace",
+    "udalost": "Událost",
+    "close": "Zavřít"
+  },
   "dokumentacePage": {
     "pageTitle": "Dokumentace",
     "emptyTitle": "Zatím žádná dokumentace",

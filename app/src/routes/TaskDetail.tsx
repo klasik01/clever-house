@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, FileText, HelpCircle, MapPin, Notebook, Tag, Target, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
@@ -178,6 +178,17 @@ export default function TaskDetail() {
   }>({ open: false });
   const [docUploading, setDocUploading] = useState(false);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
+
+  // V20 — title-first flow. When FAB creates a task with empty title and
+  // navigates here with state.newTask, show only the title input first.
+  const routerLocation = useLocation();
+  const isNewTask = Boolean((routerLocation.state as { newTask?: boolean } | null)?.newTask);
+  const [titleFirstDone, setTitleFirstDone] = useState(false);
+  // True while we're in "title only" mode — task exists but user hasn't
+  // confirmed a title yet.
+  const inTitleFirst = isNewTask && !titleFirstDone;
+
+
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -709,6 +720,96 @@ export default function TaskDetail() {
       : task.type === "dokumentace"
       ? FileText
       : Notebook;
+
+  // ---------- V20 — Title-first flow for newly created tasks ----------
+  if (inTitleFirst) {
+    const typeLabel =
+      task.type === "otazka" ? t("detail.typeOtazka")
+      : task.type === "ukol" ? t("detail.typeUkol")
+      : task.type === "dokumentace" ? t("detail.typeDokumentace")
+      : t("detail.typeNapad");
+
+    async function handleTitleConfirm() {
+      if (!title.trim()) return;
+      setSaving(true);
+      try {
+        await updateTask(task.id, { title: title.trim() });
+        setTitleFirstDone(true);
+      } catch (err) {
+        console.error("title save failed", err);
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleCancelNew() {
+      try { await deleteTask(task.id); } catch { /* ignore */ }
+      navigate(-1);
+    }
+
+    return (
+      <article className="mx-auto max-w-xl px-4 pt-4 pb-4">
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            type="button"
+            onClick={handleCancelNew}
+            aria-label={t("detail.back")}
+            className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
+          >
+            <ArrowLeft aria-hidden size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <TypeIcon aria-hidden size={20} className="text-accent-visual" />
+            <h1 className="text-lg font-semibold text-ink">{typeLabel}</h1>
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-surface shadow-sm ring-1 ring-line p-4">
+          <label htmlFor="title-first-input" className="block text-sm font-medium text-ink-subtle mb-2">
+            {t("titleFirst.titleLabel")}
+          </label>
+          <textarea
+            id="title-first-input"
+            ref={titleTextareaRef}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleTitleConfirm();
+              }
+            }}
+            placeholder={t("titleFirst.titlePlaceholder")}
+            rows={2}
+            autoFocus
+            autoCapitalize="sentences"
+            spellCheck
+            disabled={saving}
+            className="block w-full resize-none rounded-md border border-line bg-transparent px-3 py-2 text-base leading-relaxed placeholder:text-ink-subtle focus:outline-none focus:ring-2 focus:ring-line-focus disabled:opacity-60"
+          />
+          <div className="mt-4 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={handleCancelNew}
+              disabled={saving}
+              className="min-h-tap rounded-md px-4 py-2 text-sm font-medium text-ink-muted hover:text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+            >
+              {t("titleFirst.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={handleTitleConfirm}
+              disabled={!title.trim() || saving}
+              className="min-h-tap rounded-md bg-accent px-5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover active:bg-accent-active disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? t("titleFirst.saving") : t("titleFirst.create")}
+            </button>
+          </div>
+        </div>
+
+      </article>
+    );
+  }
 
   // ---------- Read-only view (V17.2) ----------
   // Aktivuje se když current user nemá edit práva na tento task:

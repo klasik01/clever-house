@@ -12,6 +12,7 @@ import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import NotificationBell from "./NotificationBell";
 import OnboardingModal from "./OnboardingModal";
 import { ROUTES } from "@/lib/routes";
+import FabRadial from "./FabRadial";
 
 interface Props {
   children: ReactNode;
@@ -141,7 +142,7 @@ function BottomTabs({ role }: { role: UserRole }) {
               icon={<Notebook aria-hidden size={20} />}
               label={t("tabs.zaznamy")}
             />
-            <FabCell />
+            <FabRadialCell />
             <Tab
               to={ROUTES.ukoly}
               icon={<ListChecks aria-hidden size={20} />}
@@ -163,7 +164,7 @@ function BottomTabs({ role }: { role: UserRole }) {
               icon={<Notebook aria-hidden size={20} />}
               label={t("tabs.zaznamy")}
             />
-            <FabCell />
+            <FabRadialCell />
             <Tab
               to={ROUTES.ukoly}
               icon={<ListChecks aria-hidden size={20} />}
@@ -225,22 +226,10 @@ function Tab({
 }
 
 
-function FabCell() {
-  const t = useT();
+function FabRadialCell() {
   return (
     <li className="relative -my-2 flex w-14 justify-center">
-      <NavLink
-        to={ROUTES.novyTask}
-        aria-label={t("tabs.newTask")}
-        className={({ isActive }) =>
-          [
-            "grid size-14 place-items-center rounded-full bg-accent text-accent-on shadow-md ring-1 ring-line/40 transition-transform duration-fast hover:bg-accent-hover hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
-            isActive ? "ring-2 ring-line-focus" : "",
-          ].join(" ")
-        }
-      >
-        <Plus aria-hidden size={24} />
-      </NavLink>
+      <FabRadial />
     </li>
   );
 }
