@@ -1727,10 +1727,10 @@ export default function TaskDetail() {
                 const linkedDoc = allTasks.find((x) => x.id === docId);
                 if (!linkedDoc) return null;
                 return (
-                  <li key={docId} className="flex items-center gap-2">
+                  <li key={docId}>
                     <Link
                       to={taskDetail(docId)}
-                      className="flex flex-1 items-center gap-3 min-w-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:bg-bg-subtle transition-colors"
+                      className="flex items-center gap-3 min-w-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:bg-bg-subtle transition-colors"
                     >
                       <FileText aria-hidden size={18} className="shrink-0 text-accent-visual" />
                       <div className="min-w-0 flex-1">
@@ -1741,18 +1741,18 @@ export default function TaskDetail() {
                           {(linkedDoc.documents?.length ?? 0)} {t("dokumentace.linkDocCount")}
                         </p>
                       </div>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnlinkDoc(docId); }}
+                          disabled={saving}
+                          aria-label={t("common.delete")}
+                          className="shrink-0 grid size-8 place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40 transition-colors"
+                        >
+                          <XIcon aria-hidden size={16} />
+                        </button>
+                      )}
                     </Link>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() => handleUnlinkDoc(docId)}
-                        disabled={saving}
-                        aria-label={t("common.delete")}
-                        className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40"
-                      >
-                        <XIcon aria-hidden size={16} />
-                      </button>
-                    )}
                   </li>
                 );
               }).filter(Boolean)}

@@ -1,7 +1,6 @@
 import { FileText, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import TaskList from "@/components/TaskList";
-import FilterChips from "@/components/FilterChips";
 import SearchInput from "@/components/SearchInput";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import { useT } from "@/i18n/useT";
@@ -12,19 +11,15 @@ import { applySearch } from "@/lib/search";
 import { filterKey } from "@/lib/storageKeys";
 import {
   applyCategory,
-  applyOpenClosed,
-  clearAllFilters,
   loadCategoryFilter,
-  loadFilter,
   saveCategoryFilter,
-  saveFilter,
-  type OpenClosedFilter,
 } from "@/lib/filters";
 
 const KEY = "dokumentace";
 
 /**
  * V20 /dokumentace — dedicated list for dokumentace records.
+ * No status filter — dokumentace has no workflow (always "Nápad" status).
  */
 export default function Dokumentace() {
   const t = useT();
@@ -32,7 +27,6 @@ export default function Dokumentace() {
   const { tasks, loading, error } = useTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
-  const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
   const [query, setQuery] = useState<string>(() => {
     try { return sessionStorage.getItem(filterKey("dokumentace", "q")) ?? ""; } catch { return ""; }
@@ -44,25 +38,17 @@ export default function Dokumentace() {
 
   const dokumentace = tasks.filter((tk) => tk.type === "dokumentace");
 
-  const counts = {
-    all: dokumentace.length,
-    open: dokumentace.filter((x) => x.status !== "Hotovo").length,
-    done: dokumentace.filter((x) => x.status === "Hotovo").length,
-  };
-
   const visible = applySearch(
-    applyCategory(applyOpenClosed(dokumentace, filter), categoryId),
+    applyCategory(dokumentace, categoryId),
     query,
   );
 
-  const isFilterActive =
-    filter !== "open" || categoryId !== null || query.trim() !== "";
+  const isFilterActive = categoryId !== null || query.trim() !== "";
 
   function handleResetFilters() {
-    setFilter("open");
     setCategoryId(null);
     setQueryPersist("");
-    clearAllFilters(KEY);
+    saveCategoryFilter(KEY, null);
   }
 
   return (
@@ -84,14 +70,6 @@ export default function Dokumentace() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterChips
-          value={filter}
-          onChange={(v) => {
-            setFilter(v);
-            saveFilter(KEY, v);
-          }}
-          counts={counts}
-        />
         <CategoryFilterChip
           value={categoryId}
           categories={categories}

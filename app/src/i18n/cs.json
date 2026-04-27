@@ -805,7 +805,8 @@
     "emptyBody": "Nahrajte první dokument pomocí + v hlavičce.",
     "ariaList": "Seznam dokumentace",
     "ariaLabel": "Dokumentace",
-    "addCta": "Nová dokumentace"
+    "addCta": "Nová dokumentace",
+    "noDocuments": "Žádné dokumenty"
   },
   "docTypes": {
     "pageTitle": "Typy dokumentů",

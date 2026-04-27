@@ -202,6 +202,15 @@ export default function NapadCard({ task, categories }: Props) {
                 )}
                 {titleDisplay}
               </p>
+              {task.type === "dokumentace" ? (
+                <p className="mt-1 text-sm text-ink-muted">
+                  {docCount === 0
+                    ? t("dokumentacePage.noDocuments")
+                    : docCount === 1
+                    ? t("dokumentace.docsCountOne")
+                    : t("dokumentace.docsCount", { n: docCount })}
+                </p>
+              ) : (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {(task.type === "otazka" || task.type === "ukol") && task.priority && (
                   <PriorityBadge priority={task.priority} />
@@ -275,9 +284,10 @@ export default function NapadCard({ task, categories }: Props) {
                   {formatRelative(t, created)}
                 </span>
               </div>
+              )}
             </div>
             {/* Attachments hint via paperclip when one or both present */}
-            {(hasImage || hasLink) && (
+            {task.type !== "dokumentace" && (hasImage || hasLink) && (
               <Paperclip aria-hidden size={14} className="mt-1 shrink-0 text-ink-subtle" />
             )}
             {assignee && (

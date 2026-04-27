@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Composer from "@/components/Composer";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +33,13 @@ export default function NewTask() {
     : ["otazka", "ukol", "dokumentace"];
   const { show: showToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // V20 — ?type=dokumentace pre-selects the type in the composer.
+  const qType = searchParams.get("type") as TaskType | null;
+  const initialType: TaskType | undefined =
+    qType && (allowedTypes ?? ["napad", "otazka", "ukol", "dokumentace"]).includes(qType)
+      ? qType
+      : undefined;
 
   const onSave = useCallback(
     async (text: string, type: TaskType, imageFiles: File[], linkUrls: string[]) => {
@@ -78,7 +85,7 @@ export default function NewTask() {
       <p className="mb-4 text-sm text-ink-muted">
         {t(canCreateNapad ? "novy.pageHint" : "novy.pageHintPm")}
       </p>
-      <Composer onSave={onSave} allowedTypes={allowedTypes} />
+      <Composer onSave={onSave} allowedTypes={allowedTypes} initialType={initialType} />
     </section>
   );
 }

@@ -63,7 +63,7 @@ function Header() {
         <div className="flex items-center gap-1">
           {showAddDokumentaceCta && (
             <Link
-              to={ROUTES.novyTask}
+              to={`${ROUTES.novyTask}?type=dokumentace`}
               aria-label={t("dokumentacePage.addCta")}
               className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
             >

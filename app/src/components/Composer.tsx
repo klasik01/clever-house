@@ -33,11 +33,16 @@ interface Props {
    * Ignored when `lockedType` is set.
    */
   allowedTypes?: TaskType[];
+  /**
+   * V20 — pre-select a type (e.g. from ?type=dokumentace query param).
+   * Unlike lockedType, the user can still switch to another type.
+   */
+  initialType?: TaskType;
 }
 
 const MAX_COMPOSER_IMAGES = 10;
 
-export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
+export default function Composer({ onSave, lockedType, allowedTypes, initialType }: Props) {
   const types: TaskType[] = allowedTypes && allowedTypes.length > 0
     ? allowedTypes
     : ["napad", "otazka", "ukol", "dokumentace"];
@@ -45,7 +50,7 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState<string>(() => loadDraft());
-  const [type, setType] = useState<TaskType>(lockedType ?? types[0]);
+  const [type, setType] = useState<TaskType>(lockedType ?? initialType ?? types[0]);
   const [stagedImages, setStagedImages] = useState<StagedImage[]>([]);
   const [linkUrls, setLinkUrls] = useState<string[]>([]);
   const [lastReturnAt, setLastReturnAt] = useState<number>(0);
