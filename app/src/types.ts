@@ -242,6 +242,15 @@ export interface DocumentType {
   createdAt: string;
 }
 
+
+/** V23 — build phases, configurable in settings. */
+export interface Phase {
+  id: string;
+  label: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 /** V7 — locations editable, reduced to 3 groups.
  *  "pozemek" = land / garden / outdoor.
  *  "dum"     = indoor rooms (living, general, hygiene — collapsed).

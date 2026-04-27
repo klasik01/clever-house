@@ -23,6 +23,7 @@ import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
 import LokaceManage from "./routes/LokaceManage";
 import DocumentTypesManage from "./routes/DocumentTypesManage";
+import PhasesManage from "./routes/PhasesManage";
 import Rozpocet from "./routes/Rozpocet";
 import Ukoly from "./routes/Ukoly";
 import Zaznamy from "./routes/Zaznamy";
@@ -64,6 +65,7 @@ export default function App() {
           <Route path={ROUTES.kategorie} element={<KategorieForOwner />} />
           <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
           <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
+          <Route path={ROUTES.nastaveniFaze} element={<PhasesForOwner />} />
           <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
           <Route path={ROUTES.harmonogram} element={<Navigate to={ROUTES.dokumentace} replace />} />
           <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
@@ -170,6 +172,16 @@ function DocTypesForOwner() {
   }
   return <DocumentTypesManage />;
 }
+/** PM redirects away from "/nastaveni/faze". */
+function PhasesForOwner() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+    return <Navigate to={ROUTES.ukoly} replace />;
+  }
+  return <PhasesManage />;
+}
+
 /** PM redirects away from `/kategorie`. */
 function KategorieForOwner() {
   const { user } = useAuth();

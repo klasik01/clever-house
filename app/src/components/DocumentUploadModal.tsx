@@ -33,13 +33,7 @@ export default function DocumentUploadModal({ prefill, onConfirm, onClose }: Pro
     }
   }, [documentTypes, docType]);
 
-  // Auto-fill displayName from filename if empty
-  useEffect(() => {
-    if (file && !displayName && !prefill?.displayName) {
-      const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
-      setDisplayName(nameWithoutExt);
-    }
-  }, [file, displayName, prefill?.displayName]);
+
 
   function handleBackdropClick(e: React.MouseEvent) {
     if (e.target === backdropRef.current) onClose();
@@ -65,7 +59,7 @@ export default function DocumentUploadModal({ prefill, onConfirm, onClose }: Pro
       aria-modal="true"
       aria-label={t("dokumentace.uploadModalTitle")}
     >
-      <div className="w-full max-w-md rounded-xl bg-bg shadow-xl ring-1 ring-line">
+      <div className="w-full max-w-md overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-base font-semibold text-ink">
@@ -153,7 +147,7 @@ export default function DocumentUploadModal({ prefill, onConfirm, onClose }: Pro
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={t("dokumentace.uploadDisplayNamePlaceholder")}
+              placeholder={file ? file.name.replace(/\.[^.]+$/, "") : t("dokumentace.uploadDisplayNamePlaceholder")}
               className="min-h-tap w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
             />
           </div>

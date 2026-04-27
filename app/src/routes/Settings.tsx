@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, LogOut, MapPin, RefreshCw, Tag } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, LogOut, MapPin, Milestone, RefreshCw, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -81,6 +81,7 @@ export default function Settings() {
           <LinkRow to={ROUTES.kategorie} icon={<Tag size={18} aria-hidden />} label={t("settings.categories")} />
           <LinkRow to={ROUTES.nastaveniLokace} icon={<MapPin size={18} aria-hidden />} label={t("settings.locationsManage")} />
           <LinkRow to={ROUTES.nastaveniTypyDokumentu} icon={<FileText size={18} aria-hidden />} label={t("settings.documentTypes")} />
+          <LinkRow to={ROUTES.nastaveniFaze} icon={<Milestone size={18} aria-hidden />} label={t("settings.phases")} />
           <LinkRow to={ROUTES.export} icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
         </SettingsGroup>
       )}

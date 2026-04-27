@@ -48,6 +48,9 @@ export const ROUTES = {
   /** Settings → manage document types (OWNER-only). */
   nastaveniTypyDokumentu: "/nastaveni/typy-dokumentu",
 
+  /** Settings → manage build phases (OWNER-only). */
+  nastaveniFaze: "/nastaveni/faze",
+
   /** Top-level kategorie list (OWNER-only). */
   kategorie: "/kategorie",
 

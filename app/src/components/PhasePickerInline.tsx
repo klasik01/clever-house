@@ -1,5 +1,6 @@
 import { ChevronDown, Milestone } from "lucide-react";
 import { useT } from "@/i18n/useT";
+import { usePhases } from "@/hooks/usePhases";
 
 interface Props {
   value: string | null | undefined;
@@ -8,28 +9,15 @@ interface Props {
 }
 
 /**
- * V19 — placeholder phase picker. Same visual style as LocationPickerInline.
- * Phases are hardcoded for now; will be replaced with dynamic data later.
+ * V23 — dynamic phase picker. Reads phases from Firestore via usePhases hook.
+ * Same visual style as LocationPickerInline.
  */
-
-const PHASES = [
-  { id: "projekt", label: "Projekt" },
-  { id: "zaklady", label: "Základy" },
-  { id: "hruba-stavba", label: "Hrubá stavba" },
-  { id: "strecha", label: "Střecha" },
-  { id: "okna-dvere", label: "Okna a dveře" },
-  { id: "instalace", label: "Instalace" },
-  { id: "omitky", label: "Omítky" },
-  { id: "podlahy", label: "Podlahy" },
-  { id: "dokonceni", label: "Dokončení" },
-  { id: "zahrada", label: "Zahrada" },
-];
-
 export default function PhasePickerInline({ value, onChange, disabled }: Props) {
   const t = useT();
+  const { phases } = usePhases(true);
   const current = value ?? "";
   const selectedLabel = current
-    ? PHASES.find((p) => p.id === current)?.label ?? t("detail.phaseNone")
+    ? phases.find((p) => p.id === current)?.label ?? t("detail.phaseNone")
     : t("detail.phaseNone");
 
   return (
@@ -45,7 +33,7 @@ export default function PhasePickerInline({ value, onChange, disabled }: Props) 
         className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-default"
       >
         <option value="">{t("detail.phaseNone")}</option>
-        {PHASES.map((p) => (
+        {phases.map((p) => (
           <option key={p.id} value={p.id}>
             {p.label}
           </option>

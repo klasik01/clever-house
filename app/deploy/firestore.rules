@@ -203,6 +203,12 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
+    // ------ Phases (V23: configurable build phases) ------
+    match /phases/{phaseId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner();
+    }
+
     // ------ Events (V18) ------
     // Calendar-aware eventy s fixním datetime. Paralelí s tasks rules
     // (V17.1 permissions model), jen bez sharedWithRoles / commentCount

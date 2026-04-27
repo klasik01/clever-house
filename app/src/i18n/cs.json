@@ -123,7 +123,8 @@
     "prehledCard": {
       "title": "Přehled",
       "hint": "Čeká na mě, po termínu, uvízlé."
-    }
+    },
+    "phases": "Fáze stavby"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -842,5 +843,12 @@
     "defaultFaktura": "Faktura",
     "defaultProtokol": "Protokol",
     "defaultZapis": "Zápis"
+  },
+  "phases": {
+    "pageTitle": "Fáze stavby",
+    "addCta": "Přidat fázi",
+    "labelPlaceholder": "Název fáze…",
+    "confirmDelete": "Opravdu smazat tuto fázi? Existující záznamy s touto fází nebudou ovlivněny.",
+    "emptyState": "Žádné fáze. Přidejte první."
   }
 }
