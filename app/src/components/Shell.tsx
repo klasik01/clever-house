@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { Calendar, FileText, Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
-import { NavLink, Link, useLocation } from "react-router-dom";
+import { Calendar, FileText, Notebook, Ellipsis, CalendarDays, ListChecks } from "lucide-react";
+import { NavLink, Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
-import type { UserRole } from "@/types";
 import { useTasks } from "@/hooks/useTasks";
 import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,10 +15,9 @@ import FabRadial from "./FabRadial";
 
 interface Props {
   children: ReactNode;
-  role: UserRole;
 }
 
-export default function Shell({ children, role }: Props) {
+export default function Shell({ children }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
       <OfflineBanner />
@@ -32,7 +30,7 @@ export default function Shell({ children, role }: Props) {
       >
         {children}
       </main>
-      <BottomTabs role={role} />
+      <BottomTabs />
     </div>
   );
 }
@@ -41,12 +39,6 @@ function Header() {
   const t = useT();
   const { user } = useAuth();
   const eventsActionCount = useEventsActionCount(user?.uid);
-  const location = useLocation();
-  // V18-S20 — `+` v headeru jen na samotném /events listu (ne /events/new
-  // composer ani /event/:id detail — tam by mátl).
-  const showAddEventCta = location.pathname === "/events";
-  const showAddDokumentaceCta = location.pathname === "/dokumentace";
-
   return (
     <header
       className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur pt-safe"
@@ -62,24 +54,6 @@ function Header() {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          {showAddDokumentaceCta && (
-            <Link
-              to={`${ROUTES.novyTask}?type=dokumentace`}
-              aria-label={t("dokumentacePage.addCta")}
-              className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
-            >
-              <Plus aria-hidden size={20} />
-            </Link>
-          )}
-          {showAddEventCta && (
-            <Link
-              to={ROUTES.eventsNew}
-              aria-label={t("events.addCta")}
-              className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
-            >
-              <Plus aria-hidden size={20} />
-            </Link>
-          )}
           <Link
             to={ROUTES.dokumentace}
             aria-label={t("dokumentacePage.ariaLabel")}
@@ -118,9 +92,8 @@ function Header() {
   );
 }
 
-function BottomTabs({ role }: { role: UserRole }) {
+function BottomTabs() {
   const t = useT();
-  const isPm = role === "PROJECT_MANAGER";
   const { user } = useAuth();
   const { tasks } = useTasks(Boolean(user));
   // V10 — ball-on-me is assignee-driven across all roles. The badge counts
@@ -133,46 +106,24 @@ function BottomTabs({ role }: { role: UserRole }) {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {!isPm ? (
-          <>
-            {/* OWNER nav: Seznam / Záznamy · FAB · Úkoly / Nastavení */}
-            <Tab to="/" end icon={<MapPin aria-hidden size={20} />} label={t("tabs.seznam")} />
-            <Tab
-              to={ROUTES.zaznamy}
-              icon={<Notebook aria-hidden size={20} />}
-              label={t("tabs.zaznamy")}
-            />
-            <FabRadialCell />
-            <Tab
-              to={ROUTES.ukoly}
-              icon={<ListChecks aria-hidden size={20} />}
-              label={t("tabs.ukoly")}
-              badge={ballOnMe}
-            />
-          </>
-        ) : (
-          <>
-            {/* PM nav: Rozpočet · Záznamy · FAB · Úkoly / Nastavení.
-                Layout: [Rozpočet] [Záznamy] [⊕] [Úkoly] · [Nastavení]. */}
-            <Tab
-              to={ROUTES.harmonogram}
-              icon={<CalendarDays aria-hidden size={20} />}
-              label={t("tabs.harmonogram")}
-            />
-            <Tab
-              to={ROUTES.zaznamy}
-              icon={<Notebook aria-hidden size={20} />}
-              label={t("tabs.zaznamy")}
-            />
-            <FabRadialCell />
-            <Tab
-              to={ROUTES.ukoly}
-              icon={<ListChecks aria-hidden size={20} />}
-              label={t("tabs.ukoly")}
-              badge={ballOnMe}
-            />
-          </>
-        )}
+        {/* Unified nav: Harmonogram / Záznamy · FAB · Úkoly / Nastavení */}
+        <Tab
+          to={ROUTES.harmonogram}
+          icon={<CalendarDays aria-hidden size={20} />}
+          label={t("tabs.harmonogram")}
+        />
+        <Tab
+          to={ROUTES.zaznamy}
+          icon={<Notebook aria-hidden size={20} />}
+          label={t("tabs.zaznamy")}
+        />
+        <FabRadialCell />
+        <Tab
+          to={ROUTES.ukoly}
+          icon={<ListChecks aria-hidden size={20} />}
+          label={t("tabs.ukoly")}
+          badge={ballOnMe}
+        />
         <Tab
           to={ROUTES.nastaveni}
           icon={<Ellipsis aria-hidden size={20} />}

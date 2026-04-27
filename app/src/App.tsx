@@ -21,13 +21,11 @@ import Shell from "./components/Shell";
 import Settings from "./routes/Settings";
 import Kategorie from "./routes/Kategorie";
 import KategorieDetail from "./routes/KategorieDetail";
-import Lokace from "./routes/Lokace";
 import LokaceManage from "./routes/LokaceManage";
 import DocumentTypesManage from "./routes/DocumentTypesManage";
 import Rozpocet from "./routes/Rozpocet";
 import Harmonogram from "./routes/Harmonogram";
 import Ukoly from "./routes/Ukoly";
-import NewTask from "./routes/NewTask";
 import Zaznamy from "./routes/Zaznamy";
 import Dokumentace from "./routes/Dokumentace";
 import LokaceDetail from "./routes/LokaceDetail";
@@ -52,7 +50,7 @@ export default function App() {
         <Route path={ROUTES.login} element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path={ROUTES.home} element={<LokaceForOwner />} />
+          <Route path={ROUTES.home} element={<Navigate to={ROUTES.harmonogram} replace />} />
           <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
           <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
@@ -68,11 +66,10 @@ export default function App() {
           <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
           <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
           <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
-          <Route path={ROUTES.harmonogram} element={<HarmonogramForPm />} />
+          <Route path={ROUTES.harmonogram} element={<Harmonogram />} />
           <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
           <Route path={ROUTE_PATTERNS.lokaceDetail} element={<LokaceDetailForOwner />} />
           <Route path={ROUTES.legacyPrehled} element={<Navigate to={ROUTES.ukoly} replace />} />
-          <Route path={ROUTES.novyTask} element={<NewTaskForOwner />} />
           <Route path={ROUTES.export} element={<ExportForOwner />} />
           <Route path={ROUTES.lokace} element={<Navigate to={ROUTES.home} replace />} />
           <Route path={ROUTE_PATTERNS.catchAll} element={<Navigate to={ROUTES.home} replace />} />
@@ -128,7 +125,7 @@ function ProtectedLayout() {
   }
 
   return (
-    <Shell role={roleState.profile.role}>
+    <Shell>
       <Outlet />
     </Shell>
   );
@@ -142,16 +139,6 @@ function ExportForOwner() {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Export />;
-}
-
-/** OWNER redirects away from `/harmonogram` — PM-only feature for V11.1. */
-function HarmonogramForPm() {
-  const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
-    return <Navigate to={ROUTES.home} replace />;
-  }
-  return <Harmonogram />;
 }
 
 /** OWNER redirects away from `/rozpocet` — PM-only feature for V11. */
@@ -202,21 +189,6 @@ function KategorieDetailForOwner() {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <KategorieDetail />;
-}
-
-/** PM redirects away from `/lokace`. */
-function LokaceForOwner() {
-  const { user } = useAuth();
-  const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
-    return <Navigate to={ROUTES.ukoly} replace />;
-  }
-  return <Lokace />;
-}
-
-/** V10 — both OWNER and PM can create tasks. (Kept wrapper name for callsite stability.) */
-function NewTaskForOwner() {
-  return <NewTask />;
 }
 
 /** PM redirects away from `/lokace/:id`. */

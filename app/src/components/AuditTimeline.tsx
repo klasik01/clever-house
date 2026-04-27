@@ -55,42 +55,47 @@ export default function AuditTimeline({ entries }: Props) {
         </span>
       </button>
 
-      {expanded && (
-        <ol id="audit-content" className="mt-2 space-y-2 pl-2">
-          {sorted.map((entry, i) => {
-            const Icon = ACTION_ICON[entry.action] ?? FileText;
-            const actorName =
-              byUid.get(entry.actorUid)?.displayName ??
-              byUid.get(entry.actorUid)?.email ??
-              entry.actorUid;
-            const ts = new Date(entry.timestamp);
+      <div
+        id="audit-content"
+        className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-out grid ${expanded ? "grid-rows-[1fr] mt-2" : "grid-rows-[0fr]"}`}
+      >
+        <div className="min-h-0">
+          <ol className="space-y-2 pl-2">
+            {sorted.map((entry, i) => {
+              const Icon = ACTION_ICON[entry.action] ?? FileText;
+              const actorName =
+                byUid.get(entry.actorUid)?.displayName ??
+                byUid.get(entry.actorUid)?.email ??
+                entry.actorUid;
+              const ts = new Date(entry.timestamp);
 
-            return (
-              <li key={i} className="flex items-start gap-2.5">
-                <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-bg-subtle text-ink-subtle">
-                  <Icon aria-hidden size={12} />
-                </span>
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="text-ink">
-                    <span className="font-medium">{actorName}</span>
-                    {" "}
-                    <span className="text-ink-muted">{t(`dokumentace.audit.${entry.action}`)}</span>
-                    {entry.details && (
-                      <span className="text-ink-muted"> — {entry.details}</span>
-                    )}
-                  </p>
-                  <p className="text-xs text-ink-subtle">
-                    {formatRelative(t, ts)}
-                    <span className="ml-1 opacity-60">
-                      {ts.toLocaleString("cs-CZ")}
-                    </span>
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+              return (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-bg-subtle text-ink-subtle">
+                    <Icon aria-hidden size={12} />
+                  </span>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <p className="text-ink">
+                      <span className="font-medium">{actorName}</span>
+                      {" "}
+                      <span className="text-ink-muted">{t(`dokumentace.audit.${entry.action}`)}</span>
+                      {entry.details && (
+                        <span className="text-ink-muted"> — {entry.details}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-ink-subtle">
+                      {formatRelative(t, ts)}
+                      <span className="ml-1 opacity-60">
+                        {ts.toLocaleString("cs-CZ")}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
     </section>
   );
 }

@@ -12,9 +12,8 @@ import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { roleHas } from "@/lib/permissionsConfig";
-import { createTask } from "@/lib/tasks";
-import { taskDetail, ROUTES } from "@/lib/routes";
-import type { TaskType, UserRole } from "@/types";
+import { ROUTES } from "@/lib/routes";
+import type { TaskType } from "@/types";
 
 interface FabItem {
   key: string;
@@ -37,11 +36,10 @@ export default function FabRadial() {
   const t = useT();
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  const role: UserRole | null =
+  const role =
     roleState.status === "ready" ? roleState.profile.role : null;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -105,8 +103,7 @@ export default function FabRadial() {
     },
   ];
 
-  async function handlePick(item: FabItem) {
-    if (creating) return;
+  function handlePick(item: FabItem) {
     setOpen(false);
 
     if (item.route) {
@@ -114,27 +111,11 @@ export default function FabRadial() {
       return;
     }
 
-    if (!item.taskType || !user) return;
+    if (!item.taskType) return;
 
-    setCreating(true);
-    try {
-      const defaultStatus = item.taskType === "dokumentace" ? "Nápad" : "Nápad";
-      const taskId = await createTask(
-        {
-          type: item.taskType,
-          title: "",
-          body: "",
-          status: defaultStatus,
-        },
-        user.uid,
-        role ?? "OWNER",
-      );
-      navigate(taskDetail(taskId), { replace: true, state: { newTask: true } });
-    } catch (err) {
-      console.error("FAB create failed", err);
-    } finally {
-      setCreating(false);
-    }
+    // V20 fix — don't create task yet, just navigate to title-first screen.
+    // Task will be created in Firestore only after user confirms a title.
+    navigate("/t/new", { state: { createType: item.taskType } });
   }
 
   // Fan layout: items spread in a semicircle above the FAB.
@@ -167,7 +148,6 @@ export default function FabRadial() {
             key={item.key}
             type="button"
             onClick={() => handlePick(item)}
-            disabled={creating}
             aria-label={item.label}
             title={item.label}
             className="absolute z-30 grid size-12 place-items-center rounded-full bg-surface text-ink shadow-lg ring-1 ring-line transition-all duration-300 ease-out hover:bg-bg-subtle hover:scale-110 active:scale-95 disabled:opacity-40"
@@ -193,7 +173,6 @@ export default function FabRadial() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        disabled={creating}
         aria-label={open ? t("fab.close") : t("tabs.newTask")}
         aria-expanded={open}
         className={[

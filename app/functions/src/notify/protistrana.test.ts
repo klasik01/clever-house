@@ -1,84 +1,55 @@
 import { describe, it, expect } from "vitest";
 import { protistrana } from "./protistrana";
 
-describe("protistrana — V16.4 scalar change recipient picker", () => {
-  it("autor edituje vlastní task → pošle assignee", () => {
-    const r = protistrana({
-      actorUid: "owner",
-      createdBy: "owner",
-      assigneeUid: "pm",
-    });
-    expect(r).toBe("pm");
+/**
+ * V16.4 + V20 — protistrana pure helper testy.
+ */
+
+describe("protistrana", () => {
+  it("assignee mění → pošli autorovi", () => {
+    expect(
+      protistrana({ actorUid: "assignee", createdBy: "author", assigneeUid: "assignee" }),
+    ).toBe("author");
   });
 
-  it("assignee edituje svůj task → pošle autorovi", () => {
-    const r = protistrana({
-      actorUid: "pm",
-      createdBy: "owner",
-      assigneeUid: "pm",
-    });
-    expect(r).toBe("owner");
+  it("autor mění → pošli assignee", () => {
+    expect(
+      protistrana({ actorUid: "author", createdBy: "author", assigneeUid: "bob" }),
+    ).toBe("bob");
   });
 
-  it("assignee == autor (self-assigned), edituje sám → nikomu (null)", () => {
-    const r = protistrana({
-      actorUid: "owner",
-      createdBy: "owner",
-      assigneeUid: "owner",
-    });
-    expect(r).toBeNull();
+  it("třetí strana mění → pošli assignee (má míč)", () => {
+    expect(
+      protistrana({ actorUid: "pm", createdBy: "author", assigneeUid: "bob" }),
+    ).toBe("bob");
   });
 
-  it("task bez assignee → nikomu (null)", () => {
-    const r = protistrana({
-      actorUid: "owner",
-      createdBy: "owner",
-      assigneeUid: null,
-    });
-    expect(r).toBeNull();
+  it("self-loop (autor = assignee, sám mění) → null", () => {
+    expect(
+      protistrana({ actorUid: "me", createdBy: "me", assigneeUid: "me" }),
+    ).toBeNull();
   });
 
-  it("task s assignee=undefined → nikomu", () => {
-    const r = protistrana({
-      actorUid: "owner",
-      createdBy: "owner",
-      assigneeUid: undefined,
-    });
-    expect(r).toBeNull();
+  it("bez assignee → null (nikdo nemá míč)", () => {
+    expect(
+      protistrana({ actorUid: "author", createdBy: "author", assigneeUid: null }),
+    ).toBeNull();
   });
 
-  it("třetí strana (ani autor ani assignee) edituje → pošle assignee (ten má míč)", () => {
-    const r = protistrana({
-      actorUid: "admin",
-      createdBy: "owner",
-      assigneeUid: "pm",
-    });
-    expect(r).toBe("pm");
+  it("undefined assignee → null", () => {
+    expect(
+      protistrana({ actorUid: "author", createdBy: "author", assigneeUid: undefined }),
+    ).toBeNull();
   });
 
-  it("když je assignee = actor a autor = assignee — nic nepošle", () => {
-    // Nemožný výraz v kódu (actor = assignee a zároveň assignee = author):
-    // pokud actor=assignee a author=assignee, pak actor=author. Takže self-loop.
-    const r = protistrana({
-      actorUid: "me",
-      createdBy: "me",
-      assigneeUid: "me",
-    });
-    expect(r).toBeNull();
-  });
-
-  it("actor nikdy není v návratu (základní self-filter)", () => {
-    // Pokrývám case že když protistrana vrátí hodnotu, není to actor.
-    const cases = [
-      { actorUid: "a", createdBy: "a", assigneeUid: "b" }, // → b
-      { actorUid: "a", createdBy: "b", assigneeUid: "a" }, // → b
-      { actorUid: "c", createdBy: "a", assigneeUid: "b" }, // → b
-    ];
-    for (const c of cases) {
-      const r = protistrana(c);
-      if (r !== null) {
-        expect(r).not.toBe(c.actorUid);
-      }
-    }
+  // V20 — dokumentace tasky typicky nemají assignee
+  it("dokumentace bez assignee (typický V20 scénář) → null", () => {
+    // Dokumentace nemá přiřazeného — protistrana nemá komu poslat.
+    expect(
+      protistrana({ actorUid: "owner", createdBy: "owner", assigneeUid: null }),
+    ).toBeNull();
+    expect(
+      protistrana({ actorUid: "pm", createdBy: "owner", assigneeUid: undefined }),
+    ).toBeNull();
   });
 });

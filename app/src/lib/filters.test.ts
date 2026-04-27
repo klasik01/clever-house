@@ -1,148 +1,92 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import {
-  applyOpenClosed,
-  applyCategory,
-  applyLocation,
-  loadFilter,
-  saveFilter,
-  loadCategoryFilter,
-  saveCategoryFilter,
-  loadLocationFilter,
-  saveLocationFilter,
-  clearAllFilters,
-} from "./filters";
+import { describe, it, expect } from "vitest";
+import { applyOpenClosed, applyCategory, applyLocation } from "./filters";
 import type { Task } from "@/types";
 
-/** Minimal factory — fills only the fields the filter code reads. */
+/**
+ * V20 — testy filter helpers. Pure funkce, žádné mocky.
+ */
+
 function mkTask(overrides: Partial<Task> = {}): Task {
   return {
-    id: overrides.id ?? "t1",
-    type: overrides.type ?? "napad",
-    title: overrides.title ?? "",
-    body: overrides.body ?? "",
-    status: overrides.status ?? "Nápad",
-    categoryId: overrides.categoryId ?? null,
-    categoryIds: overrides.categoryIds,
-    locationId: overrides.locationId ?? null,
-    createdAt: "2026-04-22T10:00:00.000Z",
-    updatedAt: "2026-04-22T10:00:00.000Z",
-    createdBy: "owner",
+    id: "t1",
+    title: "Test",
+    body: "",
+    type: "napad",
+    status: "Nový nápad",
+    createdBy: "u1",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    commentCount: 0,
+    imageUrls: [],
+    linkUrls: [],
+    linkedDocIds: [],
     ...overrides,
   } as Task;
 }
 
 describe("applyOpenClosed", () => {
-  const tasks = [
-    mkTask({ id: "a", status: "Nápad" }),
-    mkTask({ id: "b", status: "Hotovo" }),
-    mkTask({ id: "c", status: "Rozhodnuto" }),
-  ];
+  const open1 = mkTask({ id: "o1", status: "Nový nápad" });
+  const open2 = mkTask({ id: "o2", status: "Ve stavbě" });
+  const done1 = mkTask({ id: "d1", status: "Hotovo" });
+  const done2 = mkTask({ id: "d2", status: "Hotovo" });
+  const all = [open1, open2, done1, done2];
 
-  it("all → returns input unchanged", () => {
-    expect(applyOpenClosed(tasks, "all")).toHaveLength(3);
+  it("'all' vrátí vše", () => {
+    expect(applyOpenClosed(all, "all")).toEqual(all);
   });
 
-  it("done → only Hotovo", () => {
-    const r = applyOpenClosed(tasks, "done");
-    expect(r.map((t) => t.id)).toEqual(["b"]);
+  it("'open' vyfiltruje Hotovo", () => {
+    const result = applyOpenClosed(all, "open");
+    expect(result).toEqual([open1, open2]);
   });
 
-  it("open → everything except Hotovo (default)", () => {
-    const r = applyOpenClosed(tasks, "open");
-    expect(r.map((t) => t.id).sort()).toEqual(["a", "c"]);
+  it("'done' vrátí jen Hotovo", () => {
+    const result = applyOpenClosed(all, "done");
+    expect(result).toEqual([done1, done2]);
+  });
+
+  it("prázdný array → prázdný array", () => {
+    expect(applyOpenClosed([], "open")).toEqual([]);
+  });
+
+  it("dokumentace task s libovolným statusem projde open filtrem", () => {
+    const dok = mkTask({ id: "dok", type: "dokumentace", status: "Nový nápad" });
+    expect(applyOpenClosed([dok], "open")).toEqual([dok]);
   });
 });
 
 describe("applyCategory", () => {
-  const tasks = [
-    mkTask({ id: "x", categoryId: "kitchen" }),
-    mkTask({ id: "y", categoryId: "bath" }),
-    mkTask({ id: "z", categoryId: null }),
-  ];
+  const t1 = mkTask({ id: "t1", categoryId: "cat-a" });
+  const t2 = mkTask({ id: "t2", categoryId: "cat-b" });
+  const t3 = mkTask({ id: "t3", categoryId: undefined });
 
-  it("null category → untouched", () => {
-    expect(applyCategory(tasks, null)).toHaveLength(3);
+  it("null categoryId → vrátí vše (no filter)", () => {
+    expect(applyCategory([t1, t2, t3], null)).toEqual([t1, t2, t3]);
   });
 
-  it("matches exact categoryId", () => {
-    const r = applyCategory(tasks, "kitchen");
-    expect(r.map((t) => t.id)).toEqual(["x"]);
+  it("filtruje na konkrétní kategorii", () => {
+    expect(applyCategory([t1, t2, t3], "cat-a")).toEqual([t1]);
   });
 
-  it("unknown category → empty result", () => {
-    expect(applyCategory(tasks, "no-such")).toEqual([]);
+  it("neexistující kategorie → prázdný", () => {
+    expect(applyCategory([t1, t2], "cat-x")).toEqual([]);
   });
 });
 
 describe("applyLocation", () => {
-  const tasks = [
-    mkTask({ id: "p", locationId: "kuchyn" }),
-    mkTask({ id: "q", locationId: null }),
-  ];
+  const t1 = mkTask({ id: "t1", locationId: "loc-1" });
+  const t2 = mkTask({ id: "t2", locationId: "loc-2" });
+  const t3 = mkTask({ id: "t3", locationId: undefined });
 
-  it("null → untouched", () => {
-    expect(applyLocation(tasks, null)).toHaveLength(2);
+  it("null locationId → vrátí vše", () => {
+    expect(applyLocation([t1, t2, t3], null)).toEqual([t1, t2, t3]);
   });
 
-  it("matches exact locationId", () => {
-    expect(applyLocation(tasks, "kuchyn").map((t) => t.id)).toEqual(["p"]);
-  });
-});
-
-// ---------- Storage helpers (sessionStorage in jsdom) ----------
-
-describe("sessionStorage-backed filters", () => {
-  beforeEach(() => sessionStorage.clear());
-
-  it("defaults to \"open\" when nothing stored", () => {
-    expect(loadFilter("napady")).toBe("open");
+  it("filtruje na konkrétní lokaci", () => {
+    expect(applyLocation([t1, t2, t3], "loc-1")).toEqual([t1]);
   });
 
-  it("ignores garbage values + falls back to open", () => {
-    sessionStorage.setItem("filter:napady", "banana");
-    expect(loadFilter("napady")).toBe("open");
-  });
-
-  it("save + load round-trips", () => {
-    saveFilter("napady", "done");
-    expect(loadFilter("napady")).toBe("done");
-  });
-
-  it("category filter loads null when unset or empty", () => {
-    expect(loadCategoryFilter("napady")).toBeNull();
-    sessionStorage.setItem("filter:napady:category", "");
-    expect(loadCategoryFilter("napady")).toBeNull();
-  });
-
-  it("category save(null) clears the slot", () => {
-    saveCategoryFilter("napady", "kitchen");
-    expect(loadCategoryFilter("napady")).toBe("kitchen");
-    saveCategoryFilter("napady", null);
-    expect(loadCategoryFilter("napady")).toBeNull();
-  });
-
-  it("location filter mirrors the category behaviour", () => {
-    expect(loadLocationFilter("napady")).toBeNull();
-    saveLocationFilter("napady", "kuchyn");
-    expect(loadLocationFilter("napady")).toBe("kuchyn");
-    saveLocationFilter("napady", null);
-    expect(loadLocationFilter("napady")).toBeNull();
-  });
-
-  it("clearAllFilters wipes all three slots for the given key", () => {
-    saveFilter("napady", "done");
-    saveCategoryFilter("napady", "kitchen");
-    saveLocationFilter("napady", "kuchyn");
-    clearAllFilters("napady");
-    expect(loadFilter("napady")).toBe("open");
-    expect(loadCategoryFilter("napady")).toBeNull();
-    expect(loadLocationFilter("napady")).toBeNull();
-  });
-
-  it("namespacing: keys are per-list, not shared", () => {
-    saveFilter("napady", "done");
-    saveFilter("ukoly", "all");
-    expect(loadFilter("napady")).toBe("done");
-    expect(loadFilter("ukoly")).toBe("all");
+  it("task bez lokace neprojde filtrem", () => {
+    expect(applyLocation([t3], "loc-1")).toEqual([]);
   });
 });

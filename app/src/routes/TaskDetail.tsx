@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
-import { ArrowLeft, FileText, HelpCircle, MapPin, Notebook, Tag, Target, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileText, HelpCircle, Notebook, Target, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
-import { convertNapadToOtazka, convertNapadToUkol, deleteTask, updateTask } from "@/lib/tasks";
+import { convertNapadToOtazka, convertNapadToUkol, createTask, deleteTask, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import { canEditTask } from "@/lib/permissions";
@@ -16,15 +16,13 @@ import StatusPickerInline from "@/components/StatusPickerInline";
 import PriorityPickerInline from "@/components/PriorityPickerInline";
 import AssigneeSelect from "@/components/AssigneeSelect";
 import DeadlinePicker from "@/components/DeadlinePicker";
-import StatusBadge, { statusColors } from "@/components/StatusBadge";
+import { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedFile, isImageFile, uploadTaskImage, uploadTaskFile } from "@/lib/attachments";
 import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, X as XIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
-import LinkFavicon from "@/components/LinkFavicon";
 import { useCategories } from "@/hooks/useCategories";
-import { getLocation } from "@/lib/locations";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import type { TaskStatus } from "@/types";
@@ -157,6 +155,8 @@ export default function TaskDetail() {
   // V6.2 — schedule id for the blur-driven autosave timer. Any re-focus or
   // fresh blur cancels+reschedules; unmount flushes immediately.
   const blurSaveTimerRef = useRef<number | null>(null);
+  // V22 — safety ref for isReadOnly so flush/pending effects can check it.
+  const isReadOnlyRef = useRef(true);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedVisible, setSavedVisible] = useState(false);
@@ -169,6 +169,9 @@ export default function TaskDetail() {
   // V14.1 — Výstup section is collapsed by default. User explicitly opens it
   // via the toggle or via the "Doplň výstup" banner CTA. Reset on route change.
   const [vystupExpanded, setVystupExpanded] = useState(false);
+  // V21 — nápady + dokumentace: diskuse defaultně zavřená.
+  // Initial value uses task from hook; falls back to open if not yet loaded.
+  const [commentsOpen, setCommentsOpen] = useState(true);
 
   // V20 — Dokumentace document upload state
   const [docModal, setDocModal] = useState<{
@@ -179,14 +182,12 @@ export default function TaskDetail() {
   const [docUploading, setDocUploading] = useState(false);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
 
-  // V20 — title-first flow. When FAB creates a task with empty title and
-  // navigates here with state.newTask, show only the title input first.
+  // V20 — title-first flow. FAB navigates to /t/new with state.createType.
+  // No task exists in Firestore yet — we show only the title input.
+  // After user confirms a title, we create the task and redirect to /t/{realId}.
   const routerLocation = useLocation();
-  const isNewTask = Boolean((routerLocation.state as { newTask?: boolean } | null)?.newTask);
-  const [titleFirstDone, setTitleFirstDone] = useState(false);
-  // True while we're in "title only" mode — task exists but user hasn't
-  // confirmed a title yet.
-  const inTitleFirst = isNewTask && !titleFirstDone;
+  const createType = (routerLocation.state as { createType?: import("@/types").TaskType } | null)?.createType;
+  const isCreateMode = id === "new" && !!createType;
 
 
 
@@ -195,6 +196,8 @@ export default function TaskDetail() {
       setTitle(state.task.title);
       setBody(state.task.body);
       setVystup(state.task.vystup ?? "");
+      // V21 — nápady + dokumentace: diskuse defaultně zavřená
+      setCommentsOpen(state.task.type === "otazka" || state.task.type === "ukol");
       // V19 — dependencyText sync removed
       initializedRef.current = true;
       setHasInitialized(true);
@@ -246,7 +249,7 @@ export default function TaskDetail() {
   // summary). Dependency text on úkol has its own blur-save handler and is
   // intentionally NOT carried through this generic path.
   useEffect(() => {
-    if (state.status !== "ready" || !initializedRef.current) {
+    if (state.status !== "ready" || !initializedRef.current || isReadOnlyRef.current) {
       return;
     }
     const orig = state.task;
@@ -267,8 +270,12 @@ export default function TaskDetail() {
         window.clearTimeout(blurSaveTimerRef.current);
         blurSaveTimerRef.current = null;
       }
+      // V22 — never save from read-only views.
+      if (isReadOnlyRef.current) { pendingRef.current = null; return; }
       const p = pendingRef.current;
       if (!p) return;
+      // V22 — guard against saving empty/undefined title (data corruption).
+      if (!p.title && !p.body) { pendingRef.current = null; return; }
       pendingRef.current = null;
       updateTask(p.id, { title: p.title, body: p.body, vystup: p.vystup }).catch((e) =>
         console.error("flush on hide/unmount failed", e)
@@ -287,7 +294,7 @@ export default function TaskDetail() {
   }, []);
 
   async function persist(patch: { title: string; body: string; vystup: string }) {
-    if (state.status !== "ready") return;
+    if (state.status !== "ready" || isReadOnly) return;
     setSaving(true);
     try {
       await updateTask(state.task.id, patch);
@@ -310,7 +317,7 @@ export default function TaskDetail() {
    *  a persist after BLUR_SAVE_DELAY_MS — the short grace period lets a quick
    *  re-focus cancel the save before it fires (see handleEditorFocus). */
   function flushOnBlur() {
-    if (state.status !== "ready") return;
+    if (state.status !== "ready" || isReadOnlyRef.current) return;
     cancelBlurSave();
     blurSaveTimerRef.current = window.setTimeout(() => {
       blurSaveTimerRef.current = null;
@@ -668,82 +675,44 @@ export default function TaskDetail() {
 
   // ---- Render states ----
 
-  // V6.2 — also skeleton while we're waiting for the init useEffect to sync
-  // local title/body from the freshly-arrived task. Rendering the editor with
-  // empty local state caused lost keystrokes when the user started typing
-  // before the sync finished.
-  if (state.status === "loading" || (state.status === "ready" && !hasInitialized)) {
-    return <SkeletonDetail />;
-  }
-  if (state.status === "error") {
-    return (
-      <NotFound
-        title={t("list.loadFailed")}
-        body={state.error.message}
-        backLabel={t("detail.back")}
-        onBack={() => navigate(-1)}
-      />
-    );
-  }
-  if (state.status === "missing") {
-    return (
-      <NotFound
-        title={t("detail.notFoundTitle")}
-        body={t("detail.notFoundBody")}
-        backLabel={t("detail.back")}
-        onBack={() => navigate("/")}
-      />
-    );
-  }
-
-  const task = state.task;
-  // V17.1/V17.2/V17.8 — canEdit je pure helper. Předem resolvujeme
-  //   authorRole přes user lookup (self-healing pro legacy tasky před
-  //   V17.1 deploy, které nemají field). Rules dělají authoritative check
-  //   serverside; tady jen UI gating.
-  const taskAuthorRole = resolveAuthorRole({
-    task,
-    usersByUid: byUid,
-  });
-  const canEdit = canEditTask({
-    task,
-    taskAuthorRole,
-    currentUserUid: user?.uid,
-    currentUserRole: roleState.status === "ready" ? roleState.profile.role : null,
-  });
-  const isReadOnly = !canEdit;
-  const TypeIcon =
-    task.type === "otazka"
-      ? HelpCircle
-      : task.type === "ukol"
-      ? Target
-      : task.type === "dokumentace"
-      ? FileText
+  // ---------- V20 — Title-first flow (create mode, no task in Firestore yet) ----------
+  if (isCreateMode) {
+    const TypeIconCreate =
+      createType === "otazka" ? HelpCircle
+      : createType === "ukol" ? Target
+      : createType === "dokumentace" ? FileText
       : Notebook;
-
-  // ---------- V20 — Title-first flow for newly created tasks ----------
-  if (inTitleFirst) {
-    const typeLabel =
-      task.type === "otazka" ? t("detail.typeOtazka")
-      : task.type === "ukol" ? t("detail.typeUkol")
-      : task.type === "dokumentace" ? t("detail.typeDokumentace")
+    const typeLabelCreate =
+      createType === "otazka" ? t("detail.typeOtazka")
+      : createType === "ukol" ? t("detail.typeUkol")
+      : createType === "dokumentace" ? t("detail.typeDokumentace")
       : t("detail.typeNapad");
 
     async function handleTitleConfirm() {
-      if (!title.trim()) return;
+      if (!title.trim() || !user) return;
       setSaving(true);
       try {
-        await updateTask(task.id, { title: title.trim() });
-        setTitleFirstDone(true);
+        const currentRole = roleState.status === "ready" ? roleState.profile.role : "OWNER";
+        const taskId = await createTask(
+          {
+            type: createType!,
+            title: title.trim(),
+            body: "",
+            status: "Nápad",
+          },
+          user.uid,
+          currentRole,
+        );
+        // Replace /t/new with /t/{realId} so back button won't re-enter create mode.
+        navigate(taskDetail(taskId), { replace: true });
       } catch (err) {
-        console.error("title save failed", err);
+        console.error("create task failed", err);
       } finally {
         setSaving(false);
       }
     }
 
-    async function handleCancelNew() {
-      try { await deleteTask(task.id); } catch { /* ignore */ }
+    function handleCancelNew() {
       navigate(-1);
     }
 
@@ -759,8 +728,8 @@ export default function TaskDetail() {
             <ArrowLeft aria-hidden size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <TypeIcon aria-hidden size={20} className="text-accent-visual" />
-            <h1 className="text-lg font-semibold text-ink">{typeLabel}</h1>
+            <TypeIconCreate aria-hidden size={20} className="text-accent-visual" />
+            <h1 className="text-lg font-semibold text-ink">{typeLabelCreate}</h1>
           </div>
         </div>
 
@@ -811,439 +780,60 @@ export default function TaskDetail() {
     );
   }
 
-  // ---------- Read-only view (V17.2) ----------
-  // Aktivuje se když current user nemá edit práva na tento task:
-  //   - PM na OWNER-vytvořeném napadu/otazce/ukolu (klasický scénář)
-  //   - OWNER na PM-vytvořeném tasku (novinka V17.1)
-  // Napad v praxi vždy OWNER-created → OWNER jej má edit, sem spadne jen PM.
-  if (isReadOnly) {
-    if (task.type === "napad") {
-      const categoryIds = task.categoryIds?.length
-        ? task.categoryIds
-        : task.categoryId ? [task.categoryId] : [];
-      const taskCategories = categoryIds
-        .map((id) => categories.find((c) => c.id === id))
-        .filter((c): c is NonNullable<typeof c> => Boolean(c));
-      const location = task.locationId ? getLocation(task.locationId) : null;
 
-      return (
-        <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-napad-heading">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              aria-label={t("detail.back")}
-              className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
-            >
-              <ArrowLeft aria-hidden size={20} />
-            </button>
-            <StatusBadge status={task.status} size="md" type={task.type} isPm={isPm} />
-            <span className="w-10" aria-hidden />
-          </div>
-
-          <h1 id="pm-napad-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
-            {task.title || t("detail.noTitle")}
-          </h1>
-
-          {/* Meta chips row — Location + Categories (read-only). */}
-          {(location || taskCategories.length > 0) && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {location && (
-                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                  <MapPin aria-hidden size={11} />
-                  {location.label}
-                </span>
-              )}
-              {taskCategories.map((c) => (
-                <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                  <Tag aria-hidden size={11} />
-                  {c.label}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Body — no wrapper card, sits directly on page bg. */}
-          <div className="mt-4">
-            {task.body ? (
-              <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
-                <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
-              </Suspense>
-            ) : (
-              <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
-            )}
-          </div>
-
-          {/* Attachments — images + links. */}
-          {(task.attachmentImages?.length ?? 0) > 0 && (
-            <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {task.attachmentImages!.map((img, idx) => (
-                <li key={img.id ?? idx}>
-                  <button
-                    type="button"
-                    onClick={() => setLightbox(img.url)}
-                    className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-                  >
-                    <img src={img.url} alt="" width={200} height={200} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(task.attachmentLinks?.length ?? 0) > 0 && (
-            <ul className="mt-3 flex flex-col gap-2">
-              {task.attachmentLinks!.map((url, i) => (
-                <li key={i}>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
-                  >
-                    <LinkFavicon url={url} size={14} />
-                    <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* Linked otázky + úkoly — PM sees only ones assigned to themselves. */}
-          {(() => {
-            const pmLinkedAll = (task.linkedTaskIds ?? [])
-              .map((lid) => ({ lid, ot: allTasks.find((x) => x.id === lid) }))
-              .filter(({ ot }) => ot && ot.assigneeUid === user?.uid);
-            if (pmLinkedAll.length === 0) return null;
-            const pmOtazky = pmLinkedAll.filter(({ ot }) => ot?.type !== "ukol");
-            const pmUkoly = pmLinkedAll.filter(({ ot }) => ot?.type === "ukol");
-            return (
-              <>
-                <LinkedList
-                  items={pmOtazky}
-                  headingId="pm-linked-otazky-heading"
-                  heading={t("detail.linkedOtazkyTitle")}
-                  fallbackIcon={HelpCircleIcon}
-                  forceIcon={HelpCircleIcon}
-                  isPm={true}
-                  t={t}
-                />
-                <LinkedList
-                  items={pmUkoly}
-                  headingId="pm-linked-ukoly-heading"
-                  heading={t("detail.linkedUkolyTitle")}
-                  fallbackIcon={Target}
-                  forceIcon={Target}
-                  isPm={true}
-                  t={t}
-                />
-              </>
-            );
-          })()}
-
-          {/* V14 — PM can convert an owner nápad into either a new otázka
-              (clarification) or a new úkol (actionable). They become the
-              assignee on whichever they create. */}
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleConvert}
-              disabled={converting || convertingUkol || saving}
-              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-            >
-              <HelpCircle aria-hidden size={16} className="text-accent-visual" />
-              {converting
-                ? t("detail.converting")
-                : (task.linkedTaskIds ?? []).some(
-                    (lid) => allTasks.find((x) => x.id === lid)?.type === "otazka",
-                  )
-                ? t("detail.convertToOtazkaAgain")
-                : t("detail.convertToOtazka")}
-            </button>
-            <button
-              type="button"
-              onClick={handleConvertToUkol}
-              disabled={converting || convertingUkol || saving}
-              className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
-            >
-              <Target aria-hidden size={16} className="text-accent-visual" />
-              {convertingUkol
-                ? t("detail.convertingUkol")
-                : (task.linkedTaskIds ?? []).some(
-                    (lid) => allTasks.find((x) => x.id === lid)?.type === "ukol",
-                  )
-                ? t("detail.convertToUkolAgain")
-                : t("detail.convertToUkol")}
-            </button>
-          </div>
-
-          {/* V14.2 — PM sees Výstup read-only. Same collapsible UX as OWNER so
-              the detail layout stays consistent between roles. */}
-          <section id="vystup-section" className="mt-6" aria-labelledby="vystup-heading-pm">
-            <button
-              type="button"
-              onClick={() => setVystupExpanded((v) => !v)}
-              aria-expanded={vystupExpanded}
-              aria-controls="vystup-content-pm"
-              className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left hover:bg-bg-subtle transition-colors"
-            >
-              <span className="flex items-center gap-2 min-w-0">
-                <span
-                  id="vystup-heading-pm"
-                  className="text-xs font-semibold uppercase tracking-wide text-ink-subtle"
-                >
-                  {t("detail.vystupLabel")}
-                </span>
-                <span className="text-xs text-ink-subtle">
-                  {(task.vystup ?? "").trim()
-                    ? t("detail.vystupFilledHint")
-                    : t("detail.vystupEmptyHint")}
-                </span>
-              </span>
-              <span aria-hidden className="shrink-0 text-xs text-ink-subtle">
-                {vystupExpanded ? "▾" : "▸"}
-              </span>
-              <span className="sr-only">
-                {vystupExpanded ? t("detail.vystupHide") : t("detail.vystupShow")}
-              </span>
-            </button>
-            {vystupExpanded && (
-              <div id="vystup-content-pm" className="mt-2">
-                {(task.vystup ?? "").trim() ? (
-                  <Suspense
-                    fallback={
-                      <div
-                        className="min-h-[8rem] rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink-subtle"
-                        aria-busy="true"
-                        role="status"
-                      >
-                        {t("detail.editorLoading")}
-                      </div>
-                    }
-                  >
-                    <RichTextEditor
-                      value={task.vystup ?? ""}
-                      onChange={() => {}}
-                      disabled
-                      ariaLabel={t("detail.vystupLabel")}
-                    />
-                  </Suspense>
-                ) : (
-                  <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
-                )}
-              </div>
-            )}
-          </section>
-
-          <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
-            <CommentThread task={task} />
-          </Suspense>
-
-          {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
-        </article>
-      );
-    }
-
-    // V20 — Dokumentace read-only view. Minimal: title + description + location/categories + documents list.
-    if (task.type === "dokumentace") {
-      const categoryIdsDok = task.categoryIds?.length
-        ? task.categoryIds
-        : task.categoryId ? [task.categoryId] : [];
-      const taskCategoriesDok = categoryIdsDok
-        .map((id) => categories.find((c) => c.id === id))
-        .filter((c): c is NonNullable<typeof c> => Boolean(c));
-
-      return (
-        <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="ro-dok-heading">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              aria-label={t("detail.back")}
-              className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
-            >
-              <ArrowLeft aria-hidden size={20} />
-            </button>
-            <div
-              className="flex items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1 text-xs font-medium text-ink-muted"
-              aria-label={t("detail.typeDokumentace")}
-            >
-              <FileText aria-hidden size={14} />
-              <span>{t("detail.typeDokumentace")}</span>
-            </div>
-            <span className="w-10" aria-hidden />
-          </div>
-
-          <h1 id="ro-dok-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
-            {task.title || t("detail.noTitle")}
-          </h1>
-
-          {taskCategoriesDok.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {taskCategoriesDok.map((c) => (
-                <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                  <Tag aria-hidden size={11} />
-                  {c.label}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Documents list — read-only */}
-          <section className="mt-6" aria-labelledby="ro-docs-heading">
-            <h2 id="ro-docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-              {t("dokumentace.sectionTitle")}
-            </h2>
-            {(task.documents?.length ?? 0) === 0 ? (
-              <p className="text-sm text-ink-muted">{t("dokumentace.emptyDocuments")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {task.documents!.map((doc) => (
-                  <li
-                    key={doc.id}
-                    className="flex items-center gap-3 rounded-md border border-line bg-surface px-3 py-2"
-                  >
-                    <FileText aria-hidden size={18} className="shrink-0 text-ink-subtle" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-ink truncate">{doc.displayName}</p>
-                      <p className="text-xs text-ink-muted">{doc.docType}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Audit trail — read-only */}
-          {(task.auditLog?.length ?? 0) > 0 && (
-            <Suspense fallback={null}>
-              <AuditTimeline entries={task.auditLog!} />
-            </Suspense>
-          )}
-        </article>
-      );
-    }
-
-    // V5 — PM otazka view: title + meta chips + body + attachments + comments.
-    // Parallels the PM napad view so PM always lands on a consistent layout.
-    const categoryIdsPm = task.categoryIds?.length
-      ? task.categoryIds
-      : task.categoryId ? [task.categoryId] : [];
-    const taskCategoriesPm = categoryIdsPm
-      .map((id) => categories.find((c) => c.id === id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-    const locationPm = task.locationId ? getLocation(task.locationId) : null;
-
+  // V6.2 — also skeleton while we're waiting for the init useEffect to sync
+  // local title/body from the freshly-arrived task. Rendering the editor with
+  // empty local state caused lost keystrokes when the user started typing
+  // before the sync finished.
+  if (state.status === "loading" || (state.status === "ready" && !hasInitialized)) {
+    return <SkeletonDetail />;
+  }
+  if (state.status === "error") {
     return (
-      <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="pm-otazka-heading">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            aria-label={t("detail.back")}
-            className="-ml-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink hover:bg-bg-subtle"
-          >
-            <ArrowLeft aria-hidden size={20} />
-          </button>
-          <StatusBadge status={task.status} size="md" type={task.type} isPm={isPm} />
-          <span className="w-10" aria-hidden />
-        </div>
-
-        {/* V5 — show the task title for PM (previously hidden). */}
-        <h1 id="pm-otazka-heading" className="mt-3 text-xl font-bold leading-tight text-ink">
-          {task.title || t("detail.noTitle")}
-        </h1>
-
-        {/* Ball-on-me banner — V10 assignee-driven, same rule for OWNER + PM. */}
-        {isBallOnMeV10(task, user?.uid) && (
-          <div
-            role="status"
-            className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
-            style={{
-              background: "var(--color-priority-p1-bg)",
-              color: "var(--color-priority-p1-fg)",
-              borderColor: "var(--color-priority-p1-border)",
-            }}
-          >
-            <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--color-priority-p1-dot)" }} />
-            {t("detail.ballOnMe")}
-          </div>
-        )}
-
-        {/* V5 — meta chips (Lokace + Kategorie), read-only. */}
-        {(locationPm || taskCategoriesPm.length > 0) && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {locationPm && (
-              <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                <MapPin aria-hidden size={11} />
-                {locationPm.label}
-              </span>
-            )}
-            {taskCategoriesPm.map((c) => (
-              <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                <Tag aria-hidden size={11} />
-                {c.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Body — no wrapper card, matches PM napad view. */}
-        <div className="mt-4">
-          {task.body ? (
-            <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
-              <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
-            </Suspense>
-          ) : (
-            <p className="text-sm text-ink-subtle">{t("detail.bodyEmpty")}</p>
-          )}
-        </div>
-
-        {/* V5 — images. */}
-        {(task.attachmentImages?.length ?? 0) > 0 && (
-          <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {task.attachmentImages!.map((img, idx) => (
-              <li key={img.id ?? idx}>
-                <button
-                  type="button"
-                  onClick={() => setLightbox(img.url)}
-                  className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-                >
-                  <img src={img.url} alt="" width={200} height={200} loading="lazy" decoding="async" className="aspect-square w-full object-cover" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* V5 — links. */}
-        {(task.attachmentLinks?.length ?? 0) > 0 && (
-          <ul className="mt-3 flex flex-col gap-2">
-            {task.attachmentLinks!.map((url, i) => (
-              <li key={i}>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-md border border-line bg-bg-subtle px-3 py-1.5 text-sm text-ink hover:bg-bg-muted"
-                >
-                  <LinkFavicon url={url} size={14} />
-                  <span className="truncate max-w-[22rem]">{parseDomain(url) ?? url}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <Suspense fallback={<div className="mt-6 min-h-[17rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
-          <CommentThread task={task} />
-        </Suspense>
-
-        {lightbox && (
-          <Lightbox src={lightbox} onClose={() => setLightbox(null)} />
-        )}
-      </article>
+      <NotFound
+        title={t("list.loadFailed")}
+        body={state.error.message}
+        backLabel={t("detail.back")}
+        onBack={() => navigate(-1)}
+      />
     );
   }
+  if (state.status === "missing") {
+    return (
+      <NotFound
+        title={t("detail.notFoundTitle")}
+        body={t("detail.notFoundBody")}
+        backLabel={t("detail.back")}
+        onBack={() => navigate("/")}
+      />
+    );
+  }
+
+  const task = state.task;
+  // V17.1/V17.2/V17.8 — canEdit je pure helper. Předem resolvujeme
+  //   authorRole přes user lookup (self-healing pro legacy tasky před
+  //   V17.1 deploy, které nemají field). Rules dělají authoritative check
+  //   serverside; tady jen UI gating.
+  const taskAuthorRole = resolveAuthorRole({
+    task,
+    usersByUid: byUid,
+  });
+  const canEdit = canEditTask({
+    task,
+    taskAuthorRole,
+    currentUserUid: user?.uid,
+    currentUserRole: roleState.status === "ready" ? roleState.profile.role : null,
+  });
+  const isReadOnly = !canEdit;
+  isReadOnlyRef.current = isReadOnly;
+  const TypeIcon =
+    task.type === "otazka"
+      ? HelpCircle
+      : task.type === "ukol"
+      ? Target
+      : task.type === "dokumentace"
+      ? FileText
+      : Notebook;
 
   const typeLabel =
     task.type === "otazka"
@@ -1276,18 +866,20 @@ export default function TaskDetail() {
         onBack={() => navigate(-1)}
         typeIcon={<TypeIcon aria-hidden size={18} />}
         typeLabel={typeLabel}
-        onDelete={handleDelete}
+        onDelete={isReadOnly ? undefined : handleDelete}
       />
 
-      <div className="mt-2 flex items-center gap-2 text-xs text-ink-subtle" aria-live="polite">
-        {saving ? (
-          <span>{t("detail.autoSavingHint")}</span>
-        ) : savedVisible ? (
-          <span>{t("detail.autoSavedHint")}</span>
-        ) : (
-          <span aria-hidden>&nbsp;</span>
-        )}
-      </div>
+      {!isReadOnly && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-ink-subtle" aria-live="polite">
+          {saving ? (
+            <span>{t("detail.autoSavingHint")}</span>
+          ) : savedVisible ? (
+            <span>{t("detail.autoSavedHint")}</span>
+          ) : (
+            <span aria-hidden>&nbsp;</span>
+          )}
+        </div>
+      )}
 
       {needsVystup && (
         <div
@@ -1345,7 +937,9 @@ export default function TaskDetail() {
         id="detail-title"
         ref={titleTextareaRef}
         value={title}
+        readOnly={isReadOnly}
         onChange={(e) => {
+          if (isReadOnly) return;
           // Strip newlines — title is single logical line, but wraps visually.
           const v = e.target.value.replace(/\n/g, "");
           setTitle(v);
@@ -1356,10 +950,10 @@ export default function TaskDetail() {
             e.currentTarget.blur();
           }
         }}
-        onBlur={flushOnBlur}
-        onFocus={handleEditorFocus}
+        onBlur={isReadOnly ? undefined : flushOnBlur}
+        onFocus={isReadOnly ? undefined : handleEditorFocus}
         rows={1}
-        placeholder={t("detail.titlePlaceholderV2")}
+        placeholder={isReadOnly ? undefined : t("detail.titlePlaceholderV2")}
         autoCapitalize="sentences"
         className="mt-2 block w-full resize-none overflow-hidden border-0 border-b border-transparent bg-transparent px-0 py-1 text-xl sm:text-2xl font-bold leading-tight text-ink placeholder:text-ink-subtle focus:border-b-line-focus focus:outline-none focus:ring-0"
       />
@@ -1382,11 +976,12 @@ export default function TaskDetail() {
         >
           <RichTextEditor
             value={body}
-            onChange={setBody}
-            onBlur={flushOnBlur}
-            onFocus={handleEditorFocus}
-            placeholder={t("detail.bodyPlaceholder")}
+            onChange={isReadOnly ? () => {} : setBody}
+            onBlur={isReadOnly ? undefined : flushOnBlur}
+            onFocus={isReadOnly ? undefined : handleEditorFocus}
+            placeholder={isReadOnly ? undefined : t("detail.bodyPlaceholder")}
             ariaLabel={t("detail.bodyLabel")}
+            disabled={isReadOnly}
           />
         </Suspense>
       </div>
@@ -1403,26 +998,26 @@ export default function TaskDetail() {
             <StatusPickerInline
               value={task.status}
               onChange={handleStatusChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
               type={task.type}
               isPm={isPm}
             />
-            {task.createdBy === user?.uid && (
+            {(task.createdBy === user?.uid || isReadOnly) && (
               <PriorityPickerInline
                 value={task.priority}
                 onChange={handlePriorityChange}
-                disabled={saving}
+                disabled={saving || isReadOnly}
               />
             )}
             <PhasePickerInline
               value={null}
               onChange={() => {}}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
             <LocationPickerInline
               value={task.locationId ?? null}
               onChange={handleLocationChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
           </div>
 
@@ -1437,13 +1032,13 @@ export default function TaskDetail() {
               value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
               categories={categories}
               onChange={handleCategoryChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
           </section>
 
           {/* V19 — Deadline + Assignee row */}
           <div className="mt-4 grid grid-cols-2 gap-4">
-            {task.createdBy === user?.uid && (
+            {(task.createdBy === user?.uid || isReadOnly) && (
               <section aria-labelledby="deadline-heading">
                 <h2 id="deadline-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
                   {t("deadline.label")}
@@ -1451,7 +1046,7 @@ export default function TaskDetail() {
                 <DeadlinePicker
                   value={task.deadline ?? null}
                   onChange={handleDeadlineChange}
-                  disabled={saving}
+                  disabled={saving || isReadOnly}
                 />
               </section>
             )}
@@ -1462,8 +1057,8 @@ export default function TaskDetail() {
               <AssigneeSelect
                 value={task.assigneeUid ?? null}
                 onChange={handleAssigneeChange}
-                disabled={saving}
-                readOnly={!(task.createdBy === user?.uid)}
+                disabled={saving || isReadOnly}
+                readOnly={isReadOnly || !(task.createdBy === user?.uid)}
               />
             </section>
           </div>
@@ -1471,7 +1066,7 @@ export default function TaskDetail() {
       ) : task.type === "dokumentace" ? (
         <>
           {/* V20 — Dokumentace: sharedWithRoles + location + categories + empty documents */}
-          {task.createdBy === user?.uid && (
+          {task.createdBy === user?.uid && !isReadOnly && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
                 <label
@@ -1501,7 +1096,7 @@ export default function TaskDetail() {
               value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
               categories={categories}
               onChange={handleCategoryChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
           </section>
 
@@ -1529,37 +1124,43 @@ export default function TaskDetail() {
                         <p className="text-xs text-ink-muted">{docItem.docType}</p>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleReplaceDoc(docItem.id)}
-                      disabled={docUploading}
-                      aria-label={t("dokumentace.replaceDocument")}
-                      className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
-                    >
-                      <Pencil aria-hidden size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDoc(docItem.id, docItem.filePath)}
-                      disabled={docUploading}
-                      aria-label={t("dokumentace.deleteDocument")}
-                      className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-[color:var(--color-status-danger-fg)] transition-opacity"
-                    >
-                      <Trash2 aria-hidden size={14} />
-                    </button>
+                    {!isReadOnly && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleReplaceDoc(docItem.id)}
+                          disabled={docUploading}
+                          aria-label={t("dokumentace.replaceDocument")}
+                          className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
+                        >
+                          <Pencil aria-hidden size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDoc(docItem.id, docItem.filePath)}
+                          disabled={docUploading}
+                          aria-label={t("dokumentace.deleteDocument")}
+                          className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-[color:var(--color-status-danger-fg)] transition-opacity"
+                        >
+                          <Trash2 aria-hidden size={14} />
+                        </button>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
             )}
-            <button
-              type="button"
-              onClick={() => setDocModal({ open: true })}
-              disabled={docUploading}
-              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-            >
-              <FileText aria-hidden size={18} />
-              {docUploading ? t("dokumentace.uploadingDocument") : t("dokumentace.addDocument")}
-            </button>
+            {!isReadOnly && (
+              <button
+                type="button"
+                onClick={() => setDocModal({ open: true })}
+                disabled={docUploading}
+                className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+              >
+                <FileText aria-hidden size={18} />
+                {docUploading ? t("dokumentace.uploadingDocument") : t("dokumentace.addDocument")}
+              </button>
+            )}
             {docModal.open && (
               <Suspense fallback={null}>
                 <DocumentUploadModal
@@ -1581,7 +1182,7 @@ export default function TaskDetail() {
       ) : (
         <>
           {/* V19 — Visible for roles */}
-          {task.createdBy === user?.uid && (
+          {task.createdBy === user?.uid && !isReadOnly && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
                 <label
@@ -1607,19 +1208,19 @@ export default function TaskDetail() {
             <StatusPickerInline
               value={task.status}
               onChange={handleStatusChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
               type={task.type}
               isPm={isPm}
             />
             <PhasePickerInline
               value={null}
               onChange={() => {}}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
             <LocationPickerInline
               value={task.locationId ?? null}
               onChange={handleLocationChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
           </div>
 
@@ -1632,7 +1233,7 @@ export default function TaskDetail() {
               value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
               categories={categories}
               onChange={handleCategoryChange}
-              disabled={saving}
+              disabled={saving || isReadOnly}
             />
           </section>
         </>
@@ -1663,40 +1264,46 @@ export default function TaskDetail() {
                     className="aspect-square w-full object-cover"
                   />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(img)}
-                  disabled={uploadingImage}
-                  aria-label={t("detail.removePhoto")}
-                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-pill bg-black/75 text-white shadow hover:bg-black disabled:opacity-40"
-                >
-                  <XIcon aria-hidden size={14} />
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(img)}
+                    disabled={uploadingImage}
+                    aria-label={t("detail.removePhoto")}
+                    className="absolute right-1 top-1 grid size-7 place-items-center rounded-pill bg-black/75 text-white shadow hover:bg-black disabled:opacity-40"
+                  >
+                    <XIcon aria-hidden size={14} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadingImage}
-          className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-        >
-          <ImageIcon aria-hidden size={18} />
-          {uploadingImage ? t("detail.uploading") : t("detail.addFile")}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf"
-          multiple
-          className="hidden"
-          onChange={handleAttachPick}
-        />
-        {attachError && (
-          <p role="alert" className="mt-2 text-xs text-[color:var(--color-status-danger-fg)]">
-            {attachError}
-          </p>
+        {!isReadOnly && (
+          <>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingImage}
+              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+            >
+              <ImageIcon aria-hidden size={18} />
+              {uploadingImage ? t("detail.uploading") : t("detail.addFile")}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              multiple
+              className="hidden"
+              onChange={handleAttachPick}
+            />
+            {attachError && (
+              <p role="alert" className="mt-2 text-xs text-[color:var(--color-status-danger-fg)]">
+                {attachError}
+              </p>
+            )}
+          </>
         )}
       </section>
       )}
@@ -1725,37 +1332,43 @@ export default function TaskDetail() {
                   <span className="truncate">{parseDomain(url) ?? url}</span>
                   <ExternalLink aria-hidden size={14} className="text-ink-subtle shrink-0" />
                 </a>
-                <button
-                  type="button"
-                  onClick={() => handleLinkEdit(i)}
-                  disabled={saving}
-                  aria-label={t("detail.linkEdit")}
-                  className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink disabled:opacity-40"
-                >
-                  <Pencil aria-hidden size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLinkRemove(i)}
-                  disabled={saving}
-                  aria-label={t("detail.linkRemove")}
-                  className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40"
-                >
-                  <XIcon aria-hidden size={16} />
-                </button>
+                {!isReadOnly && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleLinkEdit(i)}
+                      disabled={saving}
+                      aria-label={t("detail.linkEdit")}
+                      className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-ink disabled:opacity-40"
+                    >
+                      <Pencil aria-hidden size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleLinkRemove(i)}
+                      disabled={saving}
+                      aria-label={t("detail.linkRemove")}
+                      className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40"
+                    >
+                      <XIcon aria-hidden size={16} />
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <button
-          type="button"
-          onClick={() => handleLinkEdit(-1)}
-          disabled={saving}
-          className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
-        >
-          <LinkIconLc aria-hidden size={18} />
-          {t("detail.linkAdd")}
-        </button>
+        {!isReadOnly && (
+          <button
+            type="button"
+            onClick={() => handleLinkEdit(-1)}
+            disabled={saving}
+            className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+          >
+            <LinkIconLc aria-hidden size={18} />
+            {t("detail.linkAdd")}
+          </button>
+        )}
       </section>
       )}
 
@@ -1899,7 +1512,7 @@ export default function TaskDetail() {
         );
       })()}
 
-      {task.type === "napad" && (
+      {task.type === "napad" && !isReadOnly && (
         <div className="mt-6 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -1934,7 +1547,7 @@ export default function TaskDetail() {
         </div>
       )}
 
-      {task.type === "napad" && task.createdBy === user?.uid && (
+      {task.type === "napad" && (task.createdBy === user?.uid || isReadOnly) && (
         <section id="vystup-section" className="mt-6" aria-labelledby="vystup-heading">
           <button
             type="button"
@@ -1956,15 +1569,18 @@ export default function TaskDetail() {
                   : t("detail.vystupEmptyHint")}
               </span>
             </span>
-            <span aria-hidden className="shrink-0 text-xs text-ink-subtle">
-              {vystupExpanded ? "▾" : "▸"}
-            </span>
-            <span className="sr-only">
-              {vystupExpanded ? t("detail.vystupHide") : t("detail.vystupShow")}
+            <span aria-hidden className="shrink-0 text-ink-subtle">
+              <ChevronDown
+                size={14}
+                className={`transition-transform duration-fast ${vystupExpanded ? "rotate-180" : ""}`}
+              />
             </span>
           </button>
-          {vystupExpanded && (
-            <div id="vystup-content" className="mt-2">
+          <div
+            id="vystup-content"
+            className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-out grid ${vystupExpanded ? "grid-rows-[1fr] mt-2" : "grid-rows-[0fr]"}`}
+          >
+            <div className="min-h-0">
               <Suspense
                 fallback={
                   <div
@@ -1978,21 +1594,55 @@ export default function TaskDetail() {
               >
                 <RichTextEditor
                   value={vystup}
-                  onChange={setVystup}
-                  onBlur={flushOnBlur}
-                  onFocus={handleEditorFocus}
-                  placeholder={t("detail.vystupPlaceholder")}
+                  onChange={isReadOnly ? () => {} : setVystup}
+                  onBlur={isReadOnly ? undefined : flushOnBlur}
+                  onFocus={isReadOnly ? undefined : handleEditorFocus}
+                  placeholder={isReadOnly ? undefined : t("detail.vystupPlaceholder")}
                   ariaLabel={t("detail.vystupLabel")}
+                  disabled={isReadOnly}
                 />
               </Suspense>
             </div>
-          )}
+          </div>
         </section>
       )}
 
-      <Suspense fallback={<div className="mt-6 h-40 rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
-        <CommentThread task={task} />
-      </Suspense>
+      {/* Diskuse — u nápadů + dokumentace defaultně zavřená */}
+      <section className="mt-6" aria-labelledby="comments-heading">
+        <button
+          type="button"
+          onClick={() => setCommentsOpen((v) => !v)}
+          aria-expanded={commentsOpen}
+          aria-controls="comments-content"
+          className="flex w-full items-center justify-between gap-3 rounded-md border border-line bg-surface px-3 py-2 text-left hover:bg-bg-subtle transition-colors"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <span
+              id="comments-heading"
+              className="text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+            >
+              {t("comments.count", { n: task.commentCount ?? 0 })}
+            </span>
+          </span>
+          <span aria-hidden className="shrink-0 text-ink-subtle">
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-fast ${commentsOpen ? "rotate-180" : ""}`}
+            />
+          </span>
+        </button>
+        {/* Always mounted so data loads in the background; CSS hides when collapsed */}
+        <div
+          id="comments-content"
+          className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-out grid ${commentsOpen ? "grid-rows-[1fr] mt-2" : "grid-rows-[0fr]"}`}
+        >
+          <div className="min-h-0">
+            <Suspense fallback={<div className="min-h-[10rem] rounded-md bg-surface ring-1 ring-line animate-pulse" aria-busy="true" />}>
+              <CommentThread task={task} />
+            </Suspense>
+          </div>
+        </div>
+      </section>
 
       <hr className="my-6 border-line" />
 
@@ -2029,7 +1679,7 @@ function TopBar({
   onBack: () => void;
   typeIcon: React.ReactNode;
   typeLabel: string;
-  onDelete: () => void;
+  onDelete?: () => void;
 }) {
   const t = useT();
   return (
@@ -2051,14 +1701,18 @@ function TopBar({
         <span>{typeLabel}</span>
       </div>
 
-      <button
-        type="button"
-        onClick={onDelete}
-        aria-label={t("detail.delete")}
-        className="-mr-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
-      >
-        <Trash2 aria-hidden size={20} />
-      </button>
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          aria-label={t("detail.delete")}
+          className="-mr-2 grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:text-[color:var(--color-status-danger-fg)] hover:bg-bg-subtle"
+        >
+          <Trash2 aria-hidden size={20} />
+        </button>
+      ) : (
+        <span className="w-10" aria-hidden />
+      )}
     </div>
   );
 }

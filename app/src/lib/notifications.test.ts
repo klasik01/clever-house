@@ -31,9 +31,10 @@ describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
     "event_cancelled",          // V18-S08
     "event_calendar_token_reset", // V18-S12
     "event_rsvp_reminder",      // V18-S13
+    "document_uploaded",        // V20
   ];
 
-  it("NOTIFICATION_EVENTS obsahuje všech 16 V18 klíčů", () => {
+  it("NOTIFICATION_EVENTS obsahuje všech 17 klíčů (V20)", () => {
     expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 

@@ -75,6 +75,16 @@ describe("roleHas", () => {
     expect(roleHas("locations.manage", "PROJECT_MANAGER")).toBe(false);
   });
 
+  it("task.create.dokumentace pro OWNER i PM (V20)", () => {
+    expect(roleHas("task.create.dokumentace", "OWNER")).toBe(true);
+    expect(roleHas("task.create.dokumentace", "PROJECT_MANAGER")).toBe(true);
+  });
+
+  it("documentTypes.manage jen pro OWNER (V20)", () => {
+    expect(roleHas("documentTypes.manage", "OWNER")).toBe(true);
+    expect(roleHas("documentTypes.manage", "PROJECT_MANAGER")).toBe(false);
+  });
+
   it("settings.profile + settings.calendarToken pro oba", () => {
     for (const r of ALL_ROLES) {
       expect(roleHas("settings.profile", r)).toBe(true);

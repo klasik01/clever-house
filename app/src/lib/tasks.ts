@@ -93,8 +93,13 @@ export async function updateTask(
   id: string,
   patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup" | "documents" | "auditLog" | "linkedDocIds">>
 ): Promise<void> {
+  // V22 — strip undefined values to prevent Firestore from deleting fields.
+  const clean = Object.fromEntries(
+    Object.entries(patch).filter(([, v]) => v !== undefined),
+  );
+  if (Object.keys(clean).length === 0) return;
   await updateDoc(doc(db, TASKS, id), {
-    ...patch,
+    ...clean,
     updatedAt: serverTimestamp(),
   });
 }
