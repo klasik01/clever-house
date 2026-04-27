@@ -799,6 +799,14 @@
     "linkAdd": "Připojit dokumentaci",
     "linkRemoveConfirm": "Odebrat link na tuto dokumentaci?"
   },
+  "dokumentacePage": {
+    "pageTitle": "Dokumentace",
+    "emptyTitle": "Zatím žádná dokumentace",
+    "emptyBody": "Nahrajte první dokument pomocí + v hlavičce.",
+    "ariaList": "Seznam dokumentace",
+    "ariaLabel": "Dokumentace",
+    "addCta": "Nová dokumentace"
+  },
   "docTypes": {
     "pageTitle": "Typy dokumentů",
     "addCta": "Přidat typ",

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Calendar, Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
+import { Calendar, FileText, Notebook, Ellipsis, MapPin, Plus, ListChecks, CalendarDays } from "lucide-react";
 import { NavLink, Link, useLocation } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import type { UserRole } from "@/types";
@@ -44,6 +44,7 @@ function Header() {
   // V18-S20 — `+` v headeru jen na samotném /events listu (ne /events/new
   // composer ani /event/:id detail — tam by mátl).
   const showAddEventCta = location.pathname === "/events";
+  const showAddDokumentaceCta = location.pathname === "/dokumentace";
 
   return (
     <header
@@ -60,6 +61,15 @@ function Header() {
           </p>
         </div>
         <div className="flex items-center gap-1">
+          {showAddDokumentaceCta && (
+            <Link
+              to={ROUTES.novyTask}
+              aria-label={t("dokumentacePage.addCta")}
+              className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+            >
+              <Plus aria-hidden size={20} />
+            </Link>
+          )}
           {showAddEventCta && (
             <Link
               to={ROUTES.eventsNew}
@@ -69,6 +79,13 @@ function Header() {
               <Plus aria-hidden size={20} />
             </Link>
           )}
+          <Link
+            to={ROUTES.dokumentace}
+            aria-label={t("dokumentacePage.ariaLabel")}
+            className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+          >
+            <FileText aria-hidden size={20} />
+          </Link>
           <Link
             to={ROUTES.events}
             aria-label={t("events.ariaCalendarLabel")}

@@ -61,6 +61,9 @@ export const ROUTES = {
   rozpocet: "/rozpocet",
   harmonogram: "/harmonogram",
 
+  /** Dokumentace — dedicated list (V20). */
+  dokumentace: "/dokumentace",
+
   /** Events list. */
   events: "/events",
 

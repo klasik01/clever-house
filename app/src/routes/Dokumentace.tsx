@@ -1,10 +1,9 @@
-import { Notebook, RotateCcw } from "lucide-react";
+import { FileText, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import TaskList from "@/components/TaskList";
 import FilterChips from "@/components/FilterChips";
 import SearchInput from "@/components/SearchInput";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
-import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasks } from "@/hooks/useTasks";
@@ -13,24 +12,21 @@ import { applySearch } from "@/lib/search";
 import { filterKey } from "@/lib/storageKeys";
 import {
   applyCategory,
-  applyLocation,
   applyOpenClosed,
   clearAllFilters,
   loadCategoryFilter,
   loadFilter,
-  loadLocationFilter,
   saveCategoryFilter,
   saveFilter,
-  saveLocationFilter,
   type OpenClosedFilter,
 } from "@/lib/filters";
 
-const KEY = "napady";
+const KEY = "dokumentace";
 
 /**
- * V6.1 /zaznamy — Nápady, flat list.
+ * V20 /dokumentace — dedicated list for dokumentace records.
  */
-export default function Zaznamy() {
+export default function Dokumentace() {
   const t = useT();
   const { user } = useAuth();
   const { tasks, loading, error } = useTasks(Boolean(user));
@@ -38,53 +34,48 @@ export default function Zaznamy() {
 
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));
-  const [locationId, setLocationId] = useState<string | null>(() => loadLocationFilter(KEY));
   const [query, setQuery] = useState<string>(() => {
-    try { return sessionStorage.getItem(filterKey("napady", "q")) ?? ""; } catch { return ""; }
+    try { return sessionStorage.getItem(filterKey("dokumentace", "q")) ?? ""; } catch { return ""; }
   });
   function setQueryPersist(next: string) {
     setQuery(next);
-    try { sessionStorage.setItem(filterKey("napady", "q"), next); } catch { /* ignore */ }
+    try { sessionStorage.setItem(filterKey("dokumentace", "q"), next); } catch { /* ignore */ }
   }
 
-  const napady = tasks.filter((tk) => tk.type === "napad");
+  const dokumentace = tasks.filter((tk) => tk.type === "dokumentace");
 
   const counts = {
-    all: napady.length,
-    open: napady.filter((x) => x.status !== "Hotovo").length,
-    done: napady.filter((x) => x.status === "Hotovo").length,
+    all: dokumentace.length,
+    open: dokumentace.filter((x) => x.status !== "Hotovo").length,
+    done: dokumentace.filter((x) => x.status === "Hotovo").length,
   };
 
   const visible = applySearch(
-    applyLocation(
-      applyCategory(applyOpenClosed(napady, filter), categoryId),
-      locationId,
-    ),
+    applyCategory(applyOpenClosed(dokumentace, filter), categoryId),
     query,
   );
 
   const isFilterActive =
-    filter !== "open" || categoryId !== null || locationId !== null || query.trim() !== "";
+    filter !== "open" || categoryId !== null || query.trim() !== "";
 
   function handleResetFilters() {
     setFilter("open");
     setCategoryId(null);
-    setLocationId(null);
     setQueryPersist("");
     clearAllFilters(KEY);
   }
 
   return (
     <section
-      aria-labelledby="zaznamy-heading"
+      aria-labelledby="dokumentace-heading"
       className="mx-auto max-w-xl px-4 pt-4 pb-4"
     >
       <header className="mb-3">
         <h2
-          id="zaznamy-heading"
+          id="dokumentace-heading"
           className="text-xl font-semibold tracking-tight text-ink"
         >
-          {t("zaznamy.pageTitle")}
+          {t("dokumentacePage.pageTitle")}
         </h2>
       </header>
 
@@ -109,13 +100,6 @@ export default function Zaznamy() {
             saveCategoryFilter(KEY, v);
           }}
         />
-        <LocationFilterChip
-          value={locationId}
-          onChange={(v) => {
-            setLocationId(v);
-            saveLocationFilter(KEY, v);
-          }}
-        />
         {isFilterActive && (
           <button
             type="button"
@@ -135,10 +119,10 @@ export default function Zaznamy() {
           categories={categories}
           loading={loading}
           error={error}
-          emptyTitle={t("list.emptyTitle")}
-          emptyBody={t("list.emptyBody")}
-          emptyIcon={<Notebook size={22} aria-hidden />}
-          ariaLabel={t("aria.napadyList")}
+          emptyTitle={t("dokumentacePage.emptyTitle")}
+          emptyBody={t("dokumentacePage.emptyBody")}
+          emptyIcon={<FileText size={22} aria-hidden />}
+          ariaLabel={t("dokumentacePage.ariaList")}
         />
       </div>
     </section>

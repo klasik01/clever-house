@@ -949,7 +949,6 @@ export default function TaskDetail() {
       const taskCategoriesDok = categoryIdsDok
         .map((id) => categories.find((c) => c.id === id))
         .filter((c): c is NonNullable<typeof c> => Boolean(c));
-      const locationDok = task.locationId ? getLocation(task.locationId) : null;
 
       return (
         <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="ro-dok-heading">
@@ -976,14 +975,8 @@ export default function TaskDetail() {
             {task.title || t("detail.noTitle")}
           </h1>
 
-          {(locationDok || taskCategoriesDok.length > 0) && (
+          {taskCategoriesDok.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              {locationDok && (
-                <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
-                  <MapPin aria-hidden size={11} />
-                  {locationDok.label}
-                </span>
-              )}
               {taskCategoriesDok.map((c) => (
                 <span key={c.id} className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
                   <Tag aria-hidden size={11} />
@@ -992,14 +985,6 @@ export default function TaskDetail() {
               ))}
             </div>
           )}
-
-          {task.body ? (
-            <div className="mt-4">
-              <Suspense fallback={<p className="whitespace-pre-wrap break-words text-ink">{task.body}</p>}>
-                <RichTextEditor value={task.body} onChange={() => {}} disabled ariaLabel={t("detail.bodyLabel")} />
-              </Suspense>
-            </div>
-          ) : null}
 
           {/* Documents list — read-only */}
           <section className="mt-6" aria-labelledby="ro-docs-heading">
@@ -1277,6 +1262,7 @@ export default function TaskDetail() {
         className="mt-2 block w-full resize-none overflow-hidden border-0 border-b border-transparent bg-transparent px-0 py-1 text-xl sm:text-2xl font-bold leading-tight text-ink placeholder:text-ink-subtle focus:border-b-line-focus focus:outline-none focus:ring-0"
       />
 
+      {task.type !== "dokumentace" && (
       <div className="mt-3">
         <span id="detail-body-label" className="sr-only">
           {t("detail.bodyLabel")}
@@ -1302,6 +1288,7 @@ export default function TaskDetail() {
           />
         </Suspense>
       </div>
+      )}
 
 
 
@@ -1402,15 +1389,6 @@ export default function TaskDetail() {
               ))}
             </div>
           )}
-
-          {/* Location */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <LocationPickerInline
-              value={task.locationId ?? null}
-              onChange={handleLocationChange}
-              disabled={saving}
-            />
-          </div>
 
           {/* Categories */}
           <section className="mt-4" aria-labelledby="cat-heading-dok">

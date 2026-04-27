@@ -29,6 +29,7 @@ import Harmonogram from "./routes/Harmonogram";
 import Ukoly from "./routes/Ukoly";
 import NewTask from "./routes/NewTask";
 import Zaznamy from "./routes/Zaznamy";
+import Dokumentace from "./routes/Dokumentace";
 import LokaceDetail from "./routes/LokaceDetail";
 import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
@@ -55,6 +56,7 @@ export default function App() {
           <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
           <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
+          <Route path={ROUTES.dokumentace} element={<Dokumentace />} />
           <Route path={ROUTES.ukoly} element={<Ukoly />} />
         <Route path={ROUTES.events} element={<Events />} />
         <Route path={ROUTES.eventsNew} element={<EventComposer />} />
