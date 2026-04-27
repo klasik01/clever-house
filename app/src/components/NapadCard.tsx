@@ -27,6 +27,7 @@ import { getLocation } from "@/lib/locations";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import { deadlineState } from "@/lib/deadline";
 import { taskDetail } from "@/lib/routes";
+import { TYPE_COLORS } from "@/lib/typeColors";
 
 // Shared lazy loader for the Tiptap-based RichTextEditor. One in-flight
 // promise regardless of how many cards mount — browsers cache the module
@@ -182,11 +183,7 @@ export default function NapadCard({ task, categories }: Props) {
               <TypeIcon
                 aria-hidden
                 size={18}
-                className={
-                  (task.type === "otazka" || task.type === "ukol" || task.type === "dokumentace")
-                    ? "text-accent-visual"
-                    : "text-ink-subtle"
-                }
+                style={{ color: TYPE_COLORS[task.type] }}
               />
             </span>
             <div className="min-w-0 flex-1">

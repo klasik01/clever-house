@@ -3,7 +3,6 @@ import type { TaskStatus, TaskType } from "@/types";
 import { useT } from "@/i18n/useT";
 import { statusColors, statusIcon } from "./StatusBadge";
 import {
-  NAPAD_STATUSES,
   OTAZKA_STATUSES,
   mapLegacyOtazkaStatus,
   statusLabel,
@@ -24,16 +23,12 @@ interface Props {
 export default function StatusPickerInline({ value, onChange, disabled, type, isPm = false }: Props) {
   const t = useT();
 
-  const current: TaskStatus = (type === "otazka" || type === "ukol")
+  // V23 — napad (téma) now shares the canonical otázka/úkol status set.
+  const current: TaskStatus = (type === "otazka" || type === "ukol" || type === "napad")
     ? mapLegacyOtazkaStatus(value)
     : value;
 
-  const options: TaskStatus[] =
-    type === "napad"
-      ? (NAPAD_STATUSES as TaskStatus[])
-      : (type === "otazka" || type === "ukol")
-      ? (OTAZKA_STATUSES as TaskStatus[])
-      : [...(NAPAD_STATUSES as TaskStatus[]), ...(OTAZKA_STATUSES as TaskStatus[])];
+  const options: TaskStatus[] = (OTAZKA_STATUSES as TaskStatus[]);
 
   const c = statusColors(current);
   const label = statusLabel(t, current, { isPm, type });

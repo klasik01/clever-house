@@ -17,13 +17,13 @@ describe("Composer (V11 lockedType)", () => {
 
   it("shows the type toggle by default (OWNER)", () => {
     renderWithProviders(<Composer onSave={vi.fn()} />);
-    expect(screen.getByText("Nápad")).toBeInTheDocument();
+    expect(screen.getByText("Téma")).toBeInTheDocument();
     expect(screen.getByText("Úkol")).toBeInTheDocument();
   });
 
   it("hides the type toggle entirely when lockedType is set", () => {
     renderWithProviders(<Composer onSave={vi.fn()} lockedType="otazka" />);
-    expect(screen.queryByText("Nápad")).not.toBeInTheDocument();
+    expect(screen.queryByText("Téma")).not.toBeInTheDocument();
     expect(screen.queryByText("Úkol")).not.toBeInTheDocument();
   });
 
@@ -60,16 +60,16 @@ describe("Composer (V14 allowedTypes + 3-way toggle)", () => {
     try { localStorage.clear(); } catch { /* jsdom */ }
   });
 
-  it("renders all three pills by default (Nápad + Otázka + Úkol)", () => {
+  it("renders all three pills by default (Téma + Otázka + Úkol)", () => {
     renderWithProviders(<Composer onSave={vi.fn()} />);
-    expect(screen.getByText("Nápad")).toBeInTheDocument();
+    expect(screen.getByText("Téma")).toBeInTheDocument();
     expect(screen.getByText("Otázka")).toBeInTheDocument();
     expect(screen.getByText("Úkol")).toBeInTheDocument();
   });
 
-  it("allowedTypes restricts the pill set — PM gets Otázka + Úkol, no Nápad", () => {
+  it("allowedTypes restricts the pill set — PM gets Otázka + Úkol, no Téma", () => {
     renderWithProviders(<Composer onSave={vi.fn()} allowedTypes={["otazka", "ukol"]} />);
-    expect(screen.queryByText("Nápad")).not.toBeInTheDocument();
+    expect(screen.queryByText("Téma")).not.toBeInTheDocument();
     expect(screen.getByText("Otázka")).toBeInTheDocument();
     expect(screen.getByText("Úkol")).toBeInTheDocument();
   });
@@ -84,7 +84,7 @@ describe("Composer (V14 allowedTypes + 3-way toggle)", () => {
 
   it("hides the toggle when allowedTypes has a single entry", () => {
     renderWithProviders(<Composer onSave={vi.fn()} allowedTypes={["ukol"]} />);
-    expect(screen.queryByText("Nápad")).not.toBeInTheDocument();
+    expect(screen.queryByText("Téma")).not.toBeInTheDocument();
     expect(screen.queryByText("Otázka")).not.toBeInTheDocument();
     expect(screen.queryByText("Úkol")).not.toBeInTheDocument();
   });

@@ -62,6 +62,27 @@ describe("updateTask", () => {
     expect(merged.status).toBe("Rozhodnuto");
     expect(merged.updatedAt).toEqual({ __sentinel: "serverTimestamp" });
   });
+
+  it("V22 — strips undefined values from patch (prevents field deletion)", async () => {
+    __firestoreState.store.set("tasks/t2", { title: "keep", body: "keep", status: "Nápad" });
+    // Pass a patch with an undefined field via type assertion
+    await updateTask("t2", { title: "updated", body: undefined } as Parameters<typeof updateTask>[1]);
+    const merged = __firestoreState.store.get("tasks/t2") as Record<string, unknown>;
+    expect(merged.title).toBe("updated");
+    // body should remain "keep" — undefined was stripped, not written
+    expect(merged.body).toBe("keep");
+  });
+
+  it("V22 — no-op when all patch values are undefined", async () => {
+    __firestoreState.store.set("tasks/t3", { title: "orig" });
+    const callsBefore = __firestoreState.calls.length;
+    await updateTask("t3", { title: undefined } as Parameters<typeof updateTask>[1]);
+    // No updateDoc call should have been made
+    expect(__firestoreState.calls.length).toBe(callsBefore);
+    // Doc unchanged
+    const merged = __firestoreState.store.get("tasks/t3") as Record<string, unknown>;
+    expect(merged.title).toBe("orig");
+  });
 });
 
 describe("deleteTask", () => {

@@ -14,6 +14,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { roleHas } from "@/lib/permissionsConfig";
 import { ROUTES } from "@/lib/routes";
 import type { TaskType } from "@/types";
+import { TYPE_COLORS, EVENT_COLOR } from "@/lib/typeColors";
 
 interface FabItem {
   key: string;
@@ -23,6 +24,7 @@ interface FabItem {
   taskType?: TaskType;
   /** For non-task items (events) — direct route. */
   route?: string;
+
 }
 
 /**
@@ -74,32 +76,37 @@ export default function FabRadial() {
             icon: <Notebook size={20} />,
             label: t("fab.napad"),
             taskType: "napad" as TaskType,
+
           },
         ]
       : []),
     {
-      key: "otazka",
-      icon: <HelpCircle size={20} />,
-      label: t("fab.otazka"),
-      taskType: "otazka" as TaskType,
+      key: "dokumentace",
+      icon: <FileText size={20} />,
+      label: t("fab.dokumentace"),
+      taskType: "dokumentace" as TaskType,
+
     },
     {
       key: "ukol",
       icon: <Target size={20} />,
       label: t("fab.ukol"),
       taskType: "ukol" as TaskType,
+
     },
     {
-      key: "dokumentace",
-      icon: <FileText size={20} />,
-      label: t("fab.dokumentace"),
-      taskType: "dokumentace" as TaskType,
+      key: "otazka",
+      icon: <HelpCircle size={20} />,
+      label: t("fab.otazka"),
+      taskType: "otazka" as TaskType,
+
     },
     {
       key: "event",
       icon: <Calendar size={20} />,
       label: t("fab.udalost"),
       route: ROUTES.eventsNew,
+
     },
   ];
 
@@ -143,28 +150,40 @@ export default function FabRadial() {
         const rad = (angle * Math.PI) / 180;
         const x = Math.cos(rad) * RADIUS;
         const y = Math.sin(rad) * RADIUS;
+        const itemColor = item.taskType ? TYPE_COLORS[item.taskType] : EVENT_COLOR;
         return (
           <button
             key={item.key}
             type="button"
             onClick={() => handlePick(item)}
             aria-label={item.label}
-            title={item.label}
-            className="absolute z-30 grid size-12 place-items-center rounded-full bg-surface text-ink shadow-lg ring-1 ring-line transition-all duration-300 ease-out hover:bg-bg-subtle hover:scale-110 active:scale-95 disabled:opacity-40"
+            className="group absolute z-30 grid size-12 place-items-center rounded-full text-white shadow-lg transition-all duration-300 ease-out hover:scale-125 active:scale-95 disabled:opacity-40"
             style={{
+              backgroundColor: itemColor,
+              boxShadow: `0 4px 14px ${itemColor}50`,
               transform: open
                 ? `translate(${x}px, ${y}px) scale(1)`
                 : "translate(0, 0) scale(0)",
               opacity: open ? 1 : 0,
               transitionDelay: open ? `${i * 40}ms` : "0ms",
-              // Center on FAB
               bottom: "50%",
               left: "50%",
               marginLeft: "-1.5rem",
               marginBottom: "-1.5rem",
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = `0 8px 28px ${itemColor}90`;
+              e.currentTarget.style.filter = "brightness(1.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = `0 4px 14px ${itemColor}50`;
+              e.currentTarget.style.filter = "";
+            }}
           >
             {item.icon}
+            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-medium text-surface opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100">
+              {item.label}
+            </span>
           </button>
         );
       })}

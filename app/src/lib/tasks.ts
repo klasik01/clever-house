@@ -127,7 +127,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     type: data.type ?? "napad",
     title: data.title ?? "",
     body: data.body ?? "",
-    status: data.status ?? "Nápad",
+    status: data.status ?? "OPEN",
     categoryId: data.categoryId ?? null,
     locationId: data.locationId ?? null,
     linkedTaskId: data.linkedTaskId ?? null,

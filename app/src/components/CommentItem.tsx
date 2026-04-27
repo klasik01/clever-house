@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, CornerDownLeft, ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { Check, CornerDownLeft, ExternalLink, FileText, Pencil, Trash2, X } from "lucide-react";
 import AvatarCircle from "./AvatarCircle";
 import { statusColors } from "./StatusBadge";
 import { mapLegacyOtazkaStatus } from "@/lib/status";
@@ -204,26 +204,42 @@ export default function CommentItem({
 
         {/* Attachments — images grid */}
         {!editing && (comment.attachmentImages?.length ?? 0) > 0 && (
-          <ul className="mt-2 grid grid-cols-3 gap-2 border-t border-line pt-2">
-            {comment.attachmentImages!.map((img, i) => (
+          <ul className="mt-2 flex flex-wrap gap-2 border-t border-line pt-2">
+            {comment.attachmentImages!.map((img, i) => {
+              const pdf = /\.pdf[?#]|%2F[^?]*\.pdf/i.test(img.url) || img.path?.endsWith(".pdf");
+              return (
               <li key={img.id ?? i}>
-                <button
-                  type="button"
-                  onClick={() => onOpenImage?.(img.url)}
-                  className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-                >
-                  <img
-                    src={img.url}
-                    alt=""
-                    width={120}
-                    height={120}
-                    loading="lazy"
-                    decoding="async"
-                    className="aspect-square w-full object-cover"
-                  />
-                </button>
+                {pdf ? (
+                  <a
+                    href={img.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex size-16 flex-col items-center justify-center gap-0.5 rounded-md bg-bg-subtle ring-1 ring-line hover:ring-line-strong"
+                    aria-label="PDF"
+                  >
+                    <FileText aria-hidden size={20} className="text-ink-muted" />
+                    <span className="text-[10px] font-medium text-ink-muted">PDF</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onOpenImage?.(img.url)}
+                    className="block size-16 overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
+                  >
+                    <img
+                      src={img.url}
+                      alt=""
+                      width={64}
+                      height={64}
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover"
+                    />
+                  </button>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
 

@@ -6,7 +6,6 @@ import {
   isBallOnMe,
   statusLabel,
   OTAZKA_STATUSES,
-  NAPAD_STATUSES,
 } from "./status";
 import type { Task, TaskStatus } from "@/types";
 
@@ -42,8 +41,14 @@ describe("canonicalStatus", () => {
     expect(canonicalStatus("otazka", "Hotovo")).toBe("DONE");
   });
 
-  it("leaves nápad values untouched", () => {
-    for (const s of NAPAD_STATUSES) expect(canonicalStatus("napad", s)).toBe(s);
+  it("V23 — maps napad (téma) values through legacy mapper like otázka", () => {
+    expect(canonicalStatus("napad", "Nápad")).toBe("OPEN");
+    expect(canonicalStatus("napad", "Rozhodnuto")).toBe("DONE");
+    expect(canonicalStatus("napad", "Ve stavbě")).toBe("DONE");
+    expect(canonicalStatus("napad", "Hotovo")).toBe("DONE");
+    expect(canonicalStatus("napad", "OPEN")).toBe("OPEN");
+    expect(canonicalStatus("napad", "BLOCKED")).toBe("BLOCKED");
+    expect(canonicalStatus("napad", "DONE")).toBe("DONE");
   });
 });
 
@@ -79,9 +84,10 @@ describe("statusLabel (V10 — role-agnostic)", () => {
     expect(statusLabel(identT, "Hotovo", { type: "otazka" })).toBe("statusOtazka.DONE");
   });
 
-  it("falls back to flat status.* keys for nápad statuses", () => {
-    expect(statusLabel(identT, "Nápad")).toBe("status.Nápad");
-    expect(statusLabel(identT, "Rozhodnuto")).toBe("status.Rozhodnuto");
+  it("V23 — napad uses statusOtazka.* keys like otázka/úkol", () => {
+    expect(statusLabel(identT, "OPEN", { type: "napad" })).toBe("statusOtazka.OPEN");
+    expect(statusLabel(identT, "DONE", { type: "napad" })).toBe("statusOtazka.DONE");
+    expect(statusLabel(identT, "BLOCKED", { type: "napad" })).toBe("statusOtazka.BLOCKED");
   });
 });
 
@@ -114,8 +120,8 @@ describe("isBallOnMe (V10 — assignee-driven)", () => {
     expect(isBallOnMe(mk({ assigneeUid: "me", status: "CANCELED" }), "me")).toBe(false);
   });
 
-  it("false for napad tasks (concept does not apply)", () => {
-    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me" }), "me")).toBe(false);
+  it("false for napad tasks (no assignee workflow)", () => {
+    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me", status: "OPEN" }), "me")).toBe(false);
   });
 
   it("falls back to createdBy when assigneeUid is null (legacy record)", () => {
@@ -179,7 +185,7 @@ describe("V14 — isBallOnMe extends to úkol", () => {
   });
 
   it("still false for napad even when assigneeUid matches (type gate)", () => {
-    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me" }), "me")).toBe(false);
+    expect(isBallOnMe(mk({ type: "napad", assigneeUid: "me", status: "OPEN" }), "me")).toBe(false);
   });
 });
 

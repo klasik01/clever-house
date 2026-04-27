@@ -3,7 +3,6 @@ import type { TaskStatus, TaskType } from "@/types";
 import { useT } from "@/i18n/useT";
 import { statusColors, statusIcon } from "./StatusBadge";
 import {
-  NAPAD_STATUSES,
   OTAZKA_STATUSES,
   mapLegacyOtazkaStatus,
   statusLabel,
@@ -15,8 +14,8 @@ interface Props {
   disabled?: boolean;
   /**
    * Task type drives which status options are offered:
-   * - napad  → "Nápad" | "Rozhodnuto" | "Ve stavbě" | "Hotovo"
-   * - otazka → V5 canonical set (ON_PM_SITE, ON_CLIENT_SITE, BLOCKED, CANCELED, DONE)
+   * - napad  → V23 canonical set (OPEN, BLOCKED, CANCELED, DONE) — same as otázka/úkol
+   * - otazka → V10 canonical set (OPEN, BLOCKED, CANCELED, DONE)
    */
   type?: TaskType;
   /** Viewer role — affects labels on ON_CLIENT_SITE / ON_PM_SITE chips. */
@@ -34,15 +33,14 @@ export default function StatusSelect({ value, onChange, disabled, type, isPm = f
 
   // Normalise legacy otazka values to canonical before comparing / rendering.
   // V14 — úkol shares the same canonical status mapper as otázka.
-  const current: TaskStatus = (type === "otazka" || type === "ukol") ? mapLegacyOtazkaStatus(value) : value;
+  // V23 — napad (téma) now shares the canonical otázka/úkol status set.
+  const current: TaskStatus = (type === "otazka" || type === "ukol" || type === "napad") ? mapLegacyOtazkaStatus(value) : value;
 
   const options: TaskStatus[] =
-    type === "napad"
-      ? (NAPAD_STATUSES as TaskStatus[])
-      : (type === "otazka" || type === "ukol")
+    (type === "napad" || type === "otazka" || type === "ukol")
       ? (OTAZKA_STATUSES as TaskStatus[])
-      : // No type context — fall back to a broad union (napad + canonical otazka/úkol)
-        [...(NAPAD_STATUSES as TaskStatus[]), ...(OTAZKA_STATUSES as TaskStatus[])];
+      : // No type context — fall back to canonical otazka/úkol set.
+        (OTAZKA_STATUSES as TaskStatus[]);
 
   return (
     <div

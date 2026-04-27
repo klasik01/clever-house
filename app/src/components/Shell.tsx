@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Calendar, FileText, Notebook, Ellipsis, CalendarDays, ListChecks } from "lucide-react";
+import { Calendar, FileText, Notebook, Ellipsis, ListChecks } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { useTasks } from "@/hooks/useTasks";
@@ -55,13 +55,6 @@ function Header() {
         </div>
         <div className="flex items-center gap-1">
           <Link
-            to={ROUTES.dokumentace}
-            aria-label={t("dokumentacePage.ariaLabel")}
-            className="grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
-          >
-            <FileText aria-hidden size={20} />
-          </Link>
-          <Link
             to={ROUTES.events}
             aria-label={t("events.ariaCalendarLabel")}
             className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
@@ -106,11 +99,11 @@ function BottomTabs() {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {/* Unified nav: Harmonogram / Záznamy · FAB · Úkoly / Nastavení */}
+        {/* Unified nav: Dokumentace / Záznamy · FAB · Úkoly / Nastavení */}
         <Tab
-          to={ROUTES.harmonogram}
-          icon={<CalendarDays aria-hidden size={20} />}
-          label={t("tabs.harmonogram")}
+          to={ROUTES.dokumentace}
+          icon={<FileText aria-hidden size={20} />}
+          label={t("tabs.dokumentace")}
         />
         <Tab
           to={ROUTES.zaznamy}

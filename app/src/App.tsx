@@ -24,7 +24,6 @@ import KategorieDetail from "./routes/KategorieDetail";
 import LokaceManage from "./routes/LokaceManage";
 import DocumentTypesManage from "./routes/DocumentTypesManage";
 import Rozpocet from "./routes/Rozpocet";
-import Harmonogram from "./routes/Harmonogram";
 import Ukoly from "./routes/Ukoly";
 import Zaznamy from "./routes/Zaznamy";
 import Dokumentace from "./routes/Dokumentace";
@@ -50,7 +49,7 @@ export default function App() {
         <Route path={ROUTES.login} element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path={ROUTES.home} element={<Navigate to={ROUTES.harmonogram} replace />} />
+          <Route path={ROUTES.home} element={<Navigate to={ROUTES.dokumentace} replace />} />
           <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
           <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
@@ -66,7 +65,7 @@ export default function App() {
           <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
           <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
           <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
-          <Route path={ROUTES.harmonogram} element={<Harmonogram />} />
+          <Route path={ROUTES.harmonogram} element={<Navigate to={ROUTES.dokumentace} replace />} />
           <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
           <Route path={ROUTE_PATTERNS.lokaceDetail} element={<LokaceDetailForOwner />} />
           <Route path={ROUTES.legacyPrehled} element={<Navigate to={ROUTES.ukoly} replace />} />

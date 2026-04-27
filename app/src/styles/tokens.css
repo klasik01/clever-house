@@ -135,9 +135,9 @@
   --color-status-vestavbe-fg:     var(--oak-900);
   --color-status-vestavbe-border: var(--oak-500);
 
-  --color-status-hotovo-bg:       var(--olive-700);
-  --color-status-hotovo-fg:       var(--stone-50);
-  --color-status-hotovo-border:   var(--olive-800);
+  --color-status-hotovo-bg:       var(--olive-100);
+  --color-status-hotovo-fg:       var(--olive-800);
+  --color-status-hotovo-border:   var(--olive-300);
 
   --color-status-success-bg:     var(--success-50);
   --color-status-success-fg:     var(--success-700);
@@ -316,9 +316,9 @@
     --color-status-vestavbe-fg:     var(--oak-100);
     --color-status-vestavbe-border: var(--oak-500);
 
-    --color-status-hotovo-bg:       var(--olive-400);
-    --color-status-hotovo-fg:       var(--stone-950);
-    --color-status-hotovo-border:   var(--olive-300);
+    --color-status-hotovo-bg:       var(--olive-900);
+    --color-status-hotovo-fg:       var(--olive-200);
+    --color-status-hotovo-border:   var(--olive-700);
 
     --color-status-success-bg:     var(--success-900);
     --color-status-success-fg:     var(--success-300);

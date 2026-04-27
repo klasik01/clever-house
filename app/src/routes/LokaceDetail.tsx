@@ -45,9 +45,9 @@ export default function LokaceDetail() {
   }
 
   const forLocation = tasks.filter((tk) => tk.locationId === id);
-  const napady = forLocation.filter((tk) => tk.type === "napad" && tk.status !== "Hotovo");
+  const napady = forLocation.filter((tk) => tk.type === "napad" && tk.status !== "DONE");
   // V14 — surface both otázka and úkol under Lokace (both are actionable).
-  const otazky = forLocation.filter((tk) => (tk.type === "otazka" || tk.type === "ukol") && tk.status !== "Hotovo");
+  const otazky = forLocation.filter((tk) => (tk.type === "otazka" || tk.type === "ukol") && tk.status !== "DONE");
 
   const tabTasks = tab === "napady" ? napady : otazky;
   const emptyTitle = t("locations.empty");

@@ -6,6 +6,7 @@ import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
 import { convertNapadToOtazka, convertNapadToUkol, createTask, deleteTask, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
+import { TYPE_COLORS } from "@/lib/typeColors";
 import { useUserRole } from "@/hooks/useUserRole";
 import { canEditTask } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
@@ -25,7 +26,7 @@ import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
-import type { TaskStatus } from "@/types";
+import type { Task as TaskT, TaskType, TaskStatus, TaskPriority, UserRole, ImageAttachment, DocumentAttachment, AuditEntry } from "@/types";
 import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
 import { taskDetail } from "@/lib/routes";
 
@@ -38,7 +39,7 @@ import SwipeReveal from "@/components/SwipeReveal";
 
 // ---------- LinkedList (V14.1) ----------
 
-type LinkedItem = { lid?: string; ot?: import("@/types").Task };
+type LinkedItem = { lid?: string; ot?: TaskT };
 
 function LinkedList({
   items,
@@ -128,6 +129,14 @@ function LinkedList({
  *  grace period so rapid blur→refocus cycles don’t fire a premature save. */
 const BLUR_SAVE_DELAY_MS = 1000;
 
+/** V22 refactor — shared icon + label lookup for TaskType. */
+const TYPE_META: Record<TaskType, { icon: typeof FileText; labelKey: string }> = {
+  otazka:      { icon: HelpCircle,  labelKey: "detail.typeOtazka" },
+  ukol:        { icon: Target,      labelKey: "detail.typeUkol" },
+  dokumentace: { icon: FileText,    labelKey: "detail.typeDokumentace" },
+  napad:       { icon: Notebook,    labelKey: "detail.typeNapad" },
+};
+
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -147,8 +156,6 @@ export default function TaskDetail() {
   const [body, setBody] = useState("");
   // V14 — nápad-only "Výstup" markdown (resolution summary).
   const [vystup, setVystup] = useState("");
-  // V14 — úkol-only free-text dependency ("Hotové před …").
-  // V19 — dependencyText state removed (UI removed)
   const initializedRef = useRef(false);
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingRef = useRef<{ id: string; title: string; body: string; vystup: string } | null>(null);
@@ -186,10 +193,8 @@ export default function TaskDetail() {
   // No task exists in Firestore yet — we show only the title input.
   // After user confirms a title, we create the task and redirect to /t/{realId}.
   const routerLocation = useLocation();
-  const createType = (routerLocation.state as { createType?: import("@/types").TaskType } | null)?.createType;
+  const createType = (routerLocation.state as { createType?: TaskType } | null)?.createType;
   const isCreateMode = id === "new" && !!createType;
-
-
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -198,7 +203,6 @@ export default function TaskDetail() {
       setVystup(state.task.vystup ?? "");
       // V21 — nápady + dokumentace: diskuse defaultně zavřená
       setCommentsOpen(state.task.type === "otazka" || state.task.type === "ukol");
-      // V19 — dependencyText sync removed
       initializedRef.current = true;
       setHasInitialized(true);
     }
@@ -225,7 +229,6 @@ export default function TaskDetail() {
     setTitle("");
     setBody("");
     setVystup("");
-    // V19 — setDependencyText removed
     pendingRef.current = null;
     initializedRef.current = false;
     setHasInitialized(false);
@@ -338,6 +341,20 @@ export default function TaskDetail() {
     window.setTimeout(() => setSavedVisible(false), 1500);
   }
 
+  /** V22 refactor — DRY wrapper for single-field updateTask + save indicator. */
+  async function saveField(patch: Parameters<typeof updateTask>[1]) {
+    if (state.status !== "ready") return;
+    setSaving(true);
+    try {
+      await updateTask(state.task.id, patch);
+      flashSaved();
+    } catch (e) {
+      console.error("field save failed", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleConvert() {
     if (state.status !== "ready" || !user) return;
     if (state.task.type !== "napad") return;
@@ -366,8 +383,6 @@ export default function TaskDetail() {
     }
   }
 
-  // V19 — handleDependencyBlur removed (dependencyText UI removed)
-
   async function handleAttachPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
@@ -382,7 +397,7 @@ export default function TaskDetail() {
     setUploadingImage(true);
     try {
       const existing = state.task.attachmentImages ?? [];
-      const uploaded: import("@/types").ImageAttachment[] = [];
+      const uploaded: ImageAttachment[] = [];
       for (const file of files) {
         try {
           const uploader = isImageFile(file) ? uploadTaskImage : uploadTaskFile;
@@ -409,7 +424,7 @@ export default function TaskDetail() {
     }
   }
 
-  async function handleRemoveImage(img: import("@/types").ImageAttachment) {
+  async function handleRemoveImage(img: ImageAttachment) {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.confirmRemovePhoto"))) return;
     setUploadingImage(true);
@@ -474,100 +489,36 @@ export default function TaskDetail() {
   }
 
   async function handleLocationChange(nextId: string | null) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { locationId: nextId });
-      flashSaved();
-    } catch (e) {
-      console.error("location update failed", e);
-    } finally {
-      setSaving(false);
-    }
+    await saveField({ locationId: nextId });
   }
 
   async function handleCategoryChange(nextIds: string[]) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      const legacy = nextIds[0] ?? null;
-      await updateTask(state.task.id, { categoryIds: nextIds, categoryId: legacy });
-      flashSaved();
-    } catch (e) {
-      console.error("category update failed", e);
-    } finally {
-      setSaving(false);
-    }
+    const legacy = nextIds[0] ?? null;
+    await saveField({ categoryIds: nextIds, categoryId: legacy });
   }
 
   async function handleStatusChange(next: TaskStatus) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { status: next });
-      flashSaved();
-    } catch (e) {
-      console.error("status update failed", e);
-    } finally {
-      setSaving(false);
-    }
+    await saveField({ status: next });
   }
 
   async function handleAssigneeChange(nextUid: string | null) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { assigneeUid: nextUid });
-      flashSaved();
-    } catch (e) {
-      console.error("assignee update failed", e);
-    } finally {
-      setSaving(false);
-    }
+    await saveField({ assigneeUid: nextUid });
   }
 
-  async function handlePriorityChange(next: import("@/types").TaskPriority) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { priority: next });
-      flashSaved();
-    } catch (e) {
-      console.error("priority update failed", e);
-    } finally {
-      setSaving(false);
-    }
+  async function handlePriorityChange(next: TaskPriority) {
+    await saveField({ priority: next });
   }
 
-
-
-  async function handleShareRoleToggle(role: import("@/types").UserRole, checked: boolean) {
+  async function handleShareRoleToggle(role: UserRole, checked: boolean) {
     if (state.status !== "ready") return;
     const current = state.task.sharedWithRoles ?? [];
     const next = checked
       ? [...new Set([...current, role])]
       : current.filter((r) => r !== role);
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { sharedWithRoles: next });
-      flashSaved();
-    } catch (e) {
-      console.error("share toggle failed", e);
-    } finally {
-      setSaving(false);
-    }
+    await saveField({ sharedWithRoles: next });
   }
   async function handleDeadlineChange(nextMs: number | null) {
-    if (state.status !== "ready") return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { deadline: nextMs });
-      flashSaved();
-    } catch (e) {
-      console.error("deadline update failed", e);
-    } finally {
-      setSaving(false);
-    }
+    await saveField({ deadline: nextMs });
   }
   async function handleDelete() {
     if (state.status !== "ready") return;
@@ -587,7 +538,7 @@ export default function TaskDetail() {
         ? await uploadTaskImage({ file: result.file, uid: user.uid, taskId: task.id })
         : await uploadTaskFile({ file: result.file, uid: user.uid, taskId: task.id });
 
-      const newDoc: import("@/types").DocumentAttachment = {
+      const newDoc: DocumentAttachment = {
         id: newId(),
         fileUrl: upload.url,
         filePath: upload.path,
@@ -600,14 +551,14 @@ export default function TaskDetail() {
       };
 
       const existingDocs = task.documents ?? [];
-      const auditEntry: import("@/types").AuditEntry = {
+      const auditEntry: AuditEntry = {
         action: docModal.replaceId ? "replaced" : "uploaded",
         actorUid: user.uid,
         timestamp: new Date().toISOString(),
         details: result.displayName,
       };
 
-      let nextDocs: import("@/types").DocumentAttachment[];
+      let nextDocs: DocumentAttachment[];
       if (docModal.replaceId) {
         // Replace: remove old, add new
         const oldDoc = existingDocs.find((d) => d.id === docModal.replaceId);
@@ -647,7 +598,7 @@ export default function TaskDetail() {
     if (!window.confirm(t("dokumentace.deleteDocument"))) return;
     const task = state.task;
     const nextDocs = (task.documents ?? []).filter((d) => d.id !== docId);
-    const auditEntry: import("@/types").AuditEntry = {
+    const auditEntry: AuditEntry = {
       action: "deleted",
       actorUid: user.uid,
       timestamp: new Date().toISOString(),
@@ -677,16 +628,8 @@ export default function TaskDetail() {
 
   // ---------- V20 — Title-first flow (create mode, no task in Firestore yet) ----------
   if (isCreateMode) {
-    const TypeIconCreate =
-      createType === "otazka" ? HelpCircle
-      : createType === "ukol" ? Target
-      : createType === "dokumentace" ? FileText
-      : Notebook;
-    const typeLabelCreate =
-      createType === "otazka" ? t("detail.typeOtazka")
-      : createType === "ukol" ? t("detail.typeUkol")
-      : createType === "dokumentace" ? t("detail.typeDokumentace")
-      : t("detail.typeNapad");
+    const { icon: TypeIconCreate, labelKey: createLabelKey } = TYPE_META[createType!];
+    const typeLabelCreate = t(createLabelKey);
 
     async function handleTitleConfirm() {
       if (!title.trim() || !user) return;
@@ -698,7 +641,7 @@ export default function TaskDetail() {
             type: createType!,
             title: title.trim(),
             body: "",
-            status: "Nápad",
+            status: createType === "dokumentace" ? "Nápad" : "OPEN",
           },
           user.uid,
           currentRole,
@@ -728,7 +671,7 @@ export default function TaskDetail() {
             <ArrowLeft aria-hidden size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <TypeIconCreate aria-hidden size={20} className="text-accent-visual" />
+            <TypeIconCreate aria-hidden size={20} style={{ color: TYPE_COLORS[createType!] }} />
             <h1 className="text-lg font-semibold text-ink">{typeLabelCreate}</h1>
           </div>
         </div>
@@ -780,7 +723,6 @@ export default function TaskDetail() {
     );
   }
 
-
   // V6.2 — also skeleton while we're waiting for the init useEffect to sync
   // local title/body from the freshly-arrived task. Rendering the editor with
   // empty local state caused lost keystrokes when the user started typing
@@ -826,23 +768,8 @@ export default function TaskDetail() {
   });
   const isReadOnly = !canEdit;
   isReadOnlyRef.current = isReadOnly;
-  const TypeIcon =
-    task.type === "otazka"
-      ? HelpCircle
-      : task.type === "ukol"
-      ? Target
-      : task.type === "dokumentace"
-      ? FileText
-      : Notebook;
-
-  const typeLabel =
-    task.type === "otazka"
-      ? t("detail.typeOtazka")
-      : task.type === "ukol"
-      ? t("detail.typeUkol")
-      : task.type === "dokumentace"
-      ? t("detail.typeDokumentace")
-      : t("detail.typeNapad");
+  const { icon: TypeIcon, labelKey: typeLabelKey } = TYPE_META[task.type];
+  const typeLabel = t(typeLabelKey);
   // V14 — both otázka and úkol use the same rich meta layout (deadline,
   // priority, assignee). Nápad gets the simpler layout + Výstup section.
   const isActionable = task.type === "otazka" || task.type === "ukol";
@@ -860,11 +787,50 @@ export default function TaskDetail() {
   const created = new Date(task.createdAt);
   const updated = new Date(task.updatedAt);
 
+  // V22 refactor — shared JSX blocks used in multiple type branches
+  const showShareToggle = task.createdBy === user?.uid && !isReadOnly;
+  const categoryIds = task.categoryIds ?? (task.categoryId ? [task.categoryId] : []);
+
+  const shareToggle = showShareToggle && (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      {(["PROJECT_MANAGER"] as UserRole[]).map((role) => (
+        <label
+          key={role}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"
+        >
+          <input
+            type="checkbox"
+            checked={(task.sharedWithRoles ?? []).includes(role)}
+            onChange={(e) => handleShareRoleToggle(role, e.target.checked)}
+            disabled={saving}
+            className="size-3 rounded border-line"
+            style={{ accentColor: "var(--color-accent-visual)" }}
+          />
+          {t(`detail.role.${role}`)}
+        </label>
+      ))}
+    </div>
+  );
+
+  const categorySection = (headingId: string) => (
+    <section className="mt-4" aria-labelledby={headingId}>
+      <h2 id={headingId} className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+        {t("detail.categoryLabel")}
+      </h2>
+      <CategoryPicker
+        value={categoryIds}
+        categories={categories}
+        onChange={handleCategoryChange}
+        disabled={saving || isReadOnly}
+      />
+    </section>
+  );
+
   return (
     <article className="mx-auto max-w-xl px-4 py-4" aria-labelledby="detail-title">
       <TopBar
         onBack={() => navigate(-1)}
-        typeIcon={<TypeIcon aria-hidden size={18} />}
+        typeIcon={<TypeIcon aria-hidden size={18} style={{ color: TYPE_COLORS[task.type] }} />}
         typeLabel={typeLabel}
         onDelete={isReadOnly ? undefined : handleDelete}
       />
@@ -987,10 +953,6 @@ export default function TaskDetail() {
       </div>
       )}
 
-
-
-
-
       {isActionable ? (
         <>
           {/* V19 — Single row: Status, Priority, Phase, Location */}
@@ -1021,20 +983,8 @@ export default function TaskDetail() {
             />
           </div>
 
-
-
           {/* Categories under location/phase */}
-          <section className="mt-4" aria-labelledby="cat-heading-act">
-            <h2 id="cat-heading-act" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-              {t("detail.categoryLabel")}
-            </h2>
-            <CategoryPicker
-              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
-              categories={categories}
-              onChange={handleCategoryChange}
-              disabled={saving || isReadOnly}
-            />
-          </section>
+          {categorySection("cat-heading-act")}
 
           {/* V19 — Deadline + Assignee row */}
           <div className="mt-4 grid grid-cols-2 gap-4">
@@ -1066,39 +1016,10 @@ export default function TaskDetail() {
       ) : task.type === "dokumentace" ? (
         <>
           {/* V20 — Dokumentace: sharedWithRoles + location + categories + empty documents */}
-          {task.createdBy === user?.uid && !isReadOnly && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
-                <label
-                  key={role}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(task.sharedWithRoles ?? []).includes(role)}
-                    onChange={(e) => handleShareRoleToggle(role, e.target.checked)}
-                    disabled={saving}
-                    className="size-3 rounded border-line"
-                    style={{ accentColor: "var(--color-accent-visual)" }}
-                  />
-                  {t(`detail.role.${role}`)}
-                </label>
-              ))}
-            </div>
-          )}
+          {shareToggle}
 
           {/* Categories */}
-          <section className="mt-4" aria-labelledby="cat-heading-dok">
-            <h2 id="cat-heading-dok" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-              {t("detail.categoryLabel")}
-            </h2>
-            <CategoryPicker
-              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
-              categories={categories}
-              onChange={handleCategoryChange}
-              disabled={saving || isReadOnly}
-            />
-          </section>
+          {categorySection("cat-heading-dok")}
 
           {/* Documents — upload + cards */}
           <section className="mt-6" aria-labelledby="docs-heading">
@@ -1182,26 +1103,7 @@ export default function TaskDetail() {
       ) : (
         <>
           {/* V19 — Visible for roles */}
-          {task.createdBy === user?.uid && !isReadOnly && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
-                <label
-                  key={role}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(task.sharedWithRoles ?? []).includes(role)}
-                    onChange={(e) => handleShareRoleToggle(role, e.target.checked)}
-                    disabled={saving}
-                    className="size-3 rounded border-line"
-                    style={{ accentColor: "var(--color-accent-visual)" }}
-                  />
-                  {t(`detail.role.${role}`)}
-                </label>
-              ))}
-            </div>
-          )}
+          {shareToggle}
 
           {/* V19 — Single row: Status, Phase, Location */}
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1225,17 +1127,7 @@ export default function TaskDetail() {
           </div>
 
           {/* Categories */}
-          <section className="mt-4" aria-labelledby="cat-heading-napad">
-            <h2 id="cat-heading-napad" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-              {t("detail.categoryLabel")}
-            </h2>
-            <CategoryPicker
-              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
-              categories={categories}
-              onChange={handleCategoryChange}
-              disabled={saving || isReadOnly}
-            />
-          </section>
+          {categorySection("cat-heading-napad")}
         </>
       )}
 
@@ -1245,38 +1137,54 @@ export default function TaskDetail() {
           {t("detail.attachmentLabel")}
         </h2>
         {(task.attachmentImages?.length ?? 0) > 0 && (
-          <ul className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {task.attachmentImages!.map((img, idx) => (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {task.attachmentImages!.map((img, idx) => {
+              const pdf = /\.pdf[?#]|%2F[^?]*\.pdf/i.test(img.url) || img.path?.endsWith(".pdf");
+              return (
               <li key={img.id ?? idx} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setLightbox(img.url)}
-                  className="block w-full overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
-                  aria-label={t("aria.openImagePreview")}
-                >
-                  <img
-                    src={img.url}
-                    alt=""
-                    width={200}
-                    height={200}
-                    loading="lazy"
-                    decoding="async"
-                    className="aspect-square w-full object-cover"
-                  />
-                </button>
+                {pdf ? (
+                  <a
+                    href={img.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex size-20 flex-col items-center justify-center gap-1 rounded-md bg-bg-subtle ring-1 ring-line hover:ring-line-strong"
+                    aria-label="PDF"
+                  >
+                    <FileText aria-hidden size={24} className="text-ink-muted" />
+                    <span className="text-[10px] font-medium text-ink-muted">PDF</span>
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(img.url)}
+                    className="block size-20 overflow-hidden rounded-md ring-1 ring-line hover:ring-line-strong focus:outline-none focus:ring-2 focus:ring-line-focus"
+                    aria-label={t("aria.openImagePreview")}
+                  >
+                    <img
+                      src={img.url}
+                      alt=""
+                      width={80}
+                      height={80}
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover"
+                    />
+                  </button>
+                )}
                 {!isReadOnly && (
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(img)}
                     disabled={uploadingImage}
                     aria-label={t("detail.removePhoto")}
-                    className="absolute right-1 top-1 grid size-7 place-items-center rounded-pill bg-black/75 text-white shadow hover:bg-black disabled:opacity-40"
+                    className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-black/75 text-white shadow hover:bg-black disabled:opacity-40"
                   >
-                    <XIcon aria-hidden size={14} />
+                    <XIcon aria-hidden size={10} />
                   </button>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
         {!isReadOnly && (
@@ -1716,7 +1624,6 @@ function TopBar({
     </div>
   );
 }
-
 
 function SkeletonDetail() {
   return (

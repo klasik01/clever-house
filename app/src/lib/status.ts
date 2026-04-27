@@ -81,7 +81,8 @@ export function canonicalStatus(
   status: TaskStatus,
 ): TaskStatus {
   // V14 — úkol shares the otázka canonical set (OPEN / BLOCKED / CANCELED / DONE).
-  if (type === "otazka" || type === "ukol") return mapLegacyOtazkaStatus(status);
+  // V23 — napad (téma) now shares the same canonical statuses.
+  if (type === "otazka" || type === "ukol" || type === "napad") return mapLegacyOtazkaStatus(status);
   // V19 — dokumentace has no workflow status; return raw value (typically "Nápad"
   // from createTask default, but never displayed in UI).
   return status;
@@ -101,7 +102,7 @@ export function isBallOnMe(
   uid: string | undefined,
 ): boolean {
   if (!uid) return false;
-  // V14 — both otázka and úkol carry the ball-on-me semantic. Nápady and
+  // V14 — otázka, úkol carry the ball-on-me semantic. Nápady (témata) and
   // dokumentace are containers and don't flow through an assignee pipeline.
   if (task.type !== "otazka" && task.type !== "ukol") return false;
   if (canonicalStatus(task.type, task.status) !== "OPEN") return false;
@@ -120,8 +121,8 @@ export function statusLabel(
   opts: { isPm?: boolean; type?: TaskType } = {},
 ): string {
   const { type } = opts;
-  // V14 — úkol uses the same canonical labels as otázka.
-  const s = (type === "otazka" || type === "ukol") ? mapLegacyOtazkaStatus(status) : status;
+  // V14 — úkol uses the same canonical labels as otázka. V23 — napad (téma) too.
+  const s = (type === "otazka" || type === "ukol" || type === "napad") ? mapLegacyOtazkaStatus(status) : status;
   switch (s) {
     case "OPEN":
       return t("statusOtazka.OPEN");

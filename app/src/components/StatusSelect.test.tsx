@@ -13,12 +13,12 @@ describe("StatusSelect (V10)", () => {
     expect(radios.length).toBe(4);
   });
 
-  it("shows napad statuses when type=napad (unchanged)", () => {
+  it("V23 — shows canonical statuses for napad (same as otázka)", () => {
     renderWithProviders(
-      <StatusSelect value="Nápad" type="napad" onChange={() => {}} />,
+      <StatusSelect value="OPEN" type="napad" onChange={() => {}} />,
     );
     expect(screen.getAllByRole("radio").length).toBe(4);
-    expect(screen.getByText("Nápad")).toBeInTheDocument();
+    expect(screen.getByText("Otevřený")).toBeInTheDocument();
   });
 
   it("normalises legacy ON_PM_SITE → OPEN aria-checked", () => {

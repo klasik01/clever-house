@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 import TaskList from "@/components/TaskList";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
@@ -193,31 +193,14 @@ export default function Ukoly() {
         <p className="mt-1 text-sm text-ink-muted">{t("ukoly.pageHint")}</p>
       </header>
 
-      <div className="mb-4">
+      <div className="mb-3">
         <SearchInput value={query} onChange={setQueryPersist} />
       </div>
 
+      {/* Primary filters — always visible */}
       <div className="flex flex-wrap items-center gap-2">
-        <StateModeChip value={stateMode} onChange={setStateModePersist} />
         <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
         <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
-        <StatusFilterChip value={status} onChange={setStatus} />
-        <PriorityFilterChip value={priority} onChange={setPriority} />
-        <CategoryFilterChip
-          value={categoryId}
-          categories={categories}
-          onChange={(v) => {
-            setCategoryId(v);
-            saveCategoryFilter(KEY, v);
-          }}
-        />
-        <LocationFilterChip
-          value={locationId}
-          onChange={(v) => {
-            setLocationId(v);
-            saveLocationFilter(KEY, v);
-          }}
-        />
         {isFilterActive && (
           <button
             type="button"
@@ -230,6 +213,25 @@ export default function Ukoly() {
           </button>
         )}
       </div>
+
+      {/* Advanced filters — collapsible */}
+      <AdvancedFilters
+        stateMode={stateMode}
+        onStateModeChange={setStateModePersist}
+        status={status}
+        onStatusChange={setStatus}
+        priority={priority}
+        onPriorityChange={setPriority}
+        categoryId={categoryId}
+        categories={categories}
+        onCategoryChange={(v) => { setCategoryId(v); saveCategoryFilter(KEY, v); }}
+        locationId={locationId}
+        onLocationChange={(v) => { setLocationId(v); saveLocationFilter(KEY, v); }}
+        hasActiveAdvanced={
+          status !== null || priority !== null || categoryId !== null ||
+          locationId !== null || stateMode !== "active"
+        }
+      />
 
       <div className="mt-3">
         <TaskList
@@ -330,6 +332,77 @@ function TypeModeChip({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+
+/**
+ * V23 — collapsible advanced filter panel. Keeps the main filter row clean
+ * with just type + owner pills. Everything else (search, state, status,
+ * priority, category, location) lives here behind a disclosure toggle.
+ */
+function AdvancedFilters({
+  stateMode, onStateModeChange,
+  status, onStatusChange,
+  priority, onPriorityChange,
+  categoryId, categories, onCategoryChange,
+  locationId, onLocationChange,
+  hasActiveAdvanced,
+}: {
+  stateMode: "active" | "all";
+  onStateModeChange: (v: "active" | "all") => void;
+  status: TaskStatus | null;
+  onStatusChange: (v: TaskStatus | null) => void;
+  priority: TaskPriority | null;
+  onPriorityChange: (v: TaskPriority | null) => void;
+  categoryId: string | null;
+  categories: import("@/types").Category[];
+  onCategoryChange: (v: string | null) => void;
+  locationId: string | null;
+  onLocationChange: (v: string | null) => void;
+  hasActiveAdvanced: boolean;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(hasActiveAdvanced);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
+      >
+        <ChevronDown
+          aria-hidden
+          size={14}
+          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+        {t("ukoly.advancedFilters")}
+        {hasActiveAdvanced && !open && (
+          <span className="ml-1 inline-block size-1.5 rounded-full bg-accent" aria-hidden />
+        )}
+      </button>
+
+      {open && (
+        <div className="mt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StateModeChip value={stateMode} onChange={onStateModeChange} />
+            <StatusFilterChip value={status} onChange={onStatusChange} />
+            <PriorityFilterChip value={priority} onChange={onPriorityChange} />
+            <CategoryFilterChip
+              value={categoryId}
+              categories={categories}
+              onChange={onCategoryChange}
+            />
+            <LocationFilterChip
+              value={locationId}
+              onChange={onLocationChange}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

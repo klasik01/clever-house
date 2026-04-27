@@ -59,6 +59,7 @@ export const ROUTES = {
 
   /** PM-only views. */
   rozpocet: "/rozpocet",
+  /** @deprecated V23 — replaced by /dokumentace. Kept for legacy redirect. */
   harmonogram: "/harmonogram",
 
   /** Dokumentace — dedicated list (V20). */

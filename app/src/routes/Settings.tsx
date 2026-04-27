@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown, ChevronRight, Clock, Copy, FileDown, FileText, LogOut, MapPin, RefreshCw, Tag } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, LogOut, MapPin, RefreshCw, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -111,14 +111,6 @@ export default function Settings() {
         defaultOpen={false}
       >
         {user && <CalendarSection uid={user.uid} />}
-      </SettingsGroup>
-
-      <SettingsGroup title={t("settings.todoTitle")}>
-        <p className="px-4 py-3 text-xs text-ink-subtle">
-          {t("settings.todoHint")}
-        </p>
-        <TodoRow label={t("settings.todoRozpocet")} />
-        <TodoRow label={t("settings.todoHarmonogram")} />
       </SettingsGroup>
 
       <div className="mt-6">
@@ -436,24 +428,6 @@ function LinkRow({
       </span>
       <ChevronRight aria-hidden size={16} className="text-ink-subtle" />
     </Link>
-  );
-}
-
-/**
- * V11.2 — read-only row for features in active development. Shows the feature
- * name + a spinning-ish clock icon. Not a link; the page doesn't exist yet.
- */
-function TodoRow({ label }: { label: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3 min-h-tap text-sm text-ink">
-      <span className="flex items-center gap-3">
-        <span aria-hidden className="text-ink-subtle">
-          <Clock size={18} aria-hidden />
-        </span>
-        {label}
-      </span>
-      <span className="text-xs text-ink-subtle uppercase tracking-wide">WIP</span>
-    </div>
   );
 }
 

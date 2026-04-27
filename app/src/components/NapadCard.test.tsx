@@ -56,7 +56,7 @@ describe("NapadCard (V10)", () => {
   });
 
   it("no border when type=napad", () => {
-    const napad = { ...base, type: "napad", status: "Nápad" } as Task;
+    const napad = { ...base, type: "napad", status: "OPEN" } as Task;
     const { container } = renderWithProviders(<NapadCard task={napad} />);
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).not.toMatch(/border-accent/);

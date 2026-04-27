@@ -47,9 +47,9 @@ export default function KategorieDetail() {
     const ids = tk.categoryIds?.length ? tk.categoryIds : tk.categoryId ? [tk.categoryId] : [];
     return ids.includes(id);
   });
-  const napady = forCategory.filter((tk) => tk.type === "napad" && tk.status !== "Hotovo");
+  const napady = forCategory.filter((tk) => tk.type === "napad" && tk.status !== "DONE");
   // V14 — surface both otázka and úkol under Kategorie (both actionable).
-  const otazky = forCategory.filter((tk) => (tk.type === "otazka" || tk.type === "ukol") && tk.status !== "Hotovo");
+  const otazky = forCategory.filter((tk) => (tk.type === "otazka" || tk.type === "ukol") && tk.status !== "DONE");
 
   const tabTasks = tab === "napady" ? napady : otazky;
 

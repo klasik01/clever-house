@@ -29,8 +29,13 @@ describe("StatusBadge (V10)", () => {
     expect(screen.getByText("Otevřený")).toBeInTheDocument();
   });
 
-  it("nápad status falls back to flat key", () => {
+  it("V23 — téma status maps legacy Nápad → OPEN (Otevřený)", () => {
     renderWithProviders(<StatusBadge status="Nápad" type="napad" />);
-    expect(screen.getByText("Nápad")).toBeInTheDocument();
+    expect(screen.getByText("Otevřený")).toBeInTheDocument();
+  });
+
+  it("V23 — téma with canonical OPEN shows Otevřený", () => {
+    renderWithProviders(<StatusBadge status="OPEN" type="napad" />);
+    expect(screen.getByText("Otevřený")).toBeInTheDocument();
   });
 });

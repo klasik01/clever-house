@@ -4,9 +4,10 @@
  *
  * Jednou komandou nasadí všechno potřebné pro daný environment:
  *   1. Deploy Firestore rules  (firebase deploy --only firestore:rules)
- *   2. Spustí všechny pending migrace (scripts/pending/*.mjs, abecedně).
+ *   2. Deploy Storage rules   (firebase deploy --only storage)
+ *   3. Spustí všechny pending migrace (scripts/pending/*.mjs, abecedně).
  *      Po úspěšném runu přesune do archive/ + doplní řádek README.
- *   3. Deploy Cloud Functions  (firebase deploy --only functions)
+ *   4. Deploy Cloud Functions  (firebase deploy --only functions)
  *
  * Frontend je mimo scope — nasazuje se přes git push (develop → dev,
  * main → prod). Frontend závisí na odeslaných rules + functions, takže
@@ -136,18 +137,30 @@ async function main() {
 
   // --- 1. Deploy Firestore rules ---
   if (!SKIP_FIREBASE) {
-    console.log("\n[1/3] Deploy Firestore rules");
+    console.log("\n[1/4] Deploy Firestore rules");
     await run(
       "npx",
       ["firebase", "deploy", "--only", "firestore:rules", "--project", projectId, "--non-interactive"],
       { cwd: appRoot, env: firebaseEnv },
     );
   } else {
-    console.log("\n[1/3] Firestore rules — SKIPPED (--skip-firebase)");
+    console.log("\n[1/4] Firestore rules — SKIPPED (--skip-firebase)");
   }
 
-  // --- 2. Pending migrace ---
-  console.log("\n[2/3] Pending migrations");
+  // --- 2. Deploy Storage rules ---
+  if (!SKIP_FIREBASE) {
+    console.log("\n[2/4] Deploy Storage rules");
+    await run(
+      "npx",
+      ["firebase", "deploy", "--only", "storage", "--project", projectId, "--non-interactive"],
+      { cwd: appRoot, env: firebaseEnv },
+    );
+  } else {
+    console.log("\n[2/4] Storage rules — SKIPPED (--skip-firebase)");
+  }
+
+  // --- 3. Pending migrace ---
+  console.log("\n[3/4] Pending migrations");
   const pendingFiles = (await readdir(PENDING_DIR))
     .filter((f) => f.endsWith(".mjs"))
     .sort(); // naming convention = datum-prefix → abecedně = chronologicky
@@ -191,9 +204,9 @@ async function main() {
     }
   }
 
-  // --- 3. Deploy Cloud Functions ---
+  // --- 4. Deploy Cloud Functions ---
   if (!SKIP_FIREBASE) {
-    console.log("\n[3/3] Build + Deploy Cloud Functions");
+    console.log("\n[4/4] Build + Deploy Cloud Functions");
     // firebase deploy sice automaticky pustí `npm run build` (viz
     // firebase.json predeploy hook), ale ne všechny repozitáře ten hook
     // mají nastavený — spustíme build explicitně, ať je deploy
@@ -205,7 +218,7 @@ async function main() {
       { cwd: appRoot, env: firebaseEnv },
     );
   } else {
-    console.log("\n[3/3] Cloud Functions — SKIPPED (--skip-firebase)");
+    console.log("\n[4/4] Cloud Functions — SKIPPED (--skip-firebase)");
   }
 
   // --- Report ---
