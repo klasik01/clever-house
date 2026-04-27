@@ -459,6 +459,29 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     allowSelf: true,
   },
 
+  document_uploaded: {
+    key: "document_uploaded",
+    category: "immediate",
+    dedupePriority: 16,
+    trigger:
+      "triggers/onTaskWrite.ts — při UPDATE dokumentace kdy documents[] se prodloužil (V20)",
+    recipients:
+      "Protistrana: pokud je sdílená přes sharedWithRoles → PM. Pokud PM nahrál → OWNER (createdBy). Self-filter: actor nedostane.",
+    renderTitle: (ctx) =>
+      `Nový dokument: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        60,
+      )}`,
+    renderBody: (ctx) => {
+      const docs = (ctx.task as unknown as { documents?: { displayName: string }[] }).documents;
+      const last = docs?.[docs.length - 1];
+      return last ? last.displayName : "Byl nahrán nový dokument.";
+    },
+    renderDeepLink: (ctx) => `/t/${ctx.taskId}`,
+    clientLabelKey: "document_uploaded",
+    defaultEnabled: true,
+  },
+
   event_cancelled: {
     key: "event_cancelled",
     category: "immediate",

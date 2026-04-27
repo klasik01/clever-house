@@ -34,6 +34,8 @@ import { taskDetail } from "@/lib/routes";
 const RichTextEditor = lazy(() => import("@/components/RichTextEditor"));
 const CommentThread = lazy(() => import("@/components/CommentThread"));
 const DocumentUploadModal = lazy(() => import("@/components/DocumentUploadModal"));
+const AuditTimeline = lazy(() => import("@/components/AuditTimeline"));
+const DocumentPickerModal = lazy(() => import("@/components/DocumentPickerModal"));
 
 // ---------- LinkedList (V14.1) ----------
 
@@ -174,6 +176,7 @@ export default function TaskDetail() {
     replaceId?: string;
   }>({ open: false });
   const [docUploading, setDocUploading] = useState(false);
+  const [docPickerOpen, setDocPickerOpen] = useState(false);
 
   useEffect(() => {
     if (state.status === "ready" && !initializedRef.current) {
@@ -637,6 +640,20 @@ export default function TaskDetail() {
     deleteTaskImage(filePath).catch(console.warn);
   }
 
+  // V20 — Link/unlink dokumentace from task
+  async function handleLinkDocsConfirm(selectedIds: string[]) {
+    if (state.status !== "ready") return;
+    setDocPickerOpen(false);
+    await updateTask(state.task.id, { linkedDocIds: selectedIds });
+  }
+
+  async function handleUnlinkDoc(docId: string) {
+    if (state.status !== "ready") return;
+    if (!window.confirm(t("dokumentace.linkRemoveConfirm"))) return;
+    const current = state.task.linkedDocIds ?? [];
+    await updateTask(state.task.id, { linkedDocIds: current.filter((id) => id !== docId) });
+  }
+
   // ---- Render states ----
 
   // V6.2 — also skeleton while we're waiting for the init useEffect to sync
@@ -1008,6 +1025,13 @@ export default function TaskDetail() {
               </ul>
             )}
           </section>
+
+          {/* Audit trail — read-only */}
+          {(task.auditLog?.length ?? 0) > 0 && (
+            <Suspense fallback={null}>
+              <AuditTimeline entries={task.auditLog!} />
+            </Suspense>
+          )}
         </article>
       );
     }
@@ -1466,6 +1490,13 @@ export default function TaskDetail() {
               </Suspense>
             )}
           </section>
+
+          {/* Audit trail */}
+          {(task.auditLog?.length ?? 0) > 0 && (
+            <Suspense fallback={null}>
+              <AuditTimeline entries={task.auditLog!} />
+            </Suspense>
+          )}
         </>
       ) : (
         <>
@@ -1705,6 +1736,73 @@ export default function TaskDetail() {
           </Link>
         );
       })()}
+
+      {/* V20 — Linked dokumentace (for napad/otazka/ukol) */}
+      {task.type !== "dokumentace" && (
+        <section className="mt-4" aria-labelledby="linked-docs-heading">
+          <h2 id="linked-docs-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            {t("dokumentace.linkSectionTitle")}
+          </h2>
+          {(task.linkedDocIds?.length ?? 0) > 0 && (
+            <ul className="mb-2 flex flex-col gap-2">
+              {task.linkedDocIds!.map((docId) => {
+                const linkedDoc = allTasks.find((x) => x.id === docId);
+                if (!linkedDoc) return null;
+                return (
+                  <li key={docId} className="flex items-center gap-2">
+                    <Link
+                      to={taskDetail(docId)}
+                      className="flex flex-1 items-center gap-3 min-w-0 rounded-md border border-line bg-surface px-3 py-2.5 hover:bg-bg-subtle transition-colors"
+                    >
+                      <FileText aria-hidden size={18} className="shrink-0 text-accent-visual" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-ink truncate">
+                          {linkedDoc.title?.trim() || t("detail.noTitle")}
+                        </p>
+                        <p className="text-xs text-ink-muted">
+                          {(linkedDoc.documents?.length ?? 0)} {t("dokumentace.linkDocCount")}
+                        </p>
+                      </div>
+                    </Link>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleUnlinkDoc(docId)}
+                        disabled={saving}
+                        aria-label={t("common.delete")}
+                        className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-subtle hover:text-[color:var(--color-status-danger-fg)] disabled:opacity-40"
+                      >
+                        <XIcon aria-hidden size={16} />
+                      </button>
+                    )}
+                  </li>
+                );
+              }).filter(Boolean)}
+            </ul>
+          )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setDocPickerOpen(true)}
+              disabled={saving}
+              className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
+            >
+              <FileText aria-hidden size={18} />
+              {t("dokumentace.linkAdd")}
+            </button>
+          )}
+          {docPickerOpen && (
+            <Suspense fallback={null}>
+              <DocumentPickerModal
+                documents={allTasks.filter((x) => x.type === "dokumentace")}
+                alreadyLinked={task.linkedDocIds ?? []}
+                onConfirm={handleLinkDocsConfirm}
+                onClose={() => setDocPickerOpen(false)}
+              />
+            </Suspense>
+          )}
+        </section>
+      )}
 
       {task.type === "napad" && (
         <div className="mt-6 flex flex-wrap items-center gap-2">

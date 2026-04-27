@@ -591,7 +591,9 @@
       "event_calendar_token_reset": "Reset kalendář URL",
       "event_calendar_token_resetHint": "Potvrzení po resetu webcal tokenu (posíláme ti sobě)",
       "event_rsvp_reminder": "Připomínka RSVP",
-      "event_rsvp_reminderHint": "Den předem upozornění na události, kde jsem nepotvrdil ani nepřestavěl"
+      "event_rsvp_reminderHint": "Den předem upozornění na události, kde jsem nepotvrdil ani nepřestavěl",
+      "document_uploaded": "Nahrání dokumentu",
+      "document_uploadedHint": "Když někdo nahraje dokument do sdíleného záznamu"
     },
     "banner": {
       "title": "Zapni si notifikace",
@@ -780,7 +782,22 @@
     "uploadDocType": "Typ dokumentu",
     "uploadDisplayName": "Zobrazený název",
     "uploadDisplayNamePlaceholder": "Volitelný název…",
-    "uploadingDocument": "Nahrávání…"
+    "uploadingDocument": "Nahrávání…",
+    "audit": {
+      "uploaded": "nahrál dokument",
+      "replaced": "nahradil dokument",
+      "deleted": "smazal dokument",
+      "metadata_changed": "změnil metadata"
+    },
+    "linkPickerTitle": "Připojit dokumentaci",
+    "linkSearchPlaceholder": "Hledat dokumentaci…",
+    "linkEmpty": "Žádná dokumentace k dispozici.",
+    "linkNoResults": "Nic nenalezeno.",
+    "linkDocCount": "dokumentů",
+    "linkConfirm": "Připojit",
+    "linkSectionTitle": "Přiložená dokumentace",
+    "linkAdd": "Připojit dokumentaci",
+    "linkRemoveConfirm": "Odebrat link na tuto dokumentaci?"
   },
   "docTypes": {
     "pageTitle": "Typy dokumentů",

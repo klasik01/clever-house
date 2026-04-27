@@ -142,6 +142,19 @@ export const onTaskUpdated = onDocumentUpdated(
         taskId,
       });
     }
+
+    // 5) V20 — document uploaded to a dokumentace record.
+    if (after.type === "dokumentace") {
+      const beforeDocs = Array.isArray((before as unknown as Record<string, unknown>).documents)
+        ? ((before as unknown as Record<string, unknown>).documents as unknown[]).length
+        : 0;
+      const afterDocs = Array.isArray((after as unknown as Record<string, unknown>).documents)
+        ? ((after as unknown as Record<string, unknown>).documents as unknown[]).length
+        : 0;
+      if (afterDocs > beforeDocs) {
+        await notifyDocumentUpload(taskId, after, actorUid);
+      }
+    }
   },
 );
 
@@ -187,6 +200,47 @@ function newlyAddedRoles(
   const prev = new Set(Array.isArray(before) ? before : []);
   const curr = Array.isArray(after) ? after : [];
   return curr.filter((r) => !prev.has(r));
+}
+
+/**
+ * V20 — notify protistrana when a document is uploaded to a shared dokumentace record.
+ * If shared with PM → notify PMs. If PM uploaded → notify OWNER (createdBy).
+ */
+async function notifyDocumentUpload(
+  taskId: string,
+  task: TaskDoc,
+  actorUid: string,
+): Promise<void> {
+  const actorName = await resolveActorName(actorUid);
+  const sharedRoles = Array.isArray(task.sharedWithRoles) ? task.sharedWithRoles : [];
+
+  // If shared with PM → fan out to PMs (excluding actor)
+  if (sharedRoles.includes("PROJECT_MANAGER")) {
+    const pmUids = await resolvePmUids();
+    for (const uid of pmUids) {
+      if (uid === actorUid) continue;
+      await sendNotification({
+        eventType: "document_uploaded",
+        actorUid,
+        actorName,
+        recipientUid: uid,
+        taskId,
+        task,
+      });
+    }
+  }
+
+  // If actor is not the creator → notify the creator (OWNER)
+  if (task.createdBy && task.createdBy !== actorUid) {
+    await sendNotification({
+      eventType: "document_uploaded",
+      actorUid,
+      actorName,
+      recipientUid: task.createdBy,
+      taskId,
+      task,
+    });
+  }
 }
 
 async function fanOutShareToRoles(taskId: string, task: TaskDoc, roles: string[]): Promise<void> {

@@ -48,6 +48,7 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "event_cancelled",     // V18-S08
   "event_calendar_token_reset", // V18-S12
   "event_rsvp_reminder", // V18-S13
+  "document_uploaded",   // V20
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
@@ -76,6 +77,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     event_cancelled: true,
     event_calendar_token_reset: true,
     event_rsvp_reminder: true,
+    document_uploaded: true,
   },
 };
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AtSign, Ban, Bell, BellOff, BellRing, Calendar, CalendarX, Check, Flag, Link as LinkIcon, MessageCircle, MessagesSquare, Pencil, Share2, Trash2, UserPlus } from "lucide-react";
+import { AtSign, Ban, Bell, BellOff, BellRing, Calendar, CalendarX, Check, Flag, Link as LinkIcon, MessageCircle, MessagesSquare, Pencil, Share2, Trash2, UserPlus, FileText} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { markAllRead, markRead } from "@/lib/inbox";
@@ -31,6 +31,7 @@ const EVENT_ICON: Record<NotificationEventKey, LucideIcon> = {
   event_cancelled: Ban,
   event_calendar_token_reset: LinkIcon,
   event_rsvp_reminder: BellRing,
+  document_uploaded: FileText,
 };
 
 /**

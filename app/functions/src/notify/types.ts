@@ -21,7 +21,8 @@ export type NotificationEventKey =
   | "event_uninvited"    // V18-S07
   | "event_cancelled"    // V18-S08
   | "event_calendar_token_reset"   // V18-S12
-  | "event_rsvp_reminder";         // V18-S13
+  | "event_rsvp_reminder"          // V18-S13
+  | "document_uploaded";           // V20
 
 export interface NotificationPrefs {
   enabled: boolean;
