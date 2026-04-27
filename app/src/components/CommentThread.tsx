@@ -8,7 +8,7 @@ import { useUsers } from "@/hooks/useUsers";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
 import { isRealFlip, pickDefaultPeer } from "@/lib/commentTargeting";
-import { uploadTaskImage } from "@/lib/attachments";
+import { uploadTaskImage, uploadTaskFile, isImageFile } from "@/lib/attachments";
 import { newId } from "@/lib/id";
 import { useT } from "@/i18n/useT";
 import { mapLegacyOtazkaStatus } from "@/lib/status";
@@ -85,7 +85,8 @@ export default function CommentThread({ task }: Props) {
       // 1. Upload images first (sequential, compress via attachments util)
       const uploaded: ImageAttachment[] = [];
       for (const file of input.imageFiles) {
-        const { url, path } = await uploadTaskImage({
+        const uploader = isImageFile(file) ? uploadTaskImage : uploadTaskFile;
+        const { url, path } = await uploader({
           file,
           uid: user.uid,
           taskId: task.id,

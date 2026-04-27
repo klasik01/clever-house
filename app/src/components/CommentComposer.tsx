@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, CornerDownLeft, Image as ImageIcon, Link as LinkIcon, Send, X } from "lucide-react";
-import { isSupportedImage } from "@/lib/attachments";
+import { isSupportedFile } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import LinkFavicon from "./LinkFavicon";
 import { useT } from "@/i18n/useT";
@@ -117,7 +117,7 @@ export default function CommentComposer({
     if (files.length === 0) return;
     const next: StagedImage[] = [];
     for (const file of files) {
-      if (!isSupportedImage(file)) {
+      if (!isSupportedFile(file)) {
         setError(t("detail.attachmentUnsupported"));
         continue;
       }
@@ -316,7 +316,7 @@ export default function CommentComposer({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.pdf"
             capture="environment"
             multiple
             className="hidden"

@@ -198,7 +198,7 @@ service cloud.firestore {
 
     // ------ Events (V18) ------
     // Calendar-aware eventy s fixním datetime. Paralelí s tasks rules
-    // (V17.1 permissions model), jen bez sharedWithPm / commentCount
+    // (V17.1 permissions model), jen bez sharedWithRoles / commentCount
     // side-effects.
     match /events/{eventId} {
       // READ — V15.2 styl: kdokoliv signed-in čte detail. Listing filtrujeme

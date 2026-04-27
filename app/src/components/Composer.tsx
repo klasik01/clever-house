@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Paperclip, Link as LinkIcon, X as XIcon } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { loadDraft, saveDraft } from "@/lib/storage";
-import { isSupportedImage } from "@/lib/attachments";
+import { isSupportedFile } from "@/lib/attachments";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import LinkFavicon from "./LinkFavicon";
 import type { TaskType } from "@/types";
@@ -75,7 +75,7 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
 
     const next: StagedImage[] = [];
     for (const file of files) {
-      if (!isSupportedImage(file)) {
+      if (!isSupportedFile(file)) {
         setError(t("detail.attachmentUnsupported"));
         continue;
       }
@@ -279,7 +279,7 @@ export default function Composer({ onSave, lockedType, allowedTypes }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.pdf"
               capture="environment"
               multiple
               className="hidden"

@@ -89,7 +89,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithPm" | "dependencyText" | "vystup">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup">>
 ): Promise<void> {
   await updateDoc(doc(db, TASKS, id), {
     ...patch,
@@ -137,7 +137,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     deadline: data.deadline ?? null,
     assigneeUid: data.assigneeUid ?? null,
     commentCount: typeof data.commentCount === "number" ? data.commentCount : 0,
-    sharedWithPm: data.sharedWithPm === true,
+    sharedWithRoles: Array.isArray(data.sharedWithRoles) ? data.sharedWithRoles : data.sharedWithPm === true ? ["PROJECT_MANAGER"] : [],
     dependencyText: typeof data.dependencyText === "string" ? data.dependencyText : null,
     vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",

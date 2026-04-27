@@ -6,8 +6,16 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null
                    && request.auth.uid == uid
-                   && request.resource.size < 5 * 1024 * 1024  // 5 MB max (post-compression)
+                   && request.resource.size < 10 * 1024 * 1024  // V19: 10 MB max
                    && request.resource.contentType.matches('image/.*');
+    }
+    // V19 — non-image file attachments (PDF etc.): files/{uid}/{taskId}/{filename}
+    match /files/{uid}/{taskId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 10 * 1024 * 1024  // 10 MB max
+                   && (request.resource.contentType == 'application/pdf');
     }
     // Default deny
     match /{allPaths=**} {

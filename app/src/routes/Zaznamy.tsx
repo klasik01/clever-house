@@ -33,7 +33,7 @@ const KEY = "napady";
  * Group-by (Plochý/Lokace/Kategorie) was removed in V6.1 — filters alone are
  * sufficient and the toggle was noise. Visibility:
  *   - OWNER sees own napady (all statuses; filters control what's shown).
- *   - PM sees napady the owner explicitly shared (`sharedWithPm: true`).
+ *   - PM sees napady the owner explicitly shared (sharedWithRoles includes 'PROJECT_MANAGER').
  */
 export default function Zaznamy() {
   const t = useT();
@@ -53,7 +53,7 @@ export default function Zaznamy() {
   }
 
   // V10: OWNER sees every OWNER's napady (workspace = household).
-  // PM sees only those explicitly shared via `sharedWithPm`. Firestore rules
+  // PM sees only those explicitly shared via `sharedWithRoles`. Firestore rules
   // now enforce this on read — the client filter is defensive.
   const napady = tasks.filter((tk) => {
     if (tk.type !== "napad") return false;

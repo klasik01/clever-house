@@ -43,7 +43,8 @@ export interface TaskDoc {
   createdBy: string;
   /** V17.1 — snapshot role tvůrce (OWNER/PROJECT_MANAGER). Legacy tasky fallback OWNER. */
   authorRole?: "OWNER" | "PROJECT_MANAGER";
-  sharedWithPm?: boolean;
+  /** V19 — role-based sharing (replaces legacy sharedWithPm boolean). */
+  sharedWithRoles?: ("OWNER" | "PROJECT_MANAGER")[];
   status?: string;
   /** V16.4 — P1/P2/P3. Null = nenastaveno. */
   priority?: "P1" | "P2" | "P3" | null;

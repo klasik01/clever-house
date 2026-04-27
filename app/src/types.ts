@@ -117,8 +117,9 @@ export interface Task {
   assigneeUid?: string | null;
   /** Cached comment count, maintained via batch writes in lib/comments.ts. */
   commentCount?: number;
-  /** V3-polish: OWNER can opt-in to share a nápad with PM (read-only for PM). */
-  sharedWithPm?: boolean;
+  /** V19 — OWNER can share a nápad with specific roles (read-only + comments).
+   *  Replaces legacy boolean `sharedWithPm`. Empty array or undefined = private. */
+  sharedWithRoles?: UserRole[];
   /** V14 — free-text dependency on an úkol ("před omítkami"). No structured
    *  phase reference; users type whatever makes sense. Null for other types. */
   dependencyText?: string | null;

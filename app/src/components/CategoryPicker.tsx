@@ -62,7 +62,7 @@ export default function CategoryPicker({ value, categories, onChange, disabled }
         {selected.map((c) => (
           <span
             key={c.id}
-            className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle pl-2 pr-1 py-0.5 text-xs text-ink-muted"
+            className="inline-flex items-center gap-1.5 rounded-pill bg-bg-subtle pl-3 pr-1 py-1.5 text-sm text-ink-muted"
           >
             <Tag aria-hidden size={11} />
             {c.label}
@@ -86,7 +86,7 @@ export default function CategoryPicker({ value, categories, onChange, disabled }
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-label={t("categories.addMore")}
-            className="inline-flex items-center gap-1 rounded-pill border border-dashed border-line px-2 py-0.5 text-xs text-ink-subtle hover:text-ink hover:border-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-pill border border-dashed border-line px-3 py-1.5 text-sm text-ink-subtle hover:text-ink hover:border-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus transition-colors"
           >
             <Plus aria-hidden size={11} />
             {t("categories.addMore")}

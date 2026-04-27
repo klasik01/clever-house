@@ -9,15 +9,16 @@ import { newId } from "@/lib/id";
 import { useUserRole } from "@/hooks/useUserRole";
 import { canEditTask } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
-import StatusSelect from "@/components/StatusSelect";
 import CategoryPicker from "@/components/CategoryPicker";
-import LocationPicker from "@/components/LocationPicker";
+import LocationPickerInline from "@/components/LocationPickerInline";
+import PhasePickerInline from "@/components/PhasePickerInline";
+import StatusPickerInline from "@/components/StatusPickerInline";
+import PriorityPickerInline from "@/components/PriorityPickerInline";
 import AssigneeSelect from "@/components/AssigneeSelect";
-import PrioritySelect from "@/components/PrioritySelect";
 import DeadlinePicker from "@/components/DeadlinePicker";
 import StatusBadge, { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
-import { deleteTaskImage, isSupportedImage, uploadTaskImage } from "@/lib/attachments";
+import { deleteTaskImage, isSupportedFile, isImageFile, uploadTaskImage, uploadTaskFile } from "@/lib/attachments";
 import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, X as XIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
@@ -145,7 +146,7 @@ export default function TaskDetail() {
   // V14 — nápad-only "Výstup" markdown (resolution summary).
   const [vystup, setVystup] = useState("");
   // V14 — úkol-only free-text dependency ("Hotové před …").
-  const [dependencyText, setDependencyText] = useState("");
+  // V19 — dependencyText state removed (UI removed)
   const initializedRef = useRef(false);
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingRef = useRef<{ id: string; title: string; body: string; vystup: string } | null>(null);
@@ -170,7 +171,7 @@ export default function TaskDetail() {
       setTitle(state.task.title);
       setBody(state.task.body);
       setVystup(state.task.vystup ?? "");
-      setDependencyText(state.task.dependencyText ?? "");
+      // V19 — dependencyText sync removed
       initializedRef.current = true;
       setHasInitialized(true);
     }
@@ -197,7 +198,7 @@ export default function TaskDetail() {
     setTitle("");
     setBody("");
     setVystup("");
-    setDependencyText("");
+    // V19 — setDependencyText removed
     pendingRef.current = null;
     initializedRef.current = false;
     setHasInitialized(false);
@@ -334,28 +335,14 @@ export default function TaskDetail() {
     }
   }
 
-  async function handleDependencyBlur() {
-    if (state.status !== "ready") return;
-    const next = dependencyText.trim();
-    const current = (state.task.dependencyText ?? "").trim();
-    if (next === current) return;
-    setSaving(true);
-    try {
-      await updateTask(state.task.id, { dependencyText: next.length ? next : null });
-      flashSaved();
-    } catch (e) {
-      console.error("dependency update failed", e);
-    } finally {
-      setSaving(false);
-    }
-  }
+  // V19 — handleDependencyBlur removed (dependencyText UI removed)
 
   async function handleAttachPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (files.length === 0 || state.status !== "ready" || !user) return;
     for (const f of files) {
-      if (!isSupportedImage(f)) {
+      if (!isSupportedFile(f)) {
         setAttachError(t("detail.attachmentUnsupported"));
         return;
       }
@@ -367,14 +354,15 @@ export default function TaskDetail() {
       const uploaded: import("@/types").ImageAttachment[] = [];
       for (const file of files) {
         try {
-          const { url, path } = await uploadTaskImage({
+          const uploader = isImageFile(file) ? uploadTaskImage : uploadTaskFile;
+          const { url, path } = await uploader({
             file,
             uid: user.uid,
             taskId: state.task.id,
           });
           uploaded.push({ id: newId(), url, path });
         } catch (err) {
-          console.error("single image upload failed", err);
+          console.error("single file upload failed", err);
         }
       }
       if (uploaded.length > 0) {
@@ -522,11 +510,15 @@ export default function TaskDetail() {
 
 
 
-  async function handleShareToggle(next: boolean) {
+  async function handleShareRoleToggle(role: import("@/types").UserRole, checked: boolean) {
     if (state.status !== "ready") return;
+    const current = state.task.sharedWithRoles ?? [];
+    const next = checked
+      ? [...new Set([...current, role])]
+      : current.filter((r) => r !== role);
     setSaving(true);
     try {
-      await updateTask(state.task.id, { sharedWithPm: next });
+      await updateTask(state.task.id, { sharedWithRoles: next });
       flashSaved();
     } catch (e) {
       console.error("share toggle failed", e);
@@ -1032,6 +1024,24 @@ export default function TaskDetail() {
         </div>
       )}
 
+      {/* V19 — Ball-on-me indicator, right-aligned, above title */}
+      {isActionable && isBallOnMeV10(task, user?.uid) && (
+        <div className="mb-2 flex justify-end">
+          <div
+            role="status"
+            className="inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm"
+            style={{
+              background: "var(--color-priority-p1-bg)",
+              color: "var(--color-priority-p1-fg)",
+              borderColor: "var(--color-priority-p1-border)",
+            }}
+          >
+            <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--color-priority-p1-dot)" }} />
+            {t("detail.ballOnMe")}
+          </div>
+        </div>
+      )}
+
       <label htmlFor="detail-title" className="sr-only">
         {t("detail.titlePrimary")}
       </label>
@@ -1084,47 +1094,57 @@ export default function TaskDetail() {
         </Suspense>
       </div>
 
-      {isBallOnMeV10(task, user?.uid) && (
-        <div
-          role="status"
-          className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium"
-          style={{
-            background: "var(--color-priority-p1-bg)",
-            color: "var(--color-priority-p1-fg)",
-            borderColor: "var(--color-priority-p1-border)",
-          }}
-        >
-          <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--color-priority-p1-dot)" }} />
-          {t("detail.ballOnMe")}
-        </div>
-      )}
 
-      {/* Categories — directly under body (full width). */}
-      <section className="mt-4" aria-labelledby="cat-heading">
-        <h2 id="cat-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          {t("detail.categoryLabel")}
-        </h2>
-        <CategoryPicker
-          value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
-          categories={categories}
-          onChange={handleCategoryChange}
-          disabled={saving}
-        />
-      </section>
+
+
 
       {isActionable ? (
         <>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <section aria-labelledby="loc-heading">
-              <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                {t("detail.locationLabel")}
-              </h2>
-              <LocationPicker
-                value={task.locationId ?? null}
-                onChange={handleLocationChange}
+          {/* V19 — Single row: Status, Priority, Phase, Location */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <StatusPickerInline
+              value={task.status}
+              onChange={handleStatusChange}
+              disabled={saving}
+              type={task.type}
+              isPm={isPm}
+            />
+            {task.createdBy === user?.uid && (
+              <PriorityPickerInline
+                value={task.priority}
+                onChange={handlePriorityChange}
                 disabled={saving}
               />
-            </section>
+            )}
+            <PhasePickerInline
+              value={null}
+              onChange={() => {}}
+              disabled={saving}
+            />
+            <LocationPickerInline
+              value={task.locationId ?? null}
+              onChange={handleLocationChange}
+              disabled={saving}
+            />
+          </div>
+
+
+
+          {/* Categories under location/phase */}
+          <section className="mt-4" aria-labelledby="cat-heading-act">
+            <h2 id="cat-heading-act" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              {t("detail.categoryLabel")}
+            </h2>
+            <CategoryPicker
+              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
+              categories={categories}
+              onChange={handleCategoryChange}
+              disabled={saving}
+            />
+          </section>
+
+          {/* V19 — Deadline + Assignee row */}
+          <div className="mt-4 grid grid-cols-2 gap-4">
             {task.createdBy === user?.uid && (
               <section aria-labelledby="deadline-heading">
                 <h2 id="deadline-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
@@ -1133,21 +1153,6 @@ export default function TaskDetail() {
                 <DeadlinePicker
                   value={task.deadline ?? null}
                   onChange={handleDeadlineChange}
-                  disabled={saving}
-                />
-              </section>
-            )}
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {task.createdBy === user?.uid && (
-              <section aria-labelledby="priority-heading">
-                <h2 id="priority-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                  {t("priority.label")}
-                </h2>
-                <PrioritySelect
-                  value={task.priority}
-                  onChange={handlePriorityChange}
                   disabled={saving}
                 />
               </section>
@@ -1164,73 +1169,66 @@ export default function TaskDetail() {
               />
             </section>
           </div>
-
-          {/* V14 — úkol-only dependency free-text. Intentionally OWNER-only
-             (createdBy === me) for parity with priority + deadline. */}
-          {task.type === "ukol" && task.createdBy === user?.uid && (
-            <section className="mt-4" aria-labelledby="dep-heading">
-              <h2 id="dep-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                {t("detail.dependencyLabel")}
-              </h2>
-              <input
-                type="text"
-                value={dependencyText}
-                onChange={(e) => setDependencyText(e.target.value)}
-                onBlur={handleDependencyBlur}
-                placeholder={t("detail.dependencyPlaceholder")}
-                disabled={saving}
-                className="block w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none focus:ring-1 focus:ring-line-focus disabled:opacity-60"
-              />
-            </section>
-          )}
         </>
       ) : (
-        <section className="mt-4" aria-labelledby="loc-heading">
-          <h2 id="loc-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("detail.locationLabel")}
-          </h2>
-          <LocationPicker
-            value={task.locationId ?? null}
-            onChange={handleLocationChange}
-            disabled={saving}
-          />
-        </section>
-      )}
+        <>
+          {/* V19 — Visible for roles */}
+          {task.createdBy === user?.uid && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {(["PROJECT_MANAGER"] as import("@/types").UserRole[]).map((role) => (
+                <label
+                  key={role}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(task.sharedWithRoles ?? []).includes(role)}
+                    onChange={(e) => handleShareRoleToggle(role, e.target.checked)}
+                    disabled={saving}
+                    className="size-3 rounded border-line"
+                    style={{ accentColor: "var(--color-accent-visual)" }}
+                  />
+                  {t(`detail.role.${role}`)}
+                </label>
+              ))}
+            </div>
+          )}
 
-      {task.type === "napad" && task.createdBy === user?.uid && (
-        <section className="mt-4" aria-labelledby="share-heading">
-          <h2 id="share-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-            {t("detail.shareWithPm")}
-          </h2>
-          <label className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink hover:bg-bg-subtle">
-            <input
-              type="checkbox"
-              checked={Boolean(task.sharedWithPm)}
-              onChange={(e) => handleShareToggle(e.target.checked)}
+          {/* V19 — Single row: Status, Phase, Location */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <StatusPickerInline
+              value={task.status}
+              onChange={handleStatusChange}
               disabled={saving}
-              className="size-4 rounded border-line focus:ring-2 focus:ring-line-focus"
-              style={{ accentColor: "var(--color-accent-visual)" }}
+              type={task.type}
+              isPm={isPm}
             />
-            <span className="flex-1">{t("detail.shareWithPmLabel")}</span>
-            <span className="text-xs text-ink-subtle">
-              {task.sharedWithPm ? t("detail.shareOn") : t("detail.shareOff")}
-            </span>
-          </label>
-        </section>
-      )}
+            <PhasePickerInline
+              value={null}
+              onChange={() => {}}
+              disabled={saving}
+            />
+            <LocationPickerInline
+              value={task.locationId ?? null}
+              onChange={handleLocationChange}
+              disabled={saving}
+            />
+          </div>
 
-      <section className="mt-6" aria-labelledby="status-heading">
-        <h2 id="status-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-          {t("status.label")}
-        </h2>
-        <StatusSelect
-          value={task.status}
-          onChange={handleStatusChange}
-          disabled={saving}
-          type={task.type}
-          isPm={isPm}
-        />
-      </section>
+          {/* Categories */}
+          <section className="mt-4" aria-labelledby="cat-heading-napad">
+            <h2 id="cat-heading-napad" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+              {t("detail.categoryLabel")}
+            </h2>
+            <CategoryPicker
+              value={task.categoryIds ?? (task.categoryId ? [task.categoryId] : [])}
+              categories={categories}
+              onChange={handleCategoryChange}
+              disabled={saving}
+            />
+          </section>
+        </>
+      )}
 
       <section className="mt-4" aria-labelledby="att-heading">
         <h2 id="att-heading" className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
@@ -1276,13 +1274,12 @@ export default function TaskDetail() {
           className="min-h-tap rounded-md border border-dashed border-line bg-transparent px-4 py-2 text-sm text-ink-muted hover:text-ink hover:border-line-strong disabled:opacity-40 transition-colors inline-flex items-center gap-2"
         >
           <ImageIcon aria-hidden size={18} />
-          {uploadingImage ? t("detail.uploading") : t("detail.addPhoto")}
+          {uploadingImage ? t("detail.uploading") : t("detail.addFile")}
         </button>
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
-          capture="environment"
+          accept="image/*,.pdf"
           multiple
           className="hidden"
           onChange={handleAttachPick}

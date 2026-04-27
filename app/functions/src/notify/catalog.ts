@@ -243,7 +243,7 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     category: "immediate",
     dedupePriority: 5,
     trigger:
-      "triggers/onTaskWrite.ts — při CREATE napadu s sharedWithPm=true, nebo při UPDATE kdy sharedWithPm: false → true",
+      "triggers/onTaskWrite.ts — při CREATE napadu s sharedWithRoles obsahuje roli, nebo při UPDATE kdy se role přidá do sharedWithRoles",
     recipients:
       "Všichni uživatelé s role == 'PROJECT_MANAGER' (fan-out přes resolvePmUids). Self-filter: pokud je PM zároveň autor, nedostane.",
     renderTitle: (ctx) =>

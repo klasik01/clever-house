@@ -30,7 +30,7 @@ function mkTask(p: Partial<Task> & { id: string }): Task {
     categoryId: p.categoryId ?? null,
     categoryIds: p.categoryIds ?? [],
     locationId: p.locationId ?? null,
-    sharedWithPm: p.sharedWithPm ?? false,
+    sharedWithRoles: p.sharedWithRoles ?? [],
     assigneeUid: p.assigneeUid ?? null,
     priority: p.priority ?? null,
     deadline: p.deadline ?? null,

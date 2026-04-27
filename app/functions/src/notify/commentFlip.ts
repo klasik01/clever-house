@@ -39,7 +39,7 @@ export function applyAssignedWithCommentOverride(
  * onCommentCreate je pokryje přes applyAssignedWithCommentOverride.
  *
  * Heuristika: batch commentu vždy inkrementuje commentCount. Jiné updaty
- * (changing priority, deadline, sharedWithPm) commentCount nemění.
+ * (changing priority, deadline, sharedWithRoles) commentCount nemění.
  */
 export interface CommentBatchInput {
   beforeCommentCount: number | null | undefined;

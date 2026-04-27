@@ -10,7 +10,7 @@ import type { NotificationEventKey, TaskDoc } from "../notify/types";
  * this single trigger:
  *
  *   - assigneeUid changed   → push "assigned" to the new assignee.
- *   - sharedWithPm flipped  → push "shared_with_pm" to every PM.
+ *   - sharedWithRoles changed → push "shared_with_pm" to newly added role members.
  *
  * We use update + create triggers (create covers "new task with assignee
  * already set"). The assignee-changed logic cross-references `before` and
@@ -48,9 +48,9 @@ export const onTaskCreated = onDocumentCreated(
       });
     }
 
-    // On create: sharedWithPm already true on a napad → ping PMs.
-    if (after.type === "napad" && after.sharedWithPm === true) {
-      await fanOutShareToPm(taskId, after);
+    // On create: sharedWithRoles non-empty on a napad → ping role members.
+    if (after.type === "napad" && Array.isArray(after.sharedWithRoles) && after.sharedWithRoles.length > 0) {
+      await fanOutShareToRoles(taskId, after, after.sharedWithRoles);
     }
   },
 );
@@ -78,15 +78,14 @@ export const onTaskUpdated = onDocumentUpdated(
         "skip task-update notifications — comment batch, onCommentCreate handles it",
         { taskId },
       );
-      // Sdílení s PM je stále relevantní i když se bylo v batch (teoreticky
-      //   by se nestalo — sharedWithPm se nedá flipnout z comment compoe, ale
-      //   pro jistotu stále ověřuji). Ostatní eventy přeskočit.
-      if (
-        after.type === "napad"
-        && before.sharedWithPm !== true
-        && after.sharedWithPm === true
-      ) {
-        await fanOutShareToPm(taskId, after);
+      // Sdílení s rolemi je stále relevantní i když se bylo v batch (teoreticky
+      //   by se nestalo — sharedWithRoles se nedá flipnout z comment composeru,
+      //   ale pro jistotu stále ověřuji). Ostatní eventy přeskočit.
+      if (after.type === "napad") {
+        const added = newlyAddedRoles(before.sharedWithRoles, after.sharedWithRoles);
+        if (added.length > 0) {
+          await fanOutShareToRoles(taskId, after, added);
+        }
       }
       return;
     }
@@ -116,13 +115,12 @@ export const onTaskUpdated = onDocumentUpdated(
       }
     }
 
-    // 2) sharedWithPm flip false → true on a napad.
-    if (
-      after.type === "napad"
-      && before.sharedWithPm !== true
-      && after.sharedWithPm === true
-    ) {
-      await fanOutShareToPm(taskId, after);
+    // 2) sharedWithRoles — role added to sharing list on a napad.
+    if (after.type === "napad") {
+      const added = newlyAddedRoles(before.sharedWithRoles, after.sharedWithRoles);
+      if (added.length > 0) {
+        await fanOutShareToRoles(taskId, after, added);
+      }
     }
 
     // 3) V16.4 — priority change (pošle se jen když je task assignutý).
@@ -181,7 +179,22 @@ async function notifyScalarChange(args: {
   });
 }
 
-async function fanOutShareToPm(taskId: string, task: TaskDoc): Promise<void> {
+/** V19 — detect roles that were added (present in after but not in before). */
+function newlyAddedRoles(
+  before: string[] | undefined,
+  after: string[] | undefined,
+): string[] {
+  const prev = new Set(Array.isArray(before) ? before : []);
+  const curr = Array.isArray(after) ? after : [];
+  return curr.filter((r) => !prev.has(r));
+}
+
+async function fanOutShareToRoles(taskId: string, task: TaskDoc, roles: string[]): Promise<void> {
+  // Currently only PM fan-out is implemented; extendable for future roles.
+  if (!roles.includes("PROJECT_MANAGER")) {
+    logger.debug("no PM in newly shared roles; skip", { taskId, roles });
+    return;
+  }
   const pmUids = await resolvePmUids();
   if (pmUids.length === 0) {
     logger.info("no PMs configured; skip shared_with_pm", { taskId });
