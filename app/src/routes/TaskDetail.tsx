@@ -20,10 +20,11 @@ import DeadlinePicker from "@/components/DeadlinePicker";
 import { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedFile, isImageFile, uploadTaskImage, uploadTaskFile } from "@/lib/attachments";
-import { ArrowRight, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, X as XIcon } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Upload, X as XIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
+import { useDocumentTypes } from "@/hooks/useDocumentTypes";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import type { Task as TaskT, TaskType, TaskStatus, TaskPriority, UserRole, ImageAttachment, DocumentAttachment, AuditEntry } from "@/types";
@@ -188,6 +189,7 @@ export default function TaskDetail() {
   }>({ open: false });
   const [docUploading, setDocUploading] = useState(false);
   const [docPickerOpen, setDocPickerOpen] = useState(false);
+  const [docMetaEdit, setDocMetaEdit] = useState<{ docId: string; docType: string; displayName: string } | null>(null);
 
   // V20 — title-first flow. FAB navigates to /t/new with state.createType.
   // No task exists in Firestore yet — we show only the title input.
@@ -520,6 +522,10 @@ export default function TaskDetail() {
   async function handleDeadlineChange(nextMs: number | null) {
     await saveField({ deadline: nextMs });
   }
+
+  async function handlePhaseChange(nextId: string | null) {
+    await saveField({ phaseId: nextId });
+  }
   async function handleDelete() {
     if (state.status !== "ready") return;
     if (!window.confirm(t("detail.confirmDelete"))) return;
@@ -608,6 +614,40 @@ export default function TaskDetail() {
       auditLog: [...(task.auditLog ?? []), auditEntry],
     });
     deleteTaskImage(filePath).catch(console.warn);
+  }
+
+  /** V23 — edit docType / displayName of an existing document without re-uploading. */
+  async function handleEditDocMeta(docId: string) {
+    if (state.status !== "ready" || !user) return;
+    const doc = (state.task.documents ?? []).find((d) => d.id === docId);
+    if (!doc) return;
+    setDocMetaEdit({ docId, docType: doc.docType, displayName: doc.displayName });
+  }
+
+  async function commitDocMetaEdit() {
+    if (state.status !== "ready" || !user || !docMetaEdit) return;
+    const task = state.task;
+    const { docId, docType: newType, displayName: newName } = docMetaEdit;
+    const doc = (task.documents ?? []).find((d) => d.id === docId);
+    if (!doc) return;
+    if (newType === doc.docType && newName === doc.displayName) {
+      setDocMetaEdit(null);
+      return;
+    }
+    const nextDocs = (task.documents ?? []).map((d) =>
+      d.id === docId ? { ...d, docType: newType.trim() || d.docType, displayName: newName.trim() || d.displayName } : d
+    );
+    const auditEntry: AuditEntry = {
+      action: "metadata_changed",
+      actorUid: user.uid,
+      timestamp: new Date().toISOString(),
+      details: newName.trim() || doc.displayName,
+    };
+    await updateTask(task.id, {
+      documents: nextDocs,
+      auditLog: [...(task.auditLog ?? []), auditEntry],
+    });
+    setDocMetaEdit(null);
   }
 
   // V20 — Link/unlink dokumentace from task
@@ -972,8 +1012,8 @@ export default function TaskDetail() {
               />
             )}
             <PhasePickerInline
-              value={null}
-              onChange={() => {}}
+              value={task.phaseId ?? null}
+              onChange={handlePhaseChange}
               disabled={saving || isReadOnly}
             />
             <LocationPickerInline
@@ -1028,47 +1068,72 @@ export default function TaskDetail() {
             </h2>
             {(task.documents?.length ?? 0) > 0 && (
               <ul className="mb-3 flex flex-col gap-2">
-                {task.documents!.map((docItem) => (
+                {task.documents!.map((docItem) => {
+                  const isEditing = docMetaEdit?.docId === docItem.id;
+                  return (
                   <li
                     key={docItem.id}
-                    className="group flex items-center gap-3 rounded-md border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-bg-subtle"
+                    className="group rounded-md border border-line bg-surface px-3 py-2.5 transition-colors hover:bg-bg-subtle"
                   >
-                    <button
-                      type="button"
-                      onClick={() => window.open(docItem.fileUrl, "_blank")}
-                      className="flex flex-1 items-center gap-3 min-w-0 text-left"
-                      aria-label={docItem.displayName}
-                    >
-                      <FileText aria-hidden size={20} className="shrink-0 text-accent-visual" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink truncate">{docItem.displayName}</p>
-                        <p className="text-xs text-ink-muted">{docItem.docType}</p>
+                    {isEditing ? (
+                      <DocMetaEditRow
+                        docType={docMetaEdit!.docType}
+                        displayName={docMetaEdit!.displayName}
+                        onDocTypeChange={(v) => setDocMetaEdit((prev) => prev ? { ...prev, docType: v } : prev)}
+                        onDisplayNameChange={(v) => setDocMetaEdit((prev) => prev ? { ...prev, displayName: v } : prev)}
+                        onSave={commitDocMetaEdit}
+                        onCancel={() => setDocMetaEdit(null)}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => window.open(docItem.fileUrl, "_blank")}
+                          className="flex flex-1 items-center gap-3 min-w-0 text-left"
+                          aria-label={docItem.displayName}
+                        >
+                          <FileText aria-hidden size={20} className="shrink-0 text-accent-visual" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-ink truncate">{docItem.displayName}</p>
+                            <p className="text-xs text-ink-muted">{docItem.docType}</p>
+                          </div>
+                        </button>
+                        {!isReadOnly && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleEditDocMeta(docItem.id)}
+                              disabled={docUploading}
+                              aria-label={t("common.edit")}
+                              className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
+                            >
+                              <Pencil aria-hidden size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReplaceDoc(docItem.id)}
+                              disabled={docUploading}
+                              aria-label={t("dokumentace.replaceDocument")}
+                              className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
+                            >
+                              <Upload aria-hidden size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDoc(docItem.id, docItem.filePath)}
+                              disabled={docUploading}
+                              aria-label={t("dokumentace.deleteDocument")}
+                              className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-[color:var(--color-status-danger-fg)] transition-opacity"
+                            >
+                              <Trash2 aria-hidden size={14} />
+                            </button>
+                          </>
+                        )}
                       </div>
-                    </button>
-                    {!isReadOnly && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleReplaceDoc(docItem.id)}
-                          disabled={docUploading}
-                          aria-label={t("dokumentace.replaceDocument")}
-                          className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-ink transition-opacity"
-                        >
-                          <Pencil aria-hidden size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDoc(docItem.id, docItem.filePath)}
-                          disabled={docUploading}
-                          aria-label={t("dokumentace.deleteDocument")}
-                          className="grid size-8 place-items-center rounded text-ink-subtle opacity-0 group-hover:opacity-100 hover:text-[color:var(--color-status-danger-fg)] transition-opacity"
-                        >
-                          <Trash2 aria-hidden size={14} />
-                        </button>
-                      </>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
             {!isReadOnly && (
@@ -1115,8 +1180,8 @@ export default function TaskDetail() {
               isPm={isPm}
             />
             <PhasePickerInline
-              value={null}
-              onChange={() => {}}
+              value={task.phaseId ?? null}
+              onChange={handlePhaseChange}
               disabled={saving || isReadOnly}
             />
             <LocationPickerInline
@@ -1662,5 +1727,80 @@ function NotFound({
         {backLabel}
       </button>
     </section>
+  );
+}
+
+/** Inline row for editing docType + displayName of an existing document. */
+function DocMetaEditRow({
+  docType,
+  displayName,
+  onDocTypeChange,
+  onDisplayNameChange,
+  onSave,
+  onCancel,
+}: {
+  docType: string;
+  displayName: string;
+  onDocTypeChange: (v: string) => void;
+  onDisplayNameChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const t = useT();
+  const { documentTypes } = useDocumentTypes(true);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <select
+          value={docType}
+          onChange={(e) => onDocTypeChange(e.target.value)}
+          className="min-h-tap flex-1 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink focus:border-line-focus focus:outline-none"
+        >
+          {documentTypes.map((dt) => (
+            <option key={dt.id} value={dt.label}>{dt.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => onDisplayNameChange(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onSave(); if (e.key === "Escape") onCancel(); }}
+            placeholder={t("dokumentace.uploadDisplayNamePlaceholder")}
+            className="min-h-tap w-full rounded-md border border-line bg-surface px-2 py-1.5 pr-8 text-sm text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
+            autoFocus
+          />
+          {displayName && (
+            <button
+              type="button"
+              onClick={() => onDisplayNameChange("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded text-ink-muted hover:text-ink"
+              aria-label={t("common.delete")}
+            >
+              <XIcon aria-hidden size={14} />
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onSave}
+          aria-label={t("common.save")}
+          className="grid min-h-tap min-w-tap place-items-center rounded-md text-accent hover:bg-bg-subtle"
+        >
+          <Check aria-hidden size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label={t("common.cancel")}
+          className="grid min-h-tap min-w-tap place-items-center rounded-md text-ink-muted hover:bg-bg-subtle"
+        >
+          <XIcon aria-hidden size={18} />
+        </button>
+      </div>
+    </div>
   );
 }

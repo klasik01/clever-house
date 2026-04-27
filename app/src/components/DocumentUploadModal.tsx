@@ -142,14 +142,26 @@ export default function DocumentUploadModal({ prefill, onConfirm, onClose }: Pro
             <label htmlFor="doc-display-name" className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-subtle">
               {t("dokumentace.uploadDisplayName")}
             </label>
-            <input
-              id="doc-display-name"
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={file ? file.name.replace(/\.[^.]+$/, "") : t("dokumentace.uploadDisplayNamePlaceholder")}
-              className="min-h-tap w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
-            />
+            <div className="relative">
+              <input
+                id="doc-display-name"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={file ? file.name.replace(/\.[^.]+$/, "") : t("dokumentace.uploadDisplayNamePlaceholder")}
+                className="min-h-tap w-full rounded-md border border-line bg-surface px-3 py-2 pr-9 text-base text-ink placeholder:text-ink-subtle focus:border-line-focus focus:outline-none"
+              />
+              {displayName && (
+                <button
+                  type="button"
+                  onClick={() => setDisplayName("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 grid size-7 place-items-center rounded text-ink-muted hover:text-ink"
+                  aria-label={t("common.delete")}
+                >
+                  <X aria-hidden size={14} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

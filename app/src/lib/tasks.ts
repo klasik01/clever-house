@@ -91,7 +91,7 @@ export async function createTask(
 
 export async function updateTask(
   id: string,
-  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup" | "documents" | "auditLog" | "linkedDocIds">>
+  patch: Partial<Pick<Task, "title" | "body" | "status" | "categoryId" | "categoryIds" | "locationId" | "attachmentImageUrl" | "attachmentImagePath" | "attachmentLinkUrl" | "attachmentImages" | "attachmentLinks" | "linkedTaskIds" | "linkedTaskId" | "priority" | "deadline" | "assigneeUid" | "commentCount" | "sharedWithRoles" | "dependencyText" | "vystup" | "documents" | "auditLog" | "linkedDocIds" | "phaseId">>
 ): Promise<void> {
   // V22 — strip undefined values to prevent Firestore from deleting fields.
   const clean = Object.fromEntries(
@@ -149,6 +149,7 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     documents: Array.isArray(data.documents) ? data.documents : [],
     auditLog: Array.isArray(data.auditLog) ? data.auditLog : [],
     linkedDocIds: Array.isArray(data.linkedDocIds) ? data.linkedDocIds : [],
+    phaseId: typeof data.phaseId === "string" ? data.phaseId : null,
     vystup: typeof data.vystup === "string" ? data.vystup : null,
     createdBy: data.createdBy ?? "",
     // V17.1/V17.8 — authorRole je snapshot role autora při create. Pokud

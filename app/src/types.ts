@@ -111,6 +111,8 @@ export interface Task {
   categoryId?: string | null;
   /** V3 — N:M kategorie jako chip-field. */
   categoryIds?: string[];
+  /** V23 — Firestore ID of the selected build phase (configurable in Settings). */
+  phaseId?: string | null;
   locationId?: string | null;
   // S26 — array of linked otázka IDs (nápad parent → otázka children)
   linkedTaskIds?: string[];
