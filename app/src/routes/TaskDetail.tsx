@@ -138,6 +138,12 @@ const TYPE_META: Record<TaskType, { icon: typeof FileText; labelKey: string }> =
   napad:       { icon: Notebook,    labelKey: "detail.typeNapad" },
 };
 
+/** V23 — auto-capitalize first letter of title. */
+function capitalizeFirst(v: string): string {
+  if (!v) return v;
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -328,7 +334,9 @@ export default function TaskDetail() {
       blurSaveTimerRef.current = null;
       const p = pendingRef.current;
       if (!p) return;
-      persist({ title: p.title, body: p.body, vystup: p.vystup });
+      const finalTitle = capitalizeFirst(p.title);
+      if (finalTitle !== p.title) setTitle(finalTitle);
+      persist({ title: finalTitle, body: p.body, vystup: p.vystup });
       pendingRef.current = null;
     }, BLUR_SAVE_DELAY_MS);
   }
@@ -676,10 +684,12 @@ export default function TaskDetail() {
       setSaving(true);
       try {
         const currentRole = roleState.status === "ready" ? roleState.profile.role : "OWNER";
+        const finalTitle = capitalizeFirst(title.trim());
+        setTitle(finalTitle);
         const taskId = await createTask(
           {
             type: createType!,
-            title: title.trim(),
+            title: finalTitle,
             body: "",
             status: createType === "dokumentace" ? "Nápad" : "OPEN",
           },

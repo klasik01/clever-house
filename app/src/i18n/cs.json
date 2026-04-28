@@ -308,7 +308,11 @@
     "locationAll": "Všechny lokace",
     "locationAriaLabel": "Filtr podle lokace",
     "reset": "Reset",
-    "resetAriaLabel": "Vymazat všechny filtry"
+    "resetAriaLabel": "Vymazat všechny filtry",
+    "advanced": "Filtry",
+    "advancedToggle": "Rozšířené filtry",
+    "phaseAll": "Všechny fáze",
+    "phaseAriaLabel": "Filtrovat podle fáze"
   },
   "kategorie": {
     "pageTitle": "Kategorie",
@@ -853,5 +857,11 @@
     "labelPlaceholder": "Název fáze…",
     "confirmDelete": "Opravdu smazat tuto fázi? Existující záznamy s touto fází nebudou ovlivněny.",
     "emptyState": "Žádné fáze. Přidejte první."
+  },
+  "sort": {
+    "updatedAt": "Poslední změna",
+    "createdAt": "Datum vytvoření",
+    "title": "Název",
+    "ariaLabel": "Řazení"
   }
 }

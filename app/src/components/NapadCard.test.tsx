@@ -29,36 +29,32 @@ describe("NapadCard (V10)", () => {
     expect(screen.getByText(/Jak zapojit rozvaděč/)).toBeInTheDocument();
   });
 
-  it("applies ball-on-me border when assigneeUid === current user", () => {
+  it("applies border-l-4 with status color via inline style", () => {
     const { container } = renderWithProviders(<NapadCard task={base} />);
-    // V14.10 — card chrome (border + overdue style) moved from the inner
-    // <Link> onto the outer wrapper <div> so the peek panel can live as a
-    // sibling without being nested inside the navigable link.
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).toMatch(/border-l-4/);
-    expect(outer.className).toMatch(/border-accent/);
+    // Color is set via inline style from statusColors, not a CSS class
+    expect(outer.getAttribute("style") ?? "").toContain("border-left-color");
   });
 
-  it("no ball-on-me border when assigneeUid is someone else", () => {
-    const other = { ...base, assigneeUid: "someone-else" } as Task;
-    const { container } = renderWithProviders(<NapadCard task={other} />);
-    const outer = container.firstElementChild as HTMLElement;
-    expect(outer.className).not.toMatch(/border-accent/);
-  });
-
-  it("applies the danger border when the úkol is overdue", () => {
-    const yesterday = Date.now() - 2 * 24 * 60 * 60 * 1000;
-    const overdue = { ...base, deadline: yesterday } as Task;
-    const { container } = renderWithProviders(<NapadCard task={overdue} />);
+  it("renders border-l-4 for all actionable types", () => {
+    const ukol = { ...base, type: "ukol" } as Task;
+    const { container } = renderWithProviders(<NapadCard task={ukol} />);
     const outer = container.firstElementChild as HTMLElement;
     expect(outer.className).toMatch(/border-l-4/);
-    expect(outer.getAttribute("style") ?? "").toContain("color-status-danger-fg");
+    expect(outer.getAttribute("style") ?? "").toContain("border-left-color");
   });
 
-  it("no border when type=napad", () => {
+  it("uses status-otazka border color for OPEN status", () => {
+    const { container } = renderWithProviders(<NapadCard task={base} />);
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.getAttribute("style") ?? "").toContain("color-status-otazka-border");
+  });
+
+  it("renders border-l-4 for napad type too", () => {
     const napad = { ...base, type: "napad", status: "OPEN" } as Task;
     const { container } = renderWithProviders(<NapadCard task={napad} />);
     const outer = container.firstElementChild as HTMLElement;
-    expect(outer.className).not.toMatch(/border-accent/);
+    expect(outer.className).toMatch(/border-l-4/);
   });
 });

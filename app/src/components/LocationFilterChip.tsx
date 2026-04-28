@@ -23,13 +23,13 @@ export default function LocationFilterChip({ value, onChange }: Props) {
       <span
         aria-hidden
         className={[
-          "inline-flex items-center gap-1.5 min-h-tap rounded-pill border px-3 py-1.5 text-sm font-medium transition-colors",
+          "inline-flex items-center gap-1 rounded-pill border px-2.5 py-1.5 text-xs font-medium transition-colors",
           selected
             ? "bg-accent text-accent-on border-transparent"
             : "bg-transparent text-ink-muted border-line",
         ].join(" ")}
       >
-        <MapPin size={14} aria-hidden />
+        <MapPin size={12} aria-hidden />
         {label}
       </span>
       <select

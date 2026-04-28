@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, RotateCcw } from "lucide-react";
+import { ChevronDown, RotateCcw, SlidersHorizontal } from "lucide-react";
 import TaskList from "@/components/TaskList";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
@@ -14,11 +14,15 @@ import { applySearch } from "@/lib/search";
 import {
   applyCategory,
   applyLocation,
+  applySort,
   clearAllFilters,
   loadCategoryFilter,
   loadLocationFilter,
+  loadSort,
   saveCategoryFilter,
   saveLocationFilter,
+  saveSort,
+  type SortKey,
 } from "@/lib/filters";
 import { isBallOnMe as isBallOnMeV10, mapLegacyOtazkaStatus } from "@/lib/status";
 import type { Task, TaskPriority, TaskStatus } from "@/types";
@@ -56,6 +60,9 @@ export default function Ukoly() {
     setQuery(next);
     try { sessionStorage.setItem(filterKey("ukoly", "q"), next); } catch { /* ignore */ }
   }
+  const [sort, setSort] = useState<SortKey>(() => loadSort(KEY));
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   // V14.9 — default view hides closed tasks (DONE + CANCELED). User can
   // flip to "Vše" to include them. This is the pill that most filters the
   // list in practice, so it goes first in the chip row.
@@ -103,6 +110,10 @@ export default function Ukoly() {
     try { sessionStorage.setItem(filterKey("ukoly", "owner"), next); } catch { /* ignore */ }
   }
 
+  const advancedActive =
+    status !== null || priority !== null || categoryId !== null ||
+    locationId !== null || stateMode !== "active";
+
   const isFilterActive =
     categoryId !== null ||
     locationId !== null ||
@@ -111,6 +122,7 @@ export default function Ukoly() {
     ownerMode !== "mine" ||
     typeMode !== "all" ||
     stateMode !== "active" ||
+    sort !== "updatedAt" ||
     query.trim() !== "";
 
   function handleReset() {
@@ -121,6 +133,7 @@ export default function Ukoly() {
     setOwnerModePersist("mine");
     setTypeModePersist("all");
     setStateModePersist("active");
+    setSort("updatedAt");
     setQueryPersist("");
     clearAllFilters(KEY);
   }
@@ -172,11 +185,7 @@ export default function Ukoly() {
     if (isBallOnMeV10(tk, user?.uid)) ballOnMe.push(tk);
     else rest.push(tk);
   }
-  const byUpdated = (a: Task, b: Task) =>
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-  ballOnMe.sort(byUpdated);
-  rest.sort(byUpdated);
-  const visible = [...ballOnMe, ...rest];
+  const visible = [...applySort(ballOnMe, sort), ...applySort(rest, sort)];
 
   return (
     <section
@@ -190,50 +199,88 @@ export default function Ukoly() {
         >
           {t("ukoly.pageTitle")}
         </h2>
-        <p className="mt-1 text-sm text-ink-muted">{t("ukoly.pageHint")}</p>
       </header>
 
       <div className="mb-3">
         <SearchInput value={query} onChange={setQueryPersist} />
       </div>
 
-      {/* Primary filters — always visible */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Filter row: type + owner toggle + sort + filtry + reset */}
+      <div className="flex items-center gap-2 mb-2">
         <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
         <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
+
+        <div className="flex-1" />
+
+        {/* Sort combobox */}
+        <label className="relative inline-flex items-center shrink-0">
+          <span
+            aria-hidden
+            className="inline-flex items-center gap-1 rounded-pill border border-line px-2.5 py-1.5 text-xs font-medium text-ink-muted"
+          >
+            {t(`sort.${sort}`)}
+            <ChevronDown size={12} aria-hidden />
+          </span>
+          <select
+            value={sort}
+            onChange={(e) => { const v = e.target.value as SortKey; setSort(v); saveSort(KEY, v); }}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label={t("sort.ariaLabel")}
+          >
+            <option value="updatedAt">{t("sort.updatedAt")}</option>
+            <option value="createdAt">{t("sort.createdAt")}</option>
+            <option value="title">{t("sort.title")}</option>
+          </select>
+        </label>
+
+        {/* Advanced filter toggle */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          aria-expanded={showAdvanced}
+          aria-label={t("filter.advancedToggle")}
+          className={[
+            "shrink-0 inline-flex items-center gap-1 rounded-pill border px-2.5 py-1.5 text-xs font-medium transition-colors",
+            showAdvanced || advancedActive
+              ? "bg-accent text-accent-on border-transparent"
+              : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
+          ].join(" ")}
+        >
+          <SlidersHorizontal size={12} aria-hidden />
+          {t("filter.advanced")}
+        </button>
+
         {isFilterActive && (
           <button
             type="button"
             onClick={handleReset}
             aria-label={t("filter.resetAriaLabel")}
-            className="inline-flex items-center gap-1 rounded-pill border border-dashed border-line px-2.5 py-1 text-xs text-ink-subtle hover:text-ink hover:border-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-focus transition-colors"
+            className="shrink-0 inline-flex items-center gap-1 rounded-pill border border-dashed border-line px-2.5 py-1.5 text-xs text-ink-subtle hover:text-ink hover:border-line-strong transition-colors"
           >
             <RotateCcw aria-hidden size={11} />
-            {t("filter.reset")}
           </button>
         )}
       </div>
 
-      {/* Advanced filters — collapsible */}
-      <AdvancedFilters
-        stateMode={stateMode}
-        onStateModeChange={setStateModePersist}
-        status={status}
-        onStatusChange={setStatus}
-        priority={priority}
-        onPriorityChange={setPriority}
-        categoryId={categoryId}
-        categories={categories}
-        onCategoryChange={(v) => { setCategoryId(v); saveCategoryFilter(KEY, v); }}
-        locationId={locationId}
-        onLocationChange={(v) => { setLocationId(v); saveLocationFilter(KEY, v); }}
-        hasActiveAdvanced={
-          status !== null || priority !== null || categoryId !== null ||
-          locationId !== null || stateMode !== "active"
-        }
-      />
+      {/* Advanced filters — expandable */}
+      {showAdvanced && (
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <StateModeChip value={stateMode} onChange={setStateModePersist} />
+          <StatusFilterChip value={status} onChange={setStatus} />
+          <PriorityFilterChip value={priority} onChange={setPriority} />
+          <CategoryFilterChip
+            value={categoryId}
+            categories={categories}
+            onChange={(v) => { setCategoryId(v); saveCategoryFilter(KEY, v); }}
+          />
+          <LocationFilterChip
+            value={locationId}
+            onChange={(v) => { setLocationId(v); saveLocationFilter(KEY, v); }}
+          />
+        </div>
+      )}
 
-      <div className="mt-3">
+      <div className="mt-4">
         <TaskList
           tasks={visible}
           categories={categories}
@@ -260,37 +307,22 @@ function OwnerModeChip({
   onChange: (next: "mine" | "all") => void;
 }) {
   const t = useT();
+  const isMine = value === "mine";
   return (
-    <div role="radiogroup" aria-label={t("ukoly.filterOwnerAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === "mine"}
-        onClick={() => onChange("mine")}
-        className={[
-          "min-h-tap px-3 py-1.5 text-sm font-medium",
-          value === "mine"
-            ? "bg-accent text-accent-on"
-            : "bg-transparent text-ink-muted hover:text-ink",
-        ].join(" ")}
-      >
-        {t("ukoly.ownerMine")}
-      </button>
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === "all"}
-        onClick={() => onChange("all")}
-        className={[
-          "min-h-tap px-3 py-1.5 text-sm font-medium border-l border-line",
-          value === "all"
-            ? "bg-accent text-accent-on"
-            : "bg-transparent text-ink-muted hover:text-ink",
-        ].join(" ")}
-      >
-        {t("ukoly.ownerAll")}
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-pressed={isMine}
+      onClick={() => onChange(isMine ? "all" : "mine")}
+      aria-label={t("ukoly.filterOwnerAria")}
+      className={[
+        "rounded-pill border px-2.5 py-1.5 text-xs font-medium transition-colors",
+        isMine
+          ? "bg-accent text-accent-on border-transparent"
+          : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
+      ].join(" ")}
+    >
+      {t("ukoly.ownerMine")}
+    </button>
   );
 }
 
@@ -313,8 +345,8 @@ function TypeModeChip({
     { v: "ukol", label: t("ukoly.typeUkoly") },
   ];
   return (
-    <div role="radiogroup" aria-label={t("ukoly.filterTypeAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
-      {opts.map((o, i) => (
+    <div role="radiogroup" aria-label={t("ukoly.filterTypeAria")} className="flex gap-1.5">
+      {opts.map((o) => (
         <button
           key={o.v}
           type="button"
@@ -322,11 +354,10 @@ function TypeModeChip({
           aria-checked={value === o.v}
           onClick={() => onChange(o.v)}
           className={[
-            "min-h-tap px-3 py-1.5 text-sm font-medium",
-            i > 0 ? "border-l border-line" : "",
+            "rounded-pill border px-2.5 py-1.5 text-xs font-medium transition-colors",
             value === o.v
               ? "bg-accent text-accent-on"
-              : "bg-transparent text-ink-muted hover:text-ink",
+              : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
           ].join(" ")}
         >
           {o.label}
@@ -337,75 +368,7 @@ function TypeModeChip({
 }
 
 
-/**
- * V23 — collapsible advanced filter panel. Keeps the main filter row clean
- * with just type + owner pills. Everything else (search, state, status,
- * priority, category, location) lives here behind a disclosure toggle.
- */
-function AdvancedFilters({
-  stateMode, onStateModeChange,
-  status, onStatusChange,
-  priority, onPriorityChange,
-  categoryId, categories, onCategoryChange,
-  locationId, onLocationChange,
-  hasActiveAdvanced,
-}: {
-  stateMode: "active" | "all";
-  onStateModeChange: (v: "active" | "all") => void;
-  status: TaskStatus | null;
-  onStatusChange: (v: TaskStatus | null) => void;
-  priority: TaskPriority | null;
-  onPriorityChange: (v: TaskPriority | null) => void;
-  categoryId: string | null;
-  categories: import("@/types").Category[];
-  onCategoryChange: (v: string | null) => void;
-  locationId: string | null;
-  onLocationChange: (v: string | null) => void;
-  hasActiveAdvanced: boolean;
-}) {
-  const t = useT();
-  const [open, setOpen] = useState(hasActiveAdvanced);
 
-  return (
-    <div className="mt-2">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-ink-muted hover:text-ink transition-colors"
-      >
-        <ChevronDown
-          aria-hidden
-          size={14}
-          className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-        {t("ukoly.advancedFilters")}
-        {hasActiveAdvanced && !open && (
-          <span className="ml-1 inline-block size-1.5 rounded-full bg-accent" aria-hidden />
-        )}
-      </button>
-
-      {open && (
-        <div className="mt-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <StateModeChip value={stateMode} onChange={onStateModeChange} />
-            <StatusFilterChip value={status} onChange={onStatusChange} />
-            <PriorityFilterChip value={priority} onChange={onPriorityChange} />
-            <CategoryFilterChip
-              value={categoryId}
-              categories={categories}
-              onChange={onCategoryChange}
-            />
-            <LocationFilterChip
-              value={locationId}
-              onChange={onLocationChange}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /**
  * V14.9 — active/all pill. Hides DONE + CANCELED by default so closed
@@ -421,36 +384,29 @@ function StateModeChip({
   onChange: (next: "active" | "all") => void;
 }) {
   const t = useT();
+  const opts: Array<{ v: "active" | "all"; label: string }> = [
+    { v: "active", label: t("ukoly.stateActive") },
+    { v: "all", label: t("ukoly.stateAll") },
+  ];
   return (
-    <div role="radiogroup" aria-label={t("ukoly.filterStateAria")} className="inline-flex rounded-pill border border-line overflow-hidden">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === "active"}
-        onClick={() => onChange("active")}
-        className={[
-          "min-h-tap px-3 py-1.5 text-sm font-medium",
-          value === "active"
-            ? "bg-accent text-accent-on"
-            : "bg-transparent text-ink-muted hover:text-ink",
-        ].join(" ")}
-      >
-        {t("ukoly.stateActive")}
-      </button>
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === "all"}
-        onClick={() => onChange("all")}
-        className={[
-          "min-h-tap px-3 py-1.5 text-sm font-medium border-l border-line",
-          value === "all"
-            ? "bg-accent text-accent-on"
-            : "bg-transparent text-ink-muted hover:text-ink",
-        ].join(" ")}
-      >
-        {t("ukoly.stateAll")}
-      </button>
+    <div role="radiogroup" aria-label={t("ukoly.filterStateAria")} className="flex gap-1.5">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          type="button"
+          role="radio"
+          aria-checked={value === o.v}
+          onClick={() => onChange(o.v)}
+          className={[
+            "rounded-pill border px-2.5 py-1.5 text-xs font-medium transition-colors",
+            value === o.v
+              ? "bg-accent text-accent-on border-transparent"
+              : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
+          ].join(" ")}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

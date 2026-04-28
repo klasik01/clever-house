@@ -83,6 +83,64 @@ export function applyLocation(tasks: Task[], locationId: string | null): Task[] 
 }
 
 
+
+// ---------- Phase ----------
+
+export function loadPhaseFilter(key: string): string | null {
+  try {
+    const v = sessionStorage.getItem(PREFIX + key + ":phase");
+    return v && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function savePhaseFilter(key: string, value: string | null): void {
+  try {
+    if (value) sessionStorage.setItem(PREFIX + key + ":phase", value);
+    else sessionStorage.removeItem(PREFIX + key + ":phase");
+  } catch {
+    /* ignore */
+  }
+}
+
+export function applyPhase(tasks: Task[], phaseId: string | null): Task[] {
+  if (!phaseId) return tasks;
+  return tasks.filter((t) => t.phaseId === phaseId);
+}
+
+// ---------- Sort ----------
+
+export type SortKey = "updatedAt" | "createdAt" | "title";
+
+export function loadSort(key: string): SortKey {
+  try {
+    const v = sessionStorage.getItem(PREFIX + key + ":sort");
+    if (v === "updatedAt" || v === "createdAt" || v === "title") return v;
+  } catch { /* ignore */ }
+  return "updatedAt";
+}
+
+export function saveSort(key: string, value: SortKey): void {
+  try {
+    sessionStorage.setItem(PREFIX + key + ":sort", value);
+  } catch { /* ignore */ }
+}
+
+export function applySort(tasks: Task[], sort: SortKey): Task[] {
+  const copy = [...tasks];
+  switch (sort) {
+    case "updatedAt":
+      return copy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    case "createdAt":
+      return copy.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    case "title":
+      return copy.sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "", "cs"));
+    default:
+      return copy;
+  }
+}
+
 // ---------- Reset ----------
 
 /**
@@ -94,6 +152,8 @@ export function clearAllFilters(key: string): void {
     sessionStorage.removeItem(PREFIX + key);
     sessionStorage.removeItem(PREFIX + key + ":category");
     sessionStorage.removeItem(PREFIX + key + ":location");
+    sessionStorage.removeItem(PREFIX + key + ":phase");
+    sessionStorage.removeItem(PREFIX + key + ":sort");
   } catch {
     /* ignore */
   }
