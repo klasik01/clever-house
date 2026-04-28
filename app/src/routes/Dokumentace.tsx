@@ -92,10 +92,8 @@ export default function Dokumentace() {
         <SearchInput value={query} onChange={setQueryPersist} />
       </div>
 
-      {/* Row 2: Sort + advanced toggle + reset */}
-      <div className="flex items-center gap-2 mb-2">
-        <div className="flex-1" />
-
+      {/* Row 2: Sort + advanced toggle + reset (right-aligned) */}
+      <div className="flex items-center justify-end gap-2 mb-2">
         {/* Sort combobox */}
         <label className="relative inline-flex items-center shrink-0">
           <span

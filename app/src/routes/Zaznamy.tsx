@@ -116,40 +116,8 @@ export default function Zaznamy() {
         <SearchInput value={query} onChange={setQueryPersist} />
       </div>
 
-      {/* Row 2: Open/All toggle + sort + advanced toggle */}
-      <div className="flex items-center gap-2 mb-2">
-        <div
-          role="radiogroup"
-          aria-label={t("filter.ariaLabel")}
-          className="flex gap-1"
-        >
-          {(["open", "all"] as OpenClosedFilter[]).map((opt) => {
-            const active = opt === filter;
-            return (
-              <button
-                key={opt}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => { setFilter(opt); saveFilter(KEY, opt); }}
-                className={[
-                  "rounded-pill px-2.5 py-1.5 text-xs font-medium transition-colors border",
-                  active
-                    ? "bg-accent text-accent-on border-transparent"
-                    : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
-                ].join(" ")}
-              >
-                {t(`filter.${opt}`)}
-                <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-ink-subtle"}>
-                  {(counts as Record<string, number>)[opt] ?? 0}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex-1" />
-
+      {/* Row 3: Sort + advanced toggle + reset (right-aligned) */}
+      <div className="flex items-center justify-end gap-2 mb-2">
         {/* Sort combobox */}
         <label className="relative inline-flex items-center shrink-0">
           <span
@@ -198,6 +166,39 @@ export default function Zaznamy() {
             <RotateCcw aria-hidden size={11} />
           </button>
         )}
+      </div>
+
+      {/* Row 2: Open/All toggle */}
+      <div className="flex items-center gap-2 mb-2">
+        <div
+          role="radiogroup"
+          aria-label={t("filter.ariaLabel")}
+          className="flex gap-1"
+        >
+          {(["open", "all"] as OpenClosedFilter[]).map((opt) => {
+            const active = opt === filter;
+            return (
+              <button
+                key={opt}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => { setFilter(opt); saveFilter(KEY, opt); }}
+                className={[
+                  "rounded-pill px-2.5 py-1.5 text-xs font-medium transition-colors border",
+                  active
+                    ? "bg-accent text-accent-on border-transparent"
+                    : "bg-transparent text-ink-muted border-line hover:bg-bg-subtle",
+                ].join(" ")}
+              >
+                {t(`filter.${opt}`)}
+                <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-ink-subtle"}>
+                  {(counts as Record<string, number>)[opt] ?? 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Row 3: Advanced filters (expandable) */}

@@ -205,13 +205,8 @@ export default function Ukoly() {
         <SearchInput value={query} onChange={setQueryPersist} />
       </div>
 
-      {/* Filter row: type + owner toggle + sort + filtry + reset */}
-      <div className="flex items-center gap-2 mb-2">
-        <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
-        <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
-
-        <div className="flex-1" />
-
+      {/* Row 3: Sort + advanced toggle + reset (right-aligned) */}
+      <div className="flex items-center justify-end gap-2 mb-2">
         {/* Sort combobox */}
         <label className="relative inline-flex items-center shrink-0">
           <span
@@ -260,6 +255,12 @@ export default function Ukoly() {
             <RotateCcw aria-hidden size={11} />
           </button>
         )}
+      </div>
+
+      {/* Filter row: type + owner toggle */}
+      <div className="flex items-center gap-2 mb-2">
+        <TypeModeChip value={typeMode} onChange={setTypeModePersist} />
+        <OwnerModeChip value={ownerMode} onChange={setOwnerModePersist} />
       </div>
 
       {/* Advanced filters — expandable */}
