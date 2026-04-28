@@ -8,7 +8,7 @@ import StatusFilterChip from "@/components/StatusFilterChip";
 import SearchInput from "@/components/SearchInput";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { applySearch } from "@/lib/search";
 import {
@@ -36,7 +36,7 @@ const KEY = "ukoly";
 export default function Ukoly() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
   // Filters — category + location persist (reuse existing session helpers).

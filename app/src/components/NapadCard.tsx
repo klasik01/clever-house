@@ -1,71 +1,53 @@
-import { useState, type ComponentType } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertTriangle,
-  ChevronDown,
+  ChevronRight,
   FileText,
   Flag,
   HelpCircle,
   Image as ImageIcon,
   Link as LinkIcon,
-  Loader2,
   MapPin,
+  Milestone,
   Notebook,
   Paperclip,
-  Tag,
   Target,
 } from "lucide-react";
-import type { Category, Task } from "@/types";
+import type { Task } from "@/types";
 import { useT, formatRelative } from "@/i18n/useT";
-import StatusBadge from "./StatusBadge";
+import { statusColors } from "./StatusBadge";
 import AvatarCircle from "./AvatarCircle";
 import PriorityBadge from "./PriorityBadge";
 import DeadlineChip from "./DeadlineChip";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { usePhases } from "@/hooks/usePhases";
 import { getLocation } from "@/lib/locations";
-import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
-import { deadlineState } from "@/lib/deadline";
+import { mapLegacyOtazkaStatus } from "@/lib/status";
+import { canViewTask } from "@/lib/permissions";
 import { taskDetail } from "@/lib/routes";
 import { TYPE_COLORS } from "@/lib/typeColors";
 
-// Shared lazy loader for the Tiptap-based RichTextEditor. One in-flight
-// promise regardless of how many cards mount — browsers cache the module
-// after the first fetch, so subsequent toggles are synchronous. Preloaded
-// on chevron hover / focus so the click feels instant for most users.
-type RTEProps = {
-  value: string;
-  onChange: (markdown: string) => void;
-  disabled?: boolean;
-  frameless?: boolean;
-  ariaLabel?: string;
-};
-type RTEComponent = ComponentType<RTEProps>;
-let rtePromise: Promise<RTEComponent> | null = null;
-function loadRichTextEditor(): Promise<RTEComponent> {
-  if (!rtePromise) {
-    rtePromise = import("./RichTextEditor").then((mod) => mod.default as unknown as RTEComponent);
-  }
-  return rtePromise;
-}
-
 interface Props {
   task: Task;
-  categories?: Category[];
+  /** Full task list — needed to resolve linkedTaskIds into titles. */
+  allTasks?: Task[];
 }
 
-export default function NapadCard({ task, categories }: Props) {
+export default function NapadCard({ task, allTasks = [] }: Props) {
   const t = useT();
   const { user } = useAuth();
-  // V10 — ball-on-me is assignee-driven. Only the current resolver sees the
-  //       accent border, regardless of role. Fallback to createdBy for legacy
-  //       records without assigneeUid.
-  const isBallOnMe = isBallOnMeV10(task, user?.uid);
-  // V14 — deadline renders on otázka + úkol. Nápady never carry a deadline.
-  const deadlineStateNow = (task.type === "otazka" || task.type === "ukol")
-    ? deadlineState(task.deadline)
-    : null;
-  const isOverdue = deadlineStateNow === "overdue";
+  const roleState = useUserRole(user?.uid);
+  const currentUserRole = roleState.status === "ready" ? roleState.profile.role : null;
+  const { phases } = usePhases(Boolean(user));
+  const [expanded, setExpanded] = useState(false);
+
+  // V23 — resolve status for left border color
+  const resolvedStatus = (task.type === "otazka" || task.type === "ukol" || task.type === "napad")
+    ? mapLegacyOtazkaStatus(task.status)
+    : task.status;
+
   const { byUid } = useUsers(Boolean(user));
   const assignee = task.assigneeUid ? byUid.get(task.assigneeUid) : undefined;
   const created = new Date(task.createdAt);
@@ -77,15 +59,7 @@ export default function NapadCard({ task, categories }: Props) {
       : task.type === "dokumentace"
       ? FileText
       : Notebook;
-  const categoryIds = task.categoryIds?.length
-    ? task.categoryIds
-    : task.categoryId ? [task.categoryId] : [];
-  const taskCategories = categoryIds
-    .map((id) => categories?.find((c) => c.id === id))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  const MAX_CATEGORY_BADGES = 3;
-  const visibleCategories = taskCategories.slice(0, MAX_CATEGORY_BADGES);
-  const hiddenCategoryCount = taskCategories.length - visibleCategories.length;
+
   const location = getLocation(task.locationId);
 
   // Title prominent; fallback to body first line, then placeholder
@@ -98,62 +72,18 @@ export default function NapadCard({ task, categories }: Props) {
   const hasLink = (task.attachmentLinks?.length ?? 0) > 0 || Boolean(task.attachmentLinkUrl);
   const docCount = task.documents?.length ?? 0;
 
-  // V14.10 — in-list Výstup peek. Only nápady with a non-empty vystup get
-  // the chevron; everyone else keeps the flat card look. State is local to
-  // the card instance; not persisted — ephemeral "glance" UX.
-  const canExpand = task.type === "napad" && Boolean(task.vystup?.trim());
-  const [expanded, setExpanded] = useState(false);
-  // V14.15 — lazy-load RichTextEditor on first expand. Button shows a
-  // spinner while the chunk downloads so the user knows something's
-  // happening and doesn't think the click was dropped. Once loaded, the
-  // component stays in state across collapses — subsequent toggles are
-  // instant.
-  const [EditorComp, setEditorComp] = useState<RTEComponent | null>(null);
-  const [loading, setLoading] = useState(false);
-  const panelId = `vystup-preview-${task.id}`;
-
-  async function handleToggleVystup(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (expanded) {
-      setExpanded(false);
-      return;
-    }
-    if (EditorComp) {
-      setExpanded(true);
-      return;
-    }
-    // First open — fetch the editor chunk, then animate into view.
-    setLoading(true);
-    try {
-      const Comp = await loadRichTextEditor();
-      setEditorComp(() => Comp);
-      // Wait one frame so the panel mounts at grid-rows-[0fr] first, then
-      // transitions to [1fr]. Without this the browser would skip the
-      // animation because height changes in the same frame.
-      requestAnimationFrame(() => setExpanded(true));
-    } catch (err) {
-      console.error("failed to load editor for peek", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Preload the editor chunk on first hint of interaction — pointer enter
-  // or keyboard focus. No-op after the first call (promise cached).
-  function preloadEditor() {
-    if (!EditorComp && !loading) {
-      void loadRichTextEditor();
-    }
-  }
+  // V23 — linked otázky/úkoly for nápady (replaces výstup peek)
+  const linkedTasks = task.type === "napad" && (task.linkedTaskIds?.length ?? 0) > 0
+    ? (task.linkedTaskIds ?? [])
+        .map((lid) => allTasks.find((x) => x.id === lid))
+        .filter((x): x is Task => Boolean(x))
+        .filter((x) => canViewTask({ task: x, currentUserUid: user?.uid, currentUserRole }))
+    : [];
 
   return (
-    // Outer div owns the card chrome (border, shadow, ring) so the expand
-    // panel can live outside the <Link> and not steal clicks. Hover / focus
-    // rings still work because they bubble up from the Link child.
     <div
-      className={`rounded-md bg-surface shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-within:ring-2 focus-within:ring-line-focus ${isOverdue ? "border-l-4" : isBallOnMe ? "border-l-4 border-accent" : ""}`}
-      style={isOverdue ? { borderLeftColor: "var(--color-status-danger-fg)" } : undefined}
+      className="rounded-md bg-surface shadow-sm ring-1 ring-line transition-colors hover:ring-line-strong focus-within:ring-2 focus-within:ring-line-focus border-l-4"
+      style={{ borderLeftColor: statusColors(resolvedStatus).border }}
     >
       <Link
         to={taskDetail(task.id)}
@@ -188,15 +118,6 @@ export default function NapadCard({ task, categories }: Props) {
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-base font-medium leading-snug text-ink truncate">
-                {isOverdue && (
-                  <span
-                    aria-hidden
-                    className="mr-1 inline-flex items-center align-text-bottom"
-                    style={{ color: "var(--color-status-danger-fg)" }}
-                  >
-                    <AlertTriangle size={15} aria-hidden />
-                  </span>
-                )}
                 {titleDisplay}
               </p>
               {task.type === "dokumentace" ? (
@@ -224,48 +145,19 @@ export default function NapadCard({ task, categories }: Props) {
                     <span className="truncate max-w-[9rem]">{task.dependencyText}</span>
                   </span>
                 )}
-                <StatusBadge status={task.status} />
-                {visibleCategories.map((c) => (
-                  <span
-                    key={c.id}
-                    className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted"
-                  >
-                    <Tag aria-hidden size={11} />
-                    {c.label}
-                  </span>
-                ))}
-                {hiddenCategoryCount > 0 && (
-                  <span
-                    className="inline-flex items-center rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted"
-                    aria-label={t("categories.hiddenMore", { n: hiddenCategoryCount })}
-                    title={t("categories.hiddenMore", { n: hiddenCategoryCount })}
-                  >
-                    +{hiddenCategoryCount}
-                  </span>
-                )}
+                {(() => {
+                  const phase = task.phaseId ? phases.find((p) => p.id === task.phaseId) : undefined;
+                  return phase ? (
+                    <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                      <Milestone aria-hidden size={11} />
+                      {phase.label}
+                    </span>
+                  ) : null;
+                })()}
                 {location && (
                   <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
                     <MapPin aria-hidden size={11} />
                     {location.label}
-                  </span>
-                )}
-                {/* Binary attachment indicators — presence only, no count */}
-                {hasImage && (
-                  <span
-                    className="inline-flex items-center rounded-pill bg-bg-subtle px-1.5 py-0.5 text-ink-subtle"
-                    aria-label={t("aria.hasImage")}
-                    title={t("aria.hasImage")}
-                  >
-                    <ImageIcon aria-hidden size={12} />
-                  </span>
-                )}
-                {hasLink && (
-                  <span
-                    className="inline-flex items-center rounded-pill bg-bg-subtle px-1.5 py-0.5 text-ink-subtle"
-                    aria-label={t("aria.hasLink")}
-                    title={t("aria.hasLink")}
-                  >
-                    <LinkIcon aria-hidden size={12} />
                   </span>
                 )}
                 {docCount > 0 && (
@@ -283,77 +175,80 @@ export default function NapadCard({ task, categories }: Props) {
               </div>
               )}
             </div>
-            {/* Attachments hint via paperclip when one or both present */}
-            {task.type !== "dokumentace" && (hasImage || hasLink) && (
-              <Paperclip aria-hidden size={14} className="mt-1 shrink-0 text-ink-subtle" />
-            )}
-            {assignee && (
-              <AvatarCircle
-                uid={assignee.uid}
-                displayName={assignee.displayName}
-                email={assignee.email}
-                size="sm"
-                className="mt-0.5"
-              />
-            )}
-            {canExpand && (
-              <button
-                type="button"
-                aria-expanded={expanded}
-                aria-controls={panelId}
-                aria-busy={loading}
-                disabled={loading}
-                aria-label={expanded ? t("card.collapseVystup") : t("card.expandVystup")}
-                title={expanded ? t("card.collapseVystup") : t("card.expandVystup")}
-                onClick={handleToggleVystup}
-                onPointerEnter={preloadEditor}
-                onFocus={preloadEditor}
-                className="shrink-0 -mr-1 grid size-8 place-items-center rounded-md text-ink-subtle hover:text-ink hover:bg-bg-subtle disabled:cursor-wait transition-colors"
-              >
-                {loading ? (
-                  <Loader2
-                    aria-hidden
-                    size={18}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <ChevronDown
-                    aria-hidden
-                    size={18}
-                    className={`transition-transform duration-fast ${expanded ? "rotate-180" : ""}`}
-                  />
-                )}
-              </button>
-            )}
+            {/* Right side: attachment indicators + assignee (not for dokumentace) */}
+            <div className="flex shrink-0 items-center gap-1.5 mt-1">
+              {task.type !== "dokumentace" && hasImage && (
+                <span title={t("aria.hasImage")}><ImageIcon aria-hidden size={14} className="text-ink-subtle" /></span>
+              )}
+              {task.type !== "dokumentace" && hasLink && (
+                <span title={t("aria.hasLink")}><LinkIcon aria-hidden size={14} className="text-ink-subtle" /></span>
+              )}
+              {task.type !== "dokumentace" && (hasImage || hasLink) && (
+                <Paperclip aria-hidden size={14} className="text-ink-subtle" />
+              )}
+              {assignee && (
+                <AvatarCircle
+                  uid={assignee.uid}
+                  displayName={assignee.displayName}
+                  email={assignee.email}
+                  size="sm"
+                />
+              )}
+            </div>
           </div>
         </article>
       </Link>
 
-      {canExpand && EditorComp && (
-        // V14.13/15 — grid-rows animation for smooth reveal. Panel mounts
-        // only once the editor chunk has loaded, so there's no loading
-        // fallback inside the sliding area. On first open we mount with
-        // grid-rows-[0fr] then flip to [1fr] on the next frame so the
-        // transition kicks in.
-        <div
-          id={panelId}
-          aria-hidden={!expanded}
-          className={`grid transition-[grid-template-rows] duration-300 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-        >
-          <div className="overflow-hidden">
-            <div
-              className={`border-t border-line px-4 py-3 transition-opacity duration-300 ease-out ${expanded ? "opacity-100" : "opacity-0"}`}
-            >
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                {t("detail.vystupLabel")}
-              </p>
-              <EditorComp
-                value={task.vystup ?? ""}
-                onChange={() => {}}
-                disabled
-                frameless
-                ariaLabel={t("detail.vystupLabel")}
-              />
+      {/* V23 — expandable linked otázky/úkoly panel */}
+      {linkedTasks.length > 0 && (
+        <div className="border-t border-line">
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded((v) => !v); }}
+            className="flex w-full items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+            aria-expanded={expanded}
+          >
+            <ChevronRight
+              aria-hidden
+              size={11}
+              className={`shrink-0 transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+            />
+            <span>
+              {linkedTasks.length === 1
+                ? t("card.linkedOne")
+                : t("card.linkedCount", { n: linkedTasks.length })}
+            </span>
+          </button>
+          <div
+            className="grid transition-[grid-template-rows] duration-200"
+            style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+          >
+            <div className="overflow-hidden">
+              <ul className="flex flex-col gap-1 px-4 pb-2">
+                {linkedTasks.map((lt) => {
+                  const ltTitle = lt.title?.trim() || lt.body?.split("\n")[0]?.trim().slice(0, 60) || t("detail.noTitle");
+                  const LtIcon = lt.type === "ukol" ? Target : HelpCircle;
+                  const ltStatus = mapLegacyOtazkaStatus(lt.status);
+                  const ltColors = statusColors(ltStatus);
+                  return (
+                    <li key={lt.id}>
+                      <Link
+                        to={taskDetail(lt.id)}
+                        className="flex items-center gap-1.5 rounded px-1 py-0.5 text-xs text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span
+                          className="inline-block size-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: ltColors.dot }}
+                          aria-hidden
+                        />
+                        <LtIcon aria-hidden size={12} style={{ color: TYPE_COLORS[lt.type] }} className="shrink-0" />
+                        <span className="truncate">{ltTitle}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </div>
         </div>

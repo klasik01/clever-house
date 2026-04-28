@@ -8,7 +8,7 @@ import { convertNapadToOtazka, convertNapadToUkol, createTask, deleteTask, updat
 import { newId } from "@/lib/id";
 import { TYPE_COLORS } from "@/lib/typeColors";
 import { useUserRole } from "@/hooks/useUserRole";
-import { canEditTask } from "@/lib/permissions";
+import { canEditTask, canViewTask } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPickerInline from "@/components/LocationPickerInline";
@@ -792,6 +792,30 @@ export default function TaskDetail() {
   }
 
   const task = state.task;
+
+  // V23 — visibility gate: block direct URL access for unauthorized users.
+  const currentUserRole = roleState.status === "ready" ? roleState.profile.role : null;
+  const hasViewAccess = canViewTask({
+    task,
+    currentUserUid: user?.uid,
+    currentUserRole,
+  });
+
+  if (roleState.status === "ready" && !hasViewAccess) {
+    return (
+      <div className="mx-auto max-w-xl px-4 pt-16 text-center">
+        <p className="text-base font-medium text-ink">{t("detail.noAccess")}</p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover"
+        >
+          {t("detail.back")}
+        </button>
+      </div>
+    );
+  }
+
   // V17.1/V17.2/V17.8 — canEdit je pure helper. Předem resolvujeme
   //   authorRole přes user lookup (self-healing pro legacy tasky před
   //   V17.1 deploy, které nemají field). Rules dělají authoritative check
@@ -804,10 +828,12 @@ export default function TaskDetail() {
     task,
     taskAuthorRole,
     currentUserUid: user?.uid,
-    currentUserRole: roleState.status === "ready" ? roleState.profile.role : null,
+    currentUserRole,
   });
   const isReadOnly = !canEdit;
   isReadOnlyRef.current = isReadOnly;
+  // V23 — delete is author-only, even for cross-OWNER edit.
+  const canDelete = user?.uid === task.createdBy;
   const { icon: TypeIcon, labelKey: typeLabelKey } = TYPE_META[task.type];
   const typeLabel = t(typeLabelKey);
   // V14 — both otázka and úkol use the same rich meta layout (deadline,
@@ -872,7 +898,7 @@ export default function TaskDetail() {
         onBack={() => navigate(-1)}
         typeIcon={<TypeIcon aria-hidden size={18} style={{ color: TYPE_COLORS[task.type] }} />}
         typeLabel={typeLabel}
-        onDelete={isReadOnly ? undefined : handleDelete}
+        onDelete={canDelete ? handleDelete : undefined}
       />
 
       {!isReadOnly && (
@@ -1356,6 +1382,7 @@ export default function TaskDetail() {
               {task.linkedDocIds!.map((docId) => {
                 const linkedDoc = allTasks.find((x) => x.id === docId);
                 if (!linkedDoc) return null;
+                if (!canViewTask({ task: linkedDoc, currentUserUid: user?.uid, currentUserRole })) return null;
                 return (
                   <li key={docId}>
                     <SwipeReveal
@@ -1417,7 +1444,7 @@ export default function TaskDetail() {
           {docPickerOpen && (
             <Suspense fallback={null}>
               <DocumentPickerModal
-                documents={allTasks.filter((x) => x.type === "dokumentace")}
+                documents={allTasks.filter((x) => x.type === "dokumentace" && canViewTask({ task: x, currentUserUid: user?.uid, currentUserRole }))}
                 alreadyLinked={task.linkedDocIds ?? []}
                 onConfirm={handleLinkDocsConfirm}
                 onClose={() => setDocPickerOpen(false)}
@@ -1433,7 +1460,8 @@ export default function TaskDetail() {
         // falls into the otázka bucket to stay visible.
         const resolved = (task.linkedTaskIds ?? [])
           .map((lid) => ({ lid, ot: allTasks.find((x) => x.id === lid) }))
-          .filter((x) => x.ot);
+          .filter((x) => x.ot)
+          .filter((x) => canViewTask({ task: x.ot!, currentUserUid: user?.uid, currentUserRole }));
         const otazkaLinks = resolved.filter(({ ot }) => ot?.type !== "ukol");
         const ukolLinks = resolved.filter(({ ot }) => ot?.type === "ukol");
         return (
@@ -1462,6 +1490,7 @@ export default function TaskDetail() {
 
       {(task.type === "otazka" || task.type === "ukol") && task.linkedTaskId && (() => {
         const parent = allTasks.find((x) => x.id === task.linkedTaskId);
+        if (parent && !canViewTask({ task: parent, currentUserUid: user?.uid, currentUserRole })) return null;
         const parentTitle =
           parent?.title?.trim() ||
           parent?.body?.split("\n")[0]?.trim().slice(0, 80) ||

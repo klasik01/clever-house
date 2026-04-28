@@ -5,7 +5,7 @@ import SearchInput from "@/components/SearchInput";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { applySearch } from "@/lib/search";
 import { filterKey } from "@/lib/storageKeys";
@@ -24,7 +24,7 @@ const KEY = "dokumentace";
 export default function Dokumentace() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
   const [categoryId, setCategoryId] = useState<string | null>(() => loadCategoryFilter(KEY));

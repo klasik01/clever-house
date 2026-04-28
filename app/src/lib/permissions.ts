@@ -64,3 +64,36 @@ export function canEditEvent(input: CanEditEventInput): boolean {
     resourceAuthorRole: input.event.authorRole,
   });
 }
+
+/**
+ * V23 — klientský visibility gate.
+ *
+ * OWNER vidí vždy vše.
+ * PM vidí task jen pokud:
+ *   - je v sharedWithRoles ("PROJECT_MANAGER"),
+ *   - nebo je autorem,
+ *   - nebo je assignee.
+ *
+ * Pure funkce, Firestore rules stále povolují read všem signed-in
+ * (V15.2), toto je čistě UX filtr na klientu.
+ */
+export interface CanViewInput {
+  task: Pick<Task, "createdBy" | "assigneeUid" | "sharedWithRoles">;
+  currentUserUid: string | null | undefined;
+  currentUserRole: UserRole | null | undefined;
+}
+
+export function canViewTask(input: CanViewInput): boolean {
+  const { task, currentUserUid, currentUserRole } = input;
+  // Unauthenticated — no access.
+  if (!currentUserUid || !currentUserRole) return false;
+  // OWNER sees everything.
+  if (currentUserRole === "OWNER") return true;
+  // Author always sees their own tasks.
+  if (task.createdBy === currentUserUid) return true;
+  // Assignee always sees their assigned tasks.
+  if (task.assigneeUid === currentUserUid) return true;
+  // PM sees tasks shared with their role.
+  const roles = task.sharedWithRoles ?? [];
+  return roles.includes(currentUserRole);
+}

@@ -60,7 +60,9 @@
     "delete": "Smazat",
     "confirmDelete": "Smazat toto téma?",
     "expandVystup": "Zobrazit výstup",
-    "collapseVystup": "Skrýt výstup"
+    "collapseVystup": "Skrýt výstup",
+    "linkedOne": "1 propojený záznam",
+    "linkedCount": "{n} propojené záznamy"
   },
   "auth": {
     "title": "Přihlášení",
@@ -229,7 +231,8 @@
     "vystupShow": "Zobrazit výstup",
     "vystupHide": "Skrýt výstup",
     "vystupEmptyHint": "(zatím prázdný)",
-    "vystupFilledHint": "(vyplněno)"
+    "vystupFilledHint": "(vyplněno)",
+    "noAccess": "K tomuto záznamu nemáte přístup"
   },
   "editor": {
     "toolbar": "Formátování",

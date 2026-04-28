@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Calendar, FileText, Notebook, Ellipsis, ListChecks } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
@@ -88,7 +88,7 @@ function Header() {
 function BottomTabs() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks } = useTasks(Boolean(user));
+  const { tasks } = useVisibleTasks(Boolean(user));
   // V10 — ball-on-me is assignee-driven across all roles. The badge counts
   // every OPEN úkol where assigneeUid points at the current viewer.
   const ballOnMe = tasks.filter((tk) => isBallOnMeV10(tk, user?.uid)).length;

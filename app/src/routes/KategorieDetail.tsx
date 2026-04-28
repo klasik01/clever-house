@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, HelpCircle, Notebook, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import TaskList from "@/components/TaskList";
 import { useT } from "@/i18n/useT";
@@ -20,7 +20,7 @@ export default function KategorieDetail() {
   const t = useT();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, allTasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
   const [tab, setTab] = useState<TabId>("napady");
 
@@ -100,6 +100,7 @@ export default function KategorieDetail() {
       >
         <TaskList
           tasks={tabTasks}
+          allTasks={allTasks}
           categories={categories}
           loading={loading}
           error={error}

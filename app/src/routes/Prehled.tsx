@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Clock, Hourglass, UserCheck } from "lucide
 import TaskList from "@/components/TaskList";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { computePrehledGroups, isM2Ok, type PrehledFilterId } from "@/lib/prehled";
 
@@ -17,7 +17,7 @@ import { computePrehledGroups, isM2Ok, type PrehledFilterId } from "@/lib/prehle
 export default function Prehled() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, allTasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
   const [params, setParams] = useSearchParams();
   const active = (params.get("filter") as PrehledFilterId | null) ?? "waiting-me";
@@ -148,6 +148,7 @@ export default function Prehled() {
       >
         <TaskList
           tasks={groups[active]}
+          allTasks={allTasks}
           categories={categories}
           loading={loading}
           error={error}

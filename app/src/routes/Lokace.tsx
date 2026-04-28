@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { MapPin, Tag } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { locationsByGroup } from "@/lib/locations";
 import { useLocations } from "@/hooks/useLocations";
@@ -20,7 +20,7 @@ type HomeView = "lokace" | "kategorie";
 export default function Lokace() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
   const { locations } = useLocations(Boolean(user));
   const [params, setParams] = useSearchParams();

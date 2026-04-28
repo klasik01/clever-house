@@ -7,7 +7,7 @@ import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { applySearch } from "@/lib/search";
 import { filterKey } from "@/lib/storageKeys";
@@ -33,7 +33,7 @@ const KEY = "napady";
 export default function Zaznamy() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading, error } = useTasks(Boolean(user));
+  const { tasks, allTasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
   const [filter, setFilter] = useState<OpenClosedFilter>(() => loadFilter(KEY));
@@ -132,6 +132,7 @@ export default function Zaznamy() {
       <div className="mt-3">
         <TaskList
           tasks={visible}
+          allTasks={allTasks}
           categories={categories}
           loading={loading}
           error={error}

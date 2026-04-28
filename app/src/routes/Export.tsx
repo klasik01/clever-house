@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Download, FileText, Share2 } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { useTasks } from "@/hooks/useTasks";
+import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
@@ -17,7 +17,7 @@ type Preset = "open" | "allOpen" | "custom";
 export default function Export() {
   const t = useT();
   const { user } = useAuth();
-  const { tasks, loading } = useTasks(Boolean(user));
+  const { tasks, loading } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
   const [preset, setPreset] = useState<Preset>("open");
   const [categoryId, setCategoryId] = useState<string | null>(null);

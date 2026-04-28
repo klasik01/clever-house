@@ -7,6 +7,8 @@ export type GroupBy = "flat" | "lokace" | "kategorie";
 
 interface Props {
   tasks: Task[];
+  /** Full unfiltered task pool for linked task resolution. */
+  allTasks?: Task[];
   categories: Category[];
   groupBy: GroupBy;
   loading: boolean;
@@ -30,6 +32,7 @@ interface Props {
  */
 export default function TaskGroupedView({
   tasks,
+  allTasks,
   categories,
   groupBy,
   loading,
@@ -45,6 +48,7 @@ export default function TaskGroupedView({
     return (
       <TaskList
         tasks={tasks}
+        allTasks={allTasks ?? tasks}
         categories={categories}
         loading={loading}
         error={error}
@@ -61,6 +65,7 @@ export default function TaskGroupedView({
     return (
       <TaskList
         tasks={[]}
+        allTasks={allTasks}
         categories={categories}
         loading={loading}
         error={error}
@@ -178,6 +183,7 @@ export default function TaskGroupedView({
             </h3>
             <TaskList
               tasks={noCat}
+              allTasks={allTasks ?? tasks}
               categories={categories}
               loading={false}
               error={null}

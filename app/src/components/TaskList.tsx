@@ -1,10 +1,13 @@
-import type { Category, Task } from "@/types";
+import type { Task } from "@/types";
 import NapadCard from "./NapadCard";
 import { useT } from "@/i18n/useT";
 
 interface Props {
   tasks: Task[];
-  categories?: Category[];
+  /** @deprecated No longer rendered in card, kept for API compat. */
+  categories?: unknown;
+  /** Full unfiltered task pool — used by NapadCard to resolve linkedTaskIds across types. */
+  allTasks?: Task[];
   loading: boolean;
   error: Error | null;
   emptyTitle: string;
@@ -15,7 +18,7 @@ interface Props {
 
 export default function TaskList({
   tasks,
-  categories,
+  allTasks,
   loading,
   error,
   emptyTitle,
@@ -40,7 +43,7 @@ export default function TaskList({
     <ul aria-label={ariaLabel} className="flex flex-col gap-2">
       {tasks.map((task) => (
         <li key={task.id}>
-          <NapadCard task={task} categories={categories} />
+          <NapadCard task={task} allTasks={allTasks ?? tasks} />
         </li>
       ))}
     </ul>
