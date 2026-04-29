@@ -33,7 +33,7 @@ service cloud.firestore {
     // abused to flip status/assignee without actually writing a comment.
     function isCommentSideEffect() {
       return request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['commentCount', 'updatedAt', 'status', 'assigneeUid'])
+               .hasOnly(['commentCount', 'updatedAt', 'status', 'assigneeUid', 'participantUids'])
              && request.resource.data.diff(resource.data).affectedKeys()
                .hasAny(['commentCount']);
     }
@@ -65,45 +65,14 @@ service cloud.firestore {
         && resource.data.authorRole == 'CONSTRUCTION_MANAGER';
     }
 
-    // V24 — read scope helper pro CM. Volá se s task daty (resource.data nebo
-    //   get().data). Vrací true jen pokud CM smí číst daný task.
-    //
-    //   Pravidla:
-    //     - napad: NIKDY (rodinný brainstorming OWNER+manželka, NDA hranice)
-    //     - otazka/ukol: jen pokud je CM assignee, creator, nebo task patří
-    //       do CM teamu (authorRole snapshot CM nebo assignee má CM rolu)
-    //     - dokumentace: jen pokud sharedWithRoles obsahuje CM
-    //
-    //   Note: get() na users/{assigneeUid} je placený read per evaluation.
-    //   Pro náš dataset (~100 tasků, ~5 useři) cena akceptovatelná. Pokud
-    //   v budoucnu bottleneck → snapshot assigneeRole na task při assignment.
-    function canReadTaskByCm(t) {
-      return (
-        // otazka/ukol: vlastní + cross-CM team
-        t.type in ['otazka', 'ukol']
-        && (
-          t.assigneeUid == request.auth.uid
-          || t.createdBy == request.auth.uid
-          || (t.get('authorRole', '') == 'CONSTRUCTION_MANAGER')
-          || (
-            t.get('assigneeUid', null) != null
-            && get(/databases/$(database)/documents/users/$(t.assigneeUid)).data.role == 'CONSTRUCTION_MANAGER'
-          )
-        )
-      ) || (
-        // dokumentace: jen pokud explicitně sdíleno s CM rolu
-        t.type == 'dokumentace'
-        && t.get('sharedWithRoles', []) is list
-        && 'CONSTRUCTION_MANAGER' in t.get('sharedWithRoles', [])
-      );
-    }
-
-    // V24 — sjednocený read gate pro tasks. OWNER + PM mají plný přístup,
-    //   CM má scoped přístup přes canReadTaskByCm.
-    function canReadTask(t) {
-      return isOwner() || isProjectManager()
-        || (isConstructionManager() && canReadTaskByCm(t));
-    }
+    // V24 — read scope helpery (canReadTaskByCm + canReadTask) odstraněny
+    //   v S20 hotfix. tasks/read je permissive (isSignedIn) + klientský
+    //   `canViewTask` filter v useVisibleTasks. Server-side strict gate by
+    //   se musel napsat jako per-doc check, ale Firestore rules engine pak
+    //   zakazuje "request.auth.uid" v helper funkcích bez explicit request
+    //   parametru a `get()` kvůli možné rekurzi. Pokud někdy strict potřeba,
+    //   inline check do allow read clause + sníží to čitelnost.
+    //   Reference: `.design/stavbyvedouci-role/DESIGN_REVIEW.md` § Pending hardening.
 
     // ------ Users ------
     // V3: any authenticated user can list users (for mention autocomplete + assignee dropdown).

@@ -18,6 +18,9 @@ interface Props {
   currentUid?: string;               // for reaction active state
   /** V4 — resolve a uid to a display name (for "Přehozeno na …" badge). */
   resolveName?: (uid: string) => string;
+  /** V25-fix — full byUid mapa (UserProfile lookup). Použito pro chip render
+   *  při novém `@Name` formátu (kde uid není v body). */
+  byUid?: Map<string, UserProfile>;
   onEdit?: (body: string) => Promise<void>;
   onDelete?: () => Promise<void>;
   onToggleReaction?: (emoji: string) => Promise<void>;
@@ -39,6 +42,7 @@ export default function CommentItem({
   isTaskOwner,
   currentUid,
   resolveName,
+  byUid,
   onEdit,
   onDelete,
   onToggleReaction,
@@ -183,7 +187,7 @@ export default function CommentItem({
           </div>
         ) : (
           <p className="mt-2.5 pb-0.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-ink">
-            {splitBodyByMentions(comment.body).map((part, i) =>
+            {splitBodyByMentions(comment.body, comment.mentionedUids, byUid).map((part, i) =>
               part.kind === "text" ? (
                 <span key={i}>{part.text}</span>
               ) : (

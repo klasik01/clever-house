@@ -6,6 +6,7 @@ import {
   where,
   onSnapshot,
   addDoc,
+  arrayUnion,
   deleteDoc,
   doc,
   getDoc,
@@ -193,6 +194,11 @@ export async function createTask(
   const isActionable = data.type === "otazka" || data.type === "ukol";
   const defaultAssignee =
     isActionable && authorRole === "OWNER" ? uid : null;
+  // V25-fix — seed participantUids: autor + (případný) výchozí assignee.
+  //   Dedup přes Set kvůli edge case kdy je autor sám assignee (V17.2 OWNER).
+  const initialParticipants = Array.from(
+    new Set([uid, ...(defaultAssignee ? [defaultAssignee] : [])]),
+  );
   const payload: Record<string, unknown> = {
     ...data,
     assigneeUid: defaultAssignee,
@@ -210,6 +216,8 @@ export async function createTask(
     createdBy: uid,
     // V17.1 — snapshot role autora pro cross-OWNER edit rule.
     authorRole,
+    // V25-fix — historie účastníků (visibility scope).
+    participantUids: initialParticipants,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -232,6 +240,15 @@ export async function updateTask(
     Object.entries(patch).filter(([, v]) => v !== undefined),
   );
   if (Object.keys(clean).length === 0) return;
+  // V25-fix — pokud se mění assigneeUid, přidej nového do participantUids.
+  //   Dedup přes Firestore arrayUnion. Legacy/empty → null nepřidáme.
+  if (
+    "assigneeUid" in clean
+    && typeof clean.assigneeUid === "string"
+    && clean.assigneeUid.length > 0
+  ) {
+    (clean as Record<string, unknown>).participantUids = arrayUnion(clean.assigneeUid);
+  }
   await updateDoc(doc(db, TASKS, id), {
     ...clean,
     updatedAt: serverTimestamp(),
@@ -295,6 +312,14 @@ function fromDocSnap(d: DocumentSnapshot): Task {
       || data.authorRole === "CONSTRUCTION_MANAGER"
         ? data.authorRole
         : undefined,
+    // V25-fix — participation history. Defensive filter na string[] (Firestore
+    //   může vrátit cokoli). Legacy dokumenty bez pole → undefined; canViewTask
+    //   používá fallback na createdBy/assigneeUid/authorRole.
+    participantUids: Array.isArray(data.participantUids)
+      ? data.participantUids.filter(
+          (x): x is string => typeof x === "string" && x.length > 0,
+        )
+      : undefined,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
   };

@@ -708,3 +708,206 @@ describe("canFlipAssignee — V24", () => {
     ).toBe(false);
   });
 });
+
+
+// ---------- V25-fix — participantUids visibility ----------
+
+import { isReadOnlyParticipant } from "./permissions";
+
+describe("canViewTask — V25-fix participantUids", () => {
+  it("CM-A flipnul assignee na OWNER → CM-A je v participantUids → vidí dál", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner-1",
+          assigneeUid: "owner-1", // flipnut zpět z cm-a
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "cm-a"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM @označen v komentu na úkol, který nikdy neměl jako assignee → vidí read-only", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner-1",
+          assigneeUid: "pm-1",
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "pm-1", "cm-a"], // CM mention added
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM bez participation → nevidí cizí úkol", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner-1",
+          assigneeUid: "pm-1",
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "pm-1"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM mention na napad → STÁLE NESMÍ vidět (NDA hard rule, V24 boundary)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "napad",
+          createdBy: "owner-1",
+          assigneeUid: null,
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "cm-a"], // mention nepomáhá pro napad
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM mention na dokumentaci bez sharedWithRoles → nevidí (hard role-share)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "dokumentace",
+          createdBy: "owner-1",
+          assigneeUid: null,
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "cm-a"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("PM v participantUids vidí task, i kdyby nebyl assignee/autor", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner-1",
+          assigneeUid: "owner-1",
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "pm-1"], // PM byl mentioned
+        },
+        currentUserUid: "pm-1",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("Legacy task bez participantUids → fallback na createdBy/assignee/cross-team", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "cm-a",
+          assigneeUid: "owner-1",
+          sharedWithRoles: [],
+          authorRole: "CONSTRUCTION_MANAGER",
+          participantUids: undefined, // legacy doc
+        },
+        currentUserUid: "cm-b",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true); // cross-CM team via authorRole
+  });
+});
+
+describe("isReadOnlyParticipant — V25-fix", () => {
+  it("Mention-only CM → true (read-only mention mode)", () => {
+    expect(
+      isReadOnlyParticipant({
+        task: {
+          createdBy: "owner-1",
+          assigneeUid: "pm-1",
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "pm-1", "cm-a"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("Aktuální assignee → ne read-only (má edit přes assignee path)", () => {
+    expect(
+      isReadOnlyParticipant({
+        task: {
+          createdBy: "owner-1",
+          assigneeUid: "cm-a",
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "cm-a"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("Autor → ne read-only", () => {
+    expect(
+      isReadOnlyParticipant({
+        task: {
+          createdBy: "cm-a",
+          assigneeUid: "owner-1",
+          authorRole: "CONSTRUCTION_MANAGER",
+          participantUids: ["cm-a", "owner-1"],
+        },
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("Cross-CM team na CM-vytvořeném tasku → ne read-only (má cross-team edit)", () => {
+    expect(
+      isReadOnlyParticipant({
+        task: {
+          createdBy: "cm-a",
+          assigneeUid: "owner-1",
+          authorRole: "CONSTRUCTION_MANAGER",
+          participantUids: ["cm-a", "owner-1", "cm-b"],
+        },
+        currentUserUid: "cm-b",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("Někdo, kdo není v participantUids → ne read-only (žádná visibility k tasku vůbec)", () => {
+    expect(
+      isReadOnlyParticipant({
+        task: {
+          createdBy: "owner-1",
+          assigneeUid: "pm-1",
+          authorRole: "OWNER",
+          participantUids: ["owner-1", "pm-1"],
+        },
+        currentUserUid: "cm-stranger",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+});

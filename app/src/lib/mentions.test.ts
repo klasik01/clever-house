@@ -89,13 +89,15 @@ describe("insertMention", () => {
     const body = "hi @kl";
     const q = { start: 3, end: 6 };
     const { body: next, cursor } = insertMention(body, q, u("u-1", "Klasik"));
-    expect(next).toBe("hi @[Klasik](u-1) ");
+    // V25-fix — clean storage `@Name ` (uid se neposílá v body, jen v
+    //   `mentionedUids` field na komentu).
+    expect(next).toBe("hi @Klasik ");
     expect(cursor).toBe(next.length);
   });
 
   it("falls back to email local part when displayName is blank", () => {
     const { body } = insertMention("@", { start: 0, end: 1 }, u("u-2", "", "alice@x.com"));
-    expect(body).toBe("@[alice](u-2) ");
+    expect(body).toBe("@alice ");
   });
 
   it("final fallback \"user\" when both name + email are empty", () => {
@@ -104,7 +106,7 @@ describe("insertMention", () => {
       { start: 0, end: 1 },
       { uid: "u-3", email: "", role: "OWNER", displayName: null },
     );
-    expect(body).toBe("@[user](u-3) ");
+    expect(body).toBe("@user ");
   });
 });
 

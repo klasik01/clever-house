@@ -196,6 +196,22 @@ export interface Task {
    *  PM-created task jen sám autor-PM. Legacy tasky bez tohoto pole fallback
    *  na "OWNER" (historicky v drtivé většině PM-created tasků neexistovalo). */
   authorRole?: UserRole;
+  /** V25-fix — historický seznam uživatelů, kteří se nějak dotkli tasku:
+   *  autor, kdokoli kdy byl assignee, autor každého komentáře, mention
+   *  v komentáři. Účel: CM (a obecně všichni s read scope přes participaci)
+   *  vidí tasky i poté, co předají assignee jinam. Bez tohoto pole CM
+   *  ztratil přístup k tasku, který odeslal zpět OWNER, což rozbilo
+   *  follow-up flow.
+   *
+   *  Maintenance:
+   *   - createTask: [createdBy, assigneeUid?]
+   *   - updateTask (assignee change): arrayUnion(newAssignee)
+   *   - createComment: arrayUnion(authorUid, ...mentionedUids, assigneeAfter?)
+   *
+   *  Legacy tasky bez tohoto pole — `canViewTask` fallback na createdBy/
+   *  assignee/authorRole. Migrační skript backfilluje retroaktivně.
+   */
+  participantUids?: string[];
 }
 
 /**

@@ -52,6 +52,8 @@ export interface TaskDoc {
   /** V19 — role-based sharing (replaces legacy sharedWithPm boolean).
    *  V24 — CONSTRUCTION_MANAGER joined the union for stavbyvedoucí share. */
   sharedWithRoles?: ("OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER")[];
+  /** V25-fix — participation history (creator + ever-assignees + comment authors + mentions). */
+  participantUids?: string[];
   status?: string;
   /** V16.4 — P1/P2/P3. Null = nenastaveno. */
   priority?: "P1" | "P2" | "P3" | null;

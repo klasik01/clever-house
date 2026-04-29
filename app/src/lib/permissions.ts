@@ -142,7 +142,15 @@ export function canEditEvent(input: CanEditEventInput): boolean {
  * (V15.2), toto je čistě UX filtr na klientu.
  */
 export interface CanViewInput {
-  task: Pick<Task, "type" | "createdBy" | "assigneeUid" | "sharedWithRoles" | "authorRole">;
+  task: Pick<
+    Task,
+    | "type"
+    | "createdBy"
+    | "assigneeUid"
+    | "sharedWithRoles"
+    | "authorRole"
+    | "participantUids"
+  >;
   currentUserUid: string | null | undefined;
   currentUserRole: UserRole | null | undefined;
 }
@@ -172,6 +180,13 @@ export function canViewTask(input: CanViewInput): boolean {
   // OWNER sees everything.
   if (currentUserRole === "OWNER") return true;
 
+  // V25-fix — participation history má přednost před legacy gates pro
+  //   actionable types. CM/PM, kteří byli kdy v tasku interesováni
+  //   (assignee, autor, mention, komentář) si zachovají read access
+  //   i poté, co byli z assigneeUid odlinkováni.
+  const participants = task.participantUids ?? [];
+  const isHistoricalParticipant = participants.includes(currentUserUid);
+
   // V24 — CM má scoped access.
   if (currentUserRole === "CONSTRUCTION_MANAGER") {
     // CM nikdy nevidí napad (rodinný brainstorming).
@@ -180,23 +195,58 @@ export function canViewTask(input: CanViewInput): boolean {
       const roles = task.sharedWithRoles ?? [];
       return roles.includes("CONSTRUCTION_MANAGER");
     }
-    // otazka / ukol — vlastní nebo cross-CM team scope.
+    // otazka / ukol — participation history (V25-fix), vlastní, cross-CM team.
+    if (isHistoricalParticipant) return true;
     if (task.createdBy === currentUserUid) return true;
     if (task.assigneeUid === currentUserUid) return true;
     if (task.authorRole === "CONSTRUCTION_MANAGER") return true;
-    // Cross-CM via assignee role NENÍ pokrytý klientským filtrem (vyžadovalo
-    //   by useUsers lookup s CM uids); server rules ho povolují, klient
-    //   ho v listingu nezobrazí. CM-B uvidí "OWNER → CM-A" task přes
-    //   mention/comment notifikaci, deep-link do TaskDetailu projde
-    //   přes single-doc subscription.
     return false;
   }
 
-  // PROJECT_MANAGER (a fallback pro nové role) — author/assignee/sharedWithRoles.
+  // PROJECT_MANAGER (a fallback pro nové role) — author/assignee/sharedWithRoles
+  // + V25-fix participation history.
+  if (isHistoricalParticipant) return true;
   if (task.createdBy === currentUserUid) return true;
   if (task.assigneeUid === currentUserUid) return true;
   const roles = task.sharedWithRoles ?? [];
   return roles.includes(currentUserRole);
+}
+
+/**
+ * V25-fix — read-only mention mode helper.
+ *
+ * Vrací true, pokud current user vidí task **jen díky participaci**
+ * (mention nebo historický assignee), ale NEMÁ edit. UI použije pro
+ * "read-only banner" + skrytí workflow akcí kromě plain-comment.
+ *
+ * Konkrétně: člověk byl @označen v komentáři, ale není autor, není
+ * assignee a není v cross-team scope. Vidí task v listu, otevře detail,
+ * ale nemůže měnit status/assignee — jen číst a komentovat.
+ */
+export interface IsReadOnlyParticipantInput {
+  task: Pick<Task, "createdBy" | "assigneeUid" | "authorRole" | "participantUids">;
+  currentUserUid: string | null | undefined;
+  currentUserRole: UserRole | null | undefined;
+}
+
+export function isReadOnlyParticipant(
+  input: IsReadOnlyParticipantInput,
+): boolean {
+  const { task, currentUserUid, currentUserRole } = input;
+  if (!currentUserUid || !currentUserRole) return false;
+  // Autor / current assignee / cross-team mají edit, ne read-only.
+  if (task.createdBy === currentUserUid) return false;
+  if (task.assigneeUid === currentUserUid) return false;
+  if (
+    currentUserRole === "OWNER" && task.authorRole === "OWNER"
+  ) return false;
+  if (
+    currentUserRole === "CONSTRUCTION_MANAGER"
+    && task.authorRole === "CONSTRUCTION_MANAGER"
+  ) return false;
+  // Pokud je v participantUids (mention nebo historie), je to read-only
+  //   participant.
+  return (task.participantUids ?? []).includes(currentUserUid);
 }
 
 

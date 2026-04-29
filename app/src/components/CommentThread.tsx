@@ -261,6 +261,7 @@ export default function CommentThread({ task }: Props) {
               <CommentItem
                 comment={c}
                 author={byUid.get(c.authorUid)}
+                byUid={byUid}
                 isAuthor={Boolean(user && user.uid === c.authorUid)}
                 isTaskOwner={c.authorUid === task.createdBy}
                 currentUid={user?.uid}

@@ -1,7 +1,7 @@
 {
   "name": "chytry-dum-na-vsi",
   "private": true,
-  "version": "1.19.8",
+  "version": "1.20.0",
   "engines": {
     "node": ">=24.15.0 <26"
   },

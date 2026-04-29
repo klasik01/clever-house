@@ -91,6 +91,11 @@ export default function CommentComposer({
   const [links, setLinks] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
+  // V25-fix — mentionedUids tracking. Composer pamatuje uidy vybrané z
+  //   pickeru (insertMention již nepřipisuje uid do body, jen `@Name`).
+  //   On submit se pole spojí s legacy `extractMentionedUids(body)` pro
+  //   backward compat (kdyby user přepisoval starší draft s legacy tokeny).
+  const [selectedMentionUids, setSelectedMentionUids] = useState<string[]>([]);
   // V10 — which peer the user is about to send to. Seeded from workflow and
   // updated when they pick someone else from the dropdown.
   const [selectedPeerUid, setSelectedPeerUid] = useState<string | null>(
@@ -187,17 +192,29 @@ export default function CommentComposer({
       // V25 — flip i reopen oba routují k peer (assigneeAfter).
       const targetUid =
         action === "flip" || action === "reopen" ? selectedPeerUid : null;
+      // V25-fix — combine legacy `@[Name](uid)` parser results s nově trackováným
+      //   selectedMentionUids state. Set odstraní duplicity. Filter na uidy,
+      //   které ještě reálně jsou v body — pokud user smazal `@Name` text,
+      //   uid se nepošle (defensive).
+      const legacyUids = extractMentionedUids(trimmed);
+      const mentionedUids = Array.from(
+        new Set([
+          ...legacyUids,
+          ...(trimmed.includes("@") ? selectedMentionUids : []),
+        ]),
+      );
       await onSubmit({
         body: trimmed,
         imageFiles: stagedImages.map((s) => s.file),
         linkUrls: links,
-        mentionedUids: extractMentionedUids(trimmed),
+        mentionedUids,
       }, action, targetUid);
       // Reset
       stagedImages.forEach((s) => URL.revokeObjectURL(s.previewUrl));
       setStagedImages([]);
       setLinks([]);
       setBody("");
+      setSelectedMentionUids([]);
       setError(null);
       if (textareaRef.current) autoResize(textareaRef.current);
     } catch (e) {
@@ -249,6 +266,8 @@ export default function CommentComposer({
           const { body: nextBody, cursor: nextCursor } = insertMention(body, activeQuery, u);
           setBody(nextBody);
           setCursor(nextCursor);
+          // V25-fix — track uid for clean storage (body má jen `@Name`).
+          setSelectedMentionUids((prev) => Array.from(new Set([...prev, u.uid])));
           // Restore focus + caret in next tick
           requestAnimationFrame(() => {
             const el = textareaRef.current;

@@ -180,6 +180,14 @@ export function increment(n: number): unknown {
   return { __sentinel: "increment", by: n };
 }
 
+export function arrayUnion(...values: unknown[]): unknown {
+  return { __sentinel: "arrayUnion", values };
+}
+
+export function arrayRemove(...values: unknown[]): unknown {
+  return { __sentinel: "arrayRemove", values };
+}
+
 export class Timestamp {
   constructor(public seconds: number, public nanoseconds: number) {}
   toDate(): Date {

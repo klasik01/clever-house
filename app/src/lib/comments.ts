@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   increment,
@@ -106,9 +107,23 @@ export async function createComment(
     assigneeAfter,
     priorAssigneeUid: input.priorAssigneeUid ?? null,
   });
+  // V25-fix — collect participants to add: comment author + @mentions + nový assignee
+  //   (pokud flip/reopen). Stávající assignee už v participantUids je z create
+  //   nebo dřívější interakce, takže ho nepřidáváme znovu (stejně by arrayUnion
+  //   dedupl).
+  const participantsToAdd = Array.from(
+    new Set(
+      [
+        input.authorUid,
+        ...(input.mentionedUids ?? []),
+        ...(wf?.assigneeAfter ? [wf.assigneeAfter] : []),
+      ].filter((x): x is string => typeof x === "string" && x.length > 0),
+    ),
+  );
   const taskPatch: Record<string, unknown> = {
     commentCount: increment(1),
     updatedAt: serverTimestamp(),
+    participantUids: arrayUnion(...participantsToAdd),
   };
   if (wf) {
     // V25 — status změna podle akce:
