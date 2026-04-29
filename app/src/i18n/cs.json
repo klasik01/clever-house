@@ -17,7 +17,8 @@
     "ukoly": "Úkoly",
     "rozpocet": "Rozpočet",
     "harmonogram": "Harmonogram",
-    "dokumentace": "Dokumentace"
+    "dokumentace": "Dokumentace",
+    "events": "Události"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",

@@ -39,7 +39,13 @@ export default function Shell({ children }: Props) {
 function Header() {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
   const eventsActionCount = useEventsActionCount(user?.uid);
+  // V24 — pro CM se Calendar ikonka v headeru schová; Události má v bottom
+  // tabech (leftmost). Ostatní role mají Calendar v headeru jako dosud.
+  const isCm =
+    roleState.status === "ready"
+    && roleState.profile.role === "CONSTRUCTION_MANAGER";
   return (
     <header
       className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur pt-safe"
@@ -55,30 +61,32 @@ function Header() {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Link
-            to={ROUTES.events}
-            aria-label={t("events.ariaCalendarLabel")}
-            className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
-          >
-            <Calendar aria-hidden size={20} />
-            {eventsActionCount > 0 && (
-              <span
-                aria-hidden
-                className="absolute top-1 right-1 inline-flex min-w-[1.125rem] items-center justify-center rounded-pill px-1 text-[10px] font-semibold text-white"
-                style={{
-                  background: "var(--color-status-danger-fg)",
-                  lineHeight: "1rem",
-                }}
-              >
-                {eventsActionCount > 99 ? "99+" : eventsActionCount}
+          {!isCm && (
+            <Link
+              to={ROUTES.events}
+              aria-label={t("events.ariaCalendarLabel")}
+              className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+            >
+              <Calendar aria-hidden size={20} />
+              {eventsActionCount > 0 && (
+                <span
+                  aria-hidden
+                  className="absolute top-1 right-1 inline-flex min-w-[1.125rem] items-center justify-center rounded-pill px-1 text-[10px] font-semibold text-white"
+                  style={{
+                    background: "var(--color-status-danger-fg)",
+                    lineHeight: "1rem",
+                  }}
+                >
+                  {eventsActionCount > 99 ? "99+" : eventsActionCount}
+                </span>
+              )}
+              <span className="sr-only">
+                {eventsActionCount > 0
+                  ? t("events.actionsBadgeAria", { n: eventsActionCount })
+                  : ""}
               </span>
-            )}
-            <span className="sr-only">
-              {eventsActionCount > 0
-                ? t("events.actionsBadgeAria", { n: eventsActionCount })
-                : ""}
-            </span>
-          </Link>
+            </Link>
+          )}
           <NotificationBell />
         </div>
       </div>
@@ -91,12 +99,17 @@ function BottomTabs() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
   const { tasks } = useVisibleTasks(Boolean(user));
+  const eventsActionCount = useEventsActionCount(user?.uid);
   // V10 — ball-on-me is assignee-driven across all roles. The badge counts
   // every OPEN úkol where assigneeUid points at the current viewer.
   const ballOnMe = tasks.filter((tk) => isBallOnMeV10(tk, user?.uid)).length;
 
-  // V24 — Stavbyvedoucí (CM) nemá vidět Záznamy (rodinný brainstorming).
-  //   Tab se mu úplně skryje. Ostatní role beze změny.
+  // V24 — Stavbyvedoucí (CM):
+  //   - Záznamy tab skryt (rodinný brainstorming).
+  //   - Události dostává vlastní bottom tab (leftmost), místo Calendar
+  //     ikonky v headeru (která je pro CM skrytá). Důvod: CM má míň tabů
+  //     a Calendar v headeru působil osamoceně; bottom tab je natural.
+  //   Ostatní role beze změny.
   const role = roleState.status === "ready" ? roleState.profile.role : null;
   const isCm = role === "CONSTRUCTION_MANAGER";
 
@@ -107,7 +120,15 @@ function BottomTabs() {
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
         {/* Unified nav: Dokumentace / Záznamy · FAB · Úkoly / Nastavení.
-            V24 — pro CM se Záznamy skrývá. */}
+            V24 — pro CM se Záznamy skrývá a Události se přidá leftmost. */}
+        {isCm && (
+          <Tab
+            to={ROUTES.events}
+            icon={<Calendar aria-hidden size={20} />}
+            label={t("tabs.events")}
+            badge={eventsActionCount}
+          />
+        )}
         <Tab
           to={ROUTES.dokumentace}
           icon={<FileText aria-hidden size={20} />}
