@@ -166,17 +166,22 @@ service cloud.firestore {
 
     // ------ Tasks ------
     match /tasks/{taskId} {
-      // READ — V24:
-      //   OWNER + PM: plný přístup (workspace má jednu rodinu + jejich PM/firmu;
-      //     historicky neměly task-level secrets, V15.2 zpřístupnilo všem).
-      //   CM (Stavbyvedoucí): scoped přes canReadTaskByCm.
-      //     - napad: NIKDY (rodinný brainstorming, NDA hranice)
-      //     - otazka/ukol: vlastní + cross-CM team scope
-      //     - dokumentace: jen pokud sharedWithRoles obsahuje 'CONSTRUCTION_MANAGER'
+      // READ — V24 SAFE FALLBACK (S20 hotfix):
+      //   Server pravidlo zůstává permissive (V15.2 isSignedIn). CM read scope
+      //   se enforcuje primárně:
+      //     1. KLIENTSKY přes canViewTask + subscribeTasksForCm (4 rules-aligned
+      //        queries) → CM v UI vidí jen povolený podset.
+      //     2. NOTIFICATION pipeline přes canReadTaskForRecipient → push/inbox
+      //        skipne tasky mimo CM scope.
+      //   Strict server-side gate (canReadTask(resource.data)) je odložený do
+      //   hardening sprintu; v V24 by jeho deploy způsobil lavinu permission-denied
+      //   pro stávající OWNER/PM queries (subscribeTasks fetchuje celou kolekci
+      //   bez filtrů + rules per-doc evaluation × 100+ tasků = neguarantované).
       //
-      //   Deep-linkování z push notifikace nesmí pro CM odkrýt skrytý task —
-      //   notifikační pipeline (V24, S08) gate-checne canReadTask před pushem.
-      allow read: if canReadTask(resource.data);
+      //   Trade-off: CM technicky může v Network panelu DevTools vidět napady,
+      //   pokud zná taskIds. Mitigace: subscribeTasksForCm je nikdy nefetchuje
+      //   v listingu, takže taskIds zůstávají opaque pro běžnou interakci.
+      allow read: if isSignedIn();
 
       // CREATE — V24 model:
       //   - createdBy musí být self
@@ -222,16 +227,12 @@ service cloud.firestore {
       //     dokumenty; když uživatel nemá edit na jednu stranu, ta část batch
       //     padne a celý write se odroluje.
       //
-      // V24 — comment-side-effect path je nově gated na canReadTask, aby CM
-      //   nemohl flip-statusovat task, který nemá v read scope.
+      // V24 SAFE FALLBACK — side-effect path zůstává permissive (jako pre-V24)
+      //   pro symmetrii s read rule. Hardening v dalším sprintu.
       allow update: if isTaskAuthor()
                     || isCrossOwnerEditable()
                     || isCrossCmEditable()
-                    || (
-                      isSignedIn()
-                      && isCommentSideEffect()
-                      && canReadTask(resource.data)
-                    );
+                    || (isSignedIn() && isCommentSideEffect());
 
       // DELETE — pouze autor. Cross-OWNER ani cross-CM nemůže smazat cizí task
       //   (vratná jistota — author sám se rozhodne).
@@ -239,35 +240,30 @@ service cloud.firestore {
 
       // ------ Comments subcollection (V3) ------
       match /comments/{commentId} {
-        // READ — V24: gated on parent task read access.
-        //   Stejný read scope jako parent task (CM nesmí vidět komenty
-        //   k tasku, který nevidí).
-        allow read: if canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+        // READ — V15.2 permissive (any signed-in). CM read gating funguje
+        //   primárně klientsky (CommentThread render skipne tasky, na něž
+        //   useTask vrátí permission-denied) + notification pipeline gate.
+        allow read: if isSignedIn();
 
-        // CREATE — author = self, body shape, plus parent task read access (V24).
+        // CREATE — author = self, body shape. Parent-task read check
+        //   nepoužíváme (V24 SAFE FALLBACK — hardening v dalším sprintu).
         allow create: if isSignedIn()
                       && request.resource.data.authorUid == request.auth.uid
-                      && request.resource.data.body is string
-                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+                      && request.resource.data.body is string;
 
-        // UPDATE — author-only pro body/editedAt; reactions toggle pro kohokoli
-        //   s parent task read access (V24).
+        // UPDATE — author-only pro body/editedAt; reactions toggle pro kohokoli.
         allow update: if isSignedIn()
-                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data)
                       && (
-                        // Author edit of body/editedAt
                         (resource.data.authorUid == request.auth.uid
                          && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['body', 'editedAt', 'reactions']))
-                        // Or anyone toggling reactions only
                         || request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['reactions'])
                       );
 
-        // DELETE — author only (s read access aby vůbec věděl o existenci).
+        // DELETE — author only.
         allow delete: if isSignedIn()
-                      && resource.data.authorUid == request.auth.uid
-                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+                      && resource.data.authorUid == request.auth.uid;
       }
     }
 

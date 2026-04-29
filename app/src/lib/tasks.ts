@@ -37,28 +37,24 @@ export function subscribeTasks(
 /**
  * V24 — subscribe to tasks for CONSTRUCTION_MANAGER (Stavbyvedoucí).
  *
- * CM má scoped read access (firestore.rules `canReadTaskByCm`). Plain
- * `subscribeTasks` by selhal s permission-denied, protože collection-level
- * query nesplňuje per-doc rule pro tasky mimo CM scope.
+ * ⚠️ S20 HOTFIX: tato funkce je v aktuální verzi NEPOUŽITÁ. useTasks pro
+ *    všechny role používá unified subscribeTasks() s permissive rules
+ *    (V15.2 isSignedIn) + klientský canViewTask filter. Důvod: composite
+ *    indexes vyžadovaly špatnou arrayConfig konfiguraci a deploy build
+ *    time; SAFE FALLBACK rules je dělá redundantní.
  *
- * Řešení: 4 paralelní rules-aligned queries, klient mergeuje a deduplikuje:
- *   1. otazka/ukol kde assigneeUid == me
- *   2. otazka/ukol kde createdBy == me
- *   3. otazka/ukol kde authorRole == "CONSTRUCTION_MANAGER" (cross-CM team)
- *   4. dokumentace kde sharedWithRoles array-contains "CONSTRUCTION_MANAGER"
+ *    Funkce zůstává v repo pro budoucí hardening sprint (server-side
+ *    strict CM gate). Tehdy se aktivuje:
+ *      - správně nakonfigurovaný firestore.indexes.json (single-field
+ *        type ASC, ne array config)
+ *      - dispatch v useTasks podle role
+ *      - tasks/read rule s canReadTaskByCm gate
  *
- * Známé omezení: tasky kde OWNER/PM přiřadil úkol druhému CM (a current
- * user je první CM) tahle subscription neukáže — server rule by je
- * povolila přes `assignee role je CM` clause, ale to vyžaduje 5. query
- * (`where assigneeUid in [cmUids]`) + cache CM uids. V1 nepotřebné, dva
- * CM se domluví přes mentions; přidá se až když fakticky chybí.
+ * 4 rules-aligned queries: assigned, created, cross-CM team, shared docs.
  *
- * Composite indexes potřebné (Firebase Console je vygeneruje na první
- * query, nebo lze pre-define v `firestore.indexes.json`):
- *   - tasks: (type ASC) + (assigneeUid ASC) + (createdAt DESC)
- *   - tasks: (type ASC) + (createdBy ASC) + (createdAt DESC)
- *   - tasks: (type ASC) + (authorRole ASC) + (createdAt DESC)
- *   - tasks: (type ASC) + (sharedWithRoles ARRAY) + (createdAt DESC)
+ * Známé omezení: tasky kde OWNER/PM přiřadil úkol druhému CM tahle
+ * subscription neukáže — server rule by je povolila přes `assignee role je
+ * CM` clause, ale vyžaduje 5. query + cache CM uids.
  */
 export function subscribeTasksForCm(
   uid: string,
