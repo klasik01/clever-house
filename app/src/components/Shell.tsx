@@ -5,6 +5,7 @@ import { useT } from "@/i18n/useT";
 import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
@@ -88,10 +89,16 @@ function Header() {
 function BottomTabs() {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
   const { tasks } = useVisibleTasks(Boolean(user));
   // V10 — ball-on-me is assignee-driven across all roles. The badge counts
   // every OPEN úkol where assigneeUid points at the current viewer.
   const ballOnMe = tasks.filter((tk) => isBallOnMeV10(tk, user?.uid)).length;
+
+  // V24 — Stavbyvedoucí (CM) nemá vidět Záznamy (rodinný brainstorming).
+  //   Tab se mu úplně skryje. Ostatní role beze změny.
+  const role = roleState.status === "ready" ? roleState.profile.role : null;
+  const isCm = role === "CONSTRUCTION_MANAGER";
 
   return (
     <nav
@@ -99,17 +106,20 @@ function BottomTabs() {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {/* Unified nav: Dokumentace / Záznamy · FAB · Úkoly / Nastavení */}
+        {/* Unified nav: Dokumentace / Záznamy · FAB · Úkoly / Nastavení.
+            V24 — pro CM se Záznamy skrývá. */}
         <Tab
           to={ROUTES.dokumentace}
           icon={<FileText aria-hidden size={20} />}
           label={t("tabs.dokumentace")}
         />
-        <Tab
-          to={ROUTES.zaznamy}
-          icon={<Notebook aria-hidden size={20} />}
-          label={t("tabs.zaznamy")}
-        />
+        {!isCm && (
+          <Tab
+            to={ROUTES.zaznamy}
+            icon={<Notebook aria-hidden size={20} />}
+            label={t("tabs.zaznamy")}
+          />
+        )}
         <FabRadialCell />
         <Tab
           to={ROUTES.ukoly}

@@ -35,7 +35,21 @@ export type TaskStatus =
   | "CANCELED"
   | "DONE";
 
-export type UserRole = "OWNER" | "PROJECT_MANAGER";
+/**
+ * V24 — třetí role pro externí stavbyvedoucí (CM).
+ *
+ * - OWNER                 — Stáňa + manželka (rodinný sdílený prostor, cross-OWNER edit pattern)
+ * - PROJECT_MANAGER       — Projektant z dodavatelské firmy
+ * - CONSTRUCTION_MANAGER  — Stavbyvedoucí (1+ lidí ze stejné firmy jako PM, tým mezi sebou)
+ *
+ * CM scope per `.design/stavbyvedouci-role/DESIGN_BRIEF.md`:
+ *   - nesmí číst ani vytvořit `napad`
+ *   - vytvoří `otazka`/`ukol`/event, NE `dokumentace`
+ *   - vidí jen `dokumentace` se sdíleným `sharedWithRoles: [..., "CONSTRUCTION_MANAGER"]`
+ *   - `otazka`/`ukol` scope: `assigneeUid === me || createdBy === me || cross-CM team`
+ *   - cross-CM edit pattern (analog cross-OWNER, V17.1)
+ */
+export type UserRole = "OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER";
 
 export interface ImageAttachment {
   id: string;      // client-side stable id for React keys + delete targeting

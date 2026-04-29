@@ -20,6 +20,11 @@ service cloud.firestore {
       return isSignedIn() && userRole() == 'PROJECT_MANAGER';
     }
 
+    // V24 — Stavbyvedoucí (externí dodavatel ze stejné firmy jako PM).
+    function isConstructionManager() {
+      return isSignedIn() && userRole() == 'CONSTRUCTION_MANAGER';
+    }
+
     // V5 — batch comment writes touch the parent task to bump commentCount / updatedAt
     // (and optionally status + assigneeUid when the comment carries a workflow action).
     // Any signed-in user must be able to make this side-effect update, otherwise e.g. PM
@@ -49,6 +54,55 @@ service cloud.firestore {
         !('authorRole' in resource.data)
         || resource.data.authorRole == 'OWNER'
       );
+    }
+
+    // V24 — cross-CM edit: dva CM ze stejné firmy = tým, vzájemně se editují
+    //   (analog cross-OWNER). Žádný legacy fallback — každý CM-vytvořený task
+    //   má authorRole snapshot, protože CM rola vznikla až ve V24.
+    function isCrossCmEditable() {
+      return isConstructionManager()
+        && 'authorRole' in resource.data
+        && resource.data.authorRole == 'CONSTRUCTION_MANAGER';
+    }
+
+    // V24 — read scope helper pro CM. Volá se s task daty (resource.data nebo
+    //   get().data). Vrací true jen pokud CM smí číst daný task.
+    //
+    //   Pravidla:
+    //     - napad: NIKDY (rodinný brainstorming OWNER+manželka, NDA hranice)
+    //     - otazka/ukol: jen pokud je CM assignee, creator, nebo task patří
+    //       do CM teamu (authorRole snapshot CM nebo assignee má CM rolu)
+    //     - dokumentace: jen pokud sharedWithRoles obsahuje CM
+    //
+    //   Note: get() na users/{assigneeUid} je placený read per evaluation.
+    //   Pro náš dataset (~100 tasků, ~5 useři) cena akceptovatelná. Pokud
+    //   v budoucnu bottleneck → snapshot assigneeRole na task při assignment.
+    function canReadTaskByCm(t) {
+      return (
+        // otazka/ukol: vlastní + cross-CM team
+        t.type in ['otazka', 'ukol']
+        && (
+          t.assigneeUid == request.auth.uid
+          || t.createdBy == request.auth.uid
+          || (t.get('authorRole', '') == 'CONSTRUCTION_MANAGER')
+          || (
+            t.get('assigneeUid', null) != null
+            && get(/databases/$(database)/documents/users/$(t.assigneeUid)).data.role == 'CONSTRUCTION_MANAGER'
+          )
+        )
+      ) || (
+        // dokumentace: jen pokud explicitně sdíleno s CM rolu
+        t.type == 'dokumentace'
+        && t.get('sharedWithRoles', []) is list
+        && 'CONSTRUCTION_MANAGER' in t.get('sharedWithRoles', [])
+      );
+    }
+
+    // V24 — sjednocený read gate pro tasks. OWNER + PM mají plný přístup,
+    //   CM má scoped přístup přes canReadTaskByCm.
+    function canReadTask(t) {
+      return isOwner() || isProjectManager()
+        || (isConstructionManager() && canReadTaskByCm(t));
     }
 
     // ------ Users ------
@@ -112,31 +166,50 @@ service cloud.firestore {
 
     // ------ Tasks ------
     match /tasks/{taskId} {
-      // READ — V15.2:
-      //   Any signed-in user can read any task (list or single get). The
-      //   workspace is one household + its PM; there are no task-level secrets
-      //   to keep between them. Role distinction lives at the write/edit level
-      //   (see UPDATE below) and in the UI (PM gets a read-only view of napady
-      //   that haven't been explicitly shared). Deep-linking from a push
-      //   notification needs this — without it PM click-throughs on unshared
-      //   napady bounced to NotFound via the rules 403.
-      allow read: if isSignedIn();
+      // READ — V24:
+      //   OWNER + PM: plný přístup (workspace má jednu rodinu + jejich PM/firmu;
+      //     historicky neměly task-level secrets, V15.2 zpřístupnilo všem).
+      //   CM (Stavbyvedoucí): scoped přes canReadTaskByCm.
+      //     - napad: NIKDY (rodinný brainstorming, NDA hranice)
+      //     - otazka/ukol: vlastní + cross-CM team scope
+      //     - dokumentace: jen pokud sharedWithRoles obsahuje 'CONSTRUCTION_MANAGER'
+      //
+      //   Deep-linkování z push notifikace nesmí pro CM odkrýt skrytý task —
+      //   notifikační pipeline (V24, S08) gate-checne canReadTask před pushem.
+      allow read: if canReadTask(resource.data);
 
-      // CREATE — createdBy musí být self, sensible type + status, a V17.1
-      //   snapshot authorRole. Legacy migrace přijme i záznamy bez pole,
-      //   ale nové writes je musí obsahovat.
+      // CREATE — V24 model:
+      //   - createdBy musí být self
+      //   - sensible type + status
+      //   - authorRole snapshot z {OWNER, PROJECT_MANAGER, CONSTRUCTION_MANAGER}
+      //   - CM nesmí vytvořit napad ani dokumentaci (per BRIEF scope)
+      //   - napad nesmí mít CM jako assignee (defense in depth pro AssigneeSelect)
       allow create: if isSignedIn()
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.type in ['napad', 'otazka', 'ukol', 'dokumentace']
                     && request.resource.data.status is string
-                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER'];
+                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER', 'CONSTRUCTION_MANAGER']
+                    && (
+                      // CM smí vytvořit jen otazka/ukol
+                      request.resource.data.authorRole != 'CONSTRUCTION_MANAGER'
+                      || request.resource.data.type in ['otazka', 'ukol']
+                    )
+                    && (
+                      // napad nesmí mít CM jako assignee
+                      request.resource.data.type != 'napad'
+                      || !('assigneeUid' in request.resource.data)
+                      || request.resource.data.assigneeUid == null
+                      || get(/databases/$(database)/documents/users/$(request.resource.data.assigneeUid)).data.role != 'CONSTRUCTION_MANAGER'
+                    );
 
-      // UPDATE — V17.1 model:
+      // UPDATE — V24 model:
       //   - Autor tasku může editovat vše.
       //   - OWNER může editovat jakýkoliv OWNER-vytvořený task (cross-OWNER
-      //     shared workspace — manželé sdílí).
-      //   - Jakýkoliv signed-in může aplikovat comment-side-effect diff aby
-      //     batch writes z createComment prošly bez ohledu na autora tasku.
+      //     shared workspace — manželé sdílí). [V17.1]
+      //   - CM může editovat jakýkoliv CM-vytvořený task (cross-CM tým — dvou+
+      //     stavbyvedoucích z jedné firmy). [V24]
+      //   - Jakýkoliv signed-in s read přístupem může aplikovat comment-side-effect
+      //     diff, aby batch writes z createComment prošly bez ohledu na autora tasku.
       //   - PM-vytvořený task smí editovat jen autor-PM (žádná cross-PM
       //     sharing; PM je jednotlivec, ne sdílený účet).
       //
@@ -147,30 +220,40 @@ service cloud.firestore {
       //   - Many-to-many link mezi otázkou/úkolem a tématem (nápadem) přes
       //     `linkedTaskIds`. Bidirectional batch update zapisuje na oba
       //     dokumenty; když uživatel nemá edit na jednu stranu, ta část batch
-      //     padne a celý write se odroluje. Tím se vynutí oboustranný edit
-      //     check bez nutnosti složitější rule (která by musela vidět druhý
-      //     dokument).
+      //     padne a celý write se odroluje.
+      //
+      // V24 — comment-side-effect path je nově gated na canReadTask, aby CM
+      //   nemohl flip-statusovat task, který nemá v read scope.
       allow update: if isTaskAuthor()
                     || isCrossOwnerEditable()
-                    || (isSignedIn() && isCommentSideEffect());
+                    || isCrossCmEditable()
+                    || (
+                      isSignedIn()
+                      && isCommentSideEffect()
+                      && canReadTask(resource.data)
+                    );
 
-      // DELETE — pouze autor. Cross-OWNER nemůže smazat cizí task (vratná
-      //   jistota — author sám se rozhodne).
+      // DELETE — pouze autor. Cross-OWNER ani cross-CM nemůže smazat cizí task
+      //   (vratná jistota — author sám se rozhodne).
       allow delete: if isTaskAuthor();
 
       // ------ Comments subcollection (V3) ------
       match /comments/{commentId} {
-        // READ — any authenticated user (parallel to tasks read).
-        allow read: if isSignedIn();
+        // READ — V24: gated on parent task read access.
+        //   Stejný read scope jako parent task (CM nesmí vidět komenty
+        //   k tasku, který nevidí).
+        allow read: if canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
 
-        // CREATE — author must be self; enforce required fields shape.
+        // CREATE — author = self, body shape, plus parent task read access (V24).
         allow create: if isSignedIn()
                       && request.resource.data.authorUid == request.auth.uid
-                      && request.resource.data.body is string;
+                      && request.resource.data.body is string
+                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
 
-        // UPDATE — author-only, can only change body, editedAt, reactions.
-        //         (Reactions are also toggleable by non-authors; rule split below.)
+        // UPDATE — author-only pro body/editedAt; reactions toggle pro kohokoli
+        //   s parent task read access (V24).
         allow update: if isSignedIn()
+                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data)
                       && (
                         // Author edit of body/editedAt
                         (resource.data.authorUid == request.auth.uid
@@ -181,9 +264,10 @@ service cloud.firestore {
                            .hasOnly(['reactions'])
                       );
 
-        // DELETE — author only.
+        // DELETE — author only (s read access aby vůbec věděl o existenci).
         allow delete: if isSignedIn()
-                      && resource.data.authorUid == request.auth.uid;
+                      && resource.data.authorUid == request.auth.uid
+                      && canReadTask(get(/databases/$(database)/documents/tasks/$(taskId)).data);
       }
     }
 
@@ -224,6 +308,10 @@ service cloud.firestore {
     // Calendar-aware eventy s fixním datetime. Paralelí s tasks rules
     // (V17.1 permissions model), jen bez sharedWithRoles / commentCount
     // side-effects.
+    //
+    // V24 — events nejsou role-restricted (CM smí vidět + tvořit), takže
+    //   read zůstává otevřený pro všechny signed-in. authorRole snapshot
+    //   přijímá nově i CONSTRUCTION_MANAGER.
     match /events/{eventId} {
       // READ — V15.2 styl: kdokoliv signed-in čte detail. Listing filtrujeme
       // klientsky (jsem invitee OR autor). Server-side filter by komplikoval
@@ -236,20 +324,22 @@ service cloud.firestore {
                     && request.resource.data.createdBy == request.auth.uid
                     && request.resource.data.title is string
                     && request.resource.data.title.size() > 0
-                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER']
+                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER', 'CONSTRUCTION_MANAGER']
                     && request.resource.data.status in ['UPCOMING', 'AWAITING_CONFIRMATION', 'HAPPENED', 'CANCELLED']
                     && request.resource.data.inviteeUids is list
                     && request.resource.data.inviteeUids.size() >= 1;
 
-      // UPDATE — V17.1 pattern:
+      // UPDATE — V17.1 pattern + V24 rozšířené:
       //   - autor smí editovat vše
       //   - OWNER smí editovat OWNER-vytvořený event (cross-OWNER household)
+      //   - CM smí editovat CM-vytvořený event (cross-CM tým, V24)
       //   - PM-created eventy smí jen autor-PM
       //   - scheduled CF (S09 AWAITING transition) používá Admin SDK, bypass
       allow update: if isTaskAuthor()
-                    || isCrossOwnerEditable();
+                    || isCrossOwnerEditable()
+                    || isCrossCmEditable();
 
-      // DELETE — pouze autor (i cross-OWNER respektuje).
+      // DELETE — pouze autor (i cross-OWNER / cross-CM respektuje).
       allow delete: if isTaskAuthor();
 
       // ------ RSVP subcollection (S05 chystá) ------

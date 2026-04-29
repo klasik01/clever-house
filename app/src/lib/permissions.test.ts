@@ -363,3 +363,348 @@ describe("canLinkTasks (V18-S40)", () => {
   });
 });
 
+// ---------- canViewTask V24 — CONSTRUCTION_MANAGER ----------
+
+import { canViewTask } from "./permissions";
+
+describe("canViewTask — V24 CONSTRUCTION_MANAGER scope", () => {
+  const cmUid = "cm-a";
+
+  it("CM nikdy nevidí napad (NDA hranice s OWNER+manželka brainstormingem)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "napad",
+          createdBy: "owner",
+          assigneeUid: null,
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM nevidí napad ani když by měl být v sharedWithRoles (defense in depth)", () => {
+    // Edge case: nějak se napadu dostane sharedWithRoles s CM. UI to nemá
+    // nikdy zapsat (S05 + S09 to gate-checnou), ale safeguard.
+    expect(
+      canViewTask({
+        task: {
+          type: "napad",
+          createdBy: "owner",
+          assigneeUid: null,
+          sharedWithRoles: ["CONSTRUCTION_MANAGER"],
+          authorRole: "OWNER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM vidí dokumentaci jen pokud je v sharedWithRoles", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "dokumentace",
+          createdBy: "owner",
+          assigneeUid: null,
+          sharedWithRoles: ["CONSTRUCTION_MANAGER"],
+          authorRole: "OWNER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+    expect(
+      canViewTask({
+        task: {
+          type: "dokumentace",
+          createdBy: "owner",
+          assigneeUid: null,
+          sharedWithRoles: ["PROJECT_MANAGER"],
+          authorRole: "OWNER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM vidí svůj přiřazený ukol (assignee==me)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner",
+          assigneeUid: cmUid,
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM vidí jím vytvořenou otázku (creator==me)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "otazka",
+          createdBy: cmUid,
+          assigneeUid: "owner",
+          sharedWithRoles: [],
+          authorRole: "CONSTRUCTION_MANAGER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM-B vidí task, který vytvořil CM-A (cross-CM team via authorRole)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "cm-a",
+          assigneeUid: "owner",
+          sharedWithRoles: [],
+          authorRole: "CONSTRUCTION_MANAGER",
+        },
+        currentUserUid: "cm-b",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM-B NEVIDÍ task přiřazený CM-A přes authorRole gate (klientský filter limit)", () => {
+    // Server rule by tohle povolila přes get(users/cmA).role==CM, ale
+    // klient by potřeboval CM-uids cache. Pro V1 přijatelný kompromis;
+    // CM-B k tasku dohledá přes mention/comment notifikaci nebo
+    // single-doc deep link, ne přes listing.
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: "owner",
+          assigneeUid: "cm-a",
+          sharedWithRoles: [],
+          authorRole: "OWNER",
+        },
+        currentUserUid: "cm-b",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM nevidí cizí PM otázku (žádný shared, žádný own)", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "otazka",
+          createdBy: "pm-1",
+          assigneeUid: "owner",
+          sharedWithRoles: [],
+          authorRole: "PROJECT_MANAGER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM bez resolved role (status=loading) → nepustíme", () => {
+    expect(
+      canViewTask({
+        task: {
+          type: "ukol",
+          createdBy: cmUid,
+          assigneeUid: cmUid,
+          sharedWithRoles: [],
+          authorRole: "CONSTRUCTION_MANAGER",
+        },
+        currentUserUid: cmUid,
+        currentUserRole: null,
+      }),
+    ).toBe(false);
+  });
+});
+
+
+// ---------- V24 — canCompleteAsAssignee + canFlipAssignee ----------
+
+import { canCompleteAsAssignee, canFlipAssignee } from "./permissions";
+
+describe("canCompleteAsAssignee — V24 (CM finish own assigned task)", () => {
+  const baseTask = {
+    type: "ukol" as const,
+    status: "OPEN" as const,
+    createdBy: "owner-1",
+    assigneeUid: "cm-a",
+  };
+
+  it("CM jako assignee na OPEN ukolu (vytvořeném OWNER) smí dokončit", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: baseTask,
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM jako assignee na otázce taky smí (oba actionable typy)", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, type: "otazka" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM jako NE-assignee na OPEN ukolu NESMÍ dokončit", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, assigneeUid: "owner-1" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("Hotovo je no-op pokud task není OPEN (DONE/BLOCKED/CANCELED)", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, status: "DONE" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, status: "BLOCKED" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("Hotovo je no-op pro napad / dokumentace (jiný workflow)", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, type: "napad" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, type: "dokumentace" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("autor (OWNER) na vlastním tasku samozřejmě smí (přes canEditTask)", () => {
+    expect(
+      canCompleteAsAssignee({
+        task: { ...baseTask, createdBy: "owner-me" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "owner-me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("PM jako assignee na OWNER tasku (klasický scénář) — smí přes canEditTask? NE (cross-team neexistuje pro PM-OWNER)", () => {
+    // PM-as-assignee na OWNER-created tasku NEMÁ edit (PM cross-OWNER neexistuje).
+    // Bez "PM-as-assignee dovětek" by NEsměl flippnout. Ale historicky PM
+    // používal flip přes komentář k tomu samému efektu. Tahle funkce vrací
+    // false pro PM ne-autora; UI skin zůstává stejný — close button se
+    // pouze pro PM neukáže (S07 zachová existující flip workflow pro PM).
+    expect(
+      canCompleteAsAssignee({
+        task: baseTask,
+        taskAuthorRole: "OWNER",
+        currentUserUid: "pm-1",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canFlipAssignee — V24", () => {
+  it("CM jako pouhý assignee NESMÍ reassignnout cizí task (žádné cross-team boundary)", () => {
+    expect(
+      canFlipAssignee({
+        task: {
+          type: "ukol",
+          status: "OPEN",
+          createdBy: "owner-1",
+          assigneeUid: "cm-a",
+        },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM autor smí reassignnout (přes edit)", () => {
+    expect(
+      canFlipAssignee({
+        task: {
+          type: "ukol",
+          status: "OPEN",
+          createdBy: "cm-a",
+          assigneeUid: "owner-1",
+        },
+        taskAuthorRole: "CONSTRUCTION_MANAGER",
+        currentUserUid: "cm-a",
+        currentUserRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("OWNER autor smí, PM ne-autor nesmí", () => {
+    expect(
+      canFlipAssignee({
+        task: {
+          type: "ukol",
+          status: "OPEN",
+          createdBy: "owner-me",
+          assigneeUid: "pm-1",
+        },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "owner-me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+    expect(
+      canFlipAssignee({
+        task: {
+          type: "ukol",
+          status: "OPEN",
+          createdBy: "owner-1",
+          assigneeUid: "pm-1",
+        },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "pm-1",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(false);
+  });
+});

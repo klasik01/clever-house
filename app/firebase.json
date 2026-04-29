@@ -1,6 +1,7 @@
 {
   "firestore": {
-    "rules": "deploy/firestore.rules"
+    "rules": "deploy/firestore.rules",
+    "indexes": "deploy/firestore.indexes.json"
   },
   "storage": {
     "rules": "deploy/storage.rules"

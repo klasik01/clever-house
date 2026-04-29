@@ -53,7 +53,7 @@ export default function App() {
           <Route path={ROUTES.home} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
           <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
-          <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
+          <Route path={ROUTES.zaznamy} element={<ZaznamyForOwnerAndPm />} />
           <Route path={ROUTES.dokumentace} element={<Dokumentace />} />
           <Route path={ROUTES.ukoly} element={<Ukoly />} />
         <Route path={ROUTES.events} element={<Events />} />
@@ -132,84 +132,97 @@ function ProtectedLayout() {
   );
 }
 
-/** PM redirects away from `/export`. */
+/** OWNER-only: redirect PM and CM away from `/export`. */
 function ExportForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Export />;
 }
 
-/** OWNER redirects away from `/rozpocet` — PM-only feature for V11. */
+/** PM-only: redirect OWNER and CM away from `/rozpocet`. */
 function RozpocetForPm() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "OWNER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "PROJECT_MANAGER") {
     return <Navigate to={ROUTES.home} replace />;
   }
   return <Rozpocet />;
 }
 
-/** PM redirects away from `/nastaveni/lokace`. */
+/** OWNER-only: redirect PM and CM away from `/nastaveni/lokace`. */
 function LokaceManageForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <LokaceManage />;
 }
 
 
-/** PM redirects away from `/nastaveni/typy-dokumentu`. */
+/** OWNER-only: redirect PM and CM away from `/nastaveni/typy-dokumentu`. */
 function DocTypesForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <DocumentTypesManage />;
 }
-/** PM redirects away from "/nastaveni/faze". */
+/** OWNER-only: redirect PM and CM away from "/nastaveni/faze". */
 function PhasesForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <PhasesManage />;
 }
 
-/** PM redirects away from `/kategorie`. */
+/** OWNER-only: redirect PM and CM away from `/kategorie`. */
 function KategorieForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <Kategorie />;
 }
 
-/** PM redirects away from `/kategorie/:id`. */
+/** OWNER-only: redirect PM and CM away from `/kategorie/:id`. */
 function KategorieDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <KategorieDetail />;
 }
 
-/** PM redirects away from `/lokace/:id`. */
+/** OWNER-only: redirect PM and CM away from `/lokace/:id`. */
 function LokaceDetailForOwner() {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role === "PROJECT_MANAGER") {
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
     return <Navigate to={ROUTES.ukoly} replace />;
   }
   return <LokaceDetail />;
+}
+
+/** V24 — Stavbyvedoucí (CM) nesmí na /zaznamy. Redirect na /ukoly. */
+function ZaznamyForOwnerAndPm() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (
+    roleState.status === "ready" &&
+    roleState.profile.role === "CONSTRUCTION_MANAGER"
+  ) {
+    return <Navigate to={ROUTES.ukoly} replace />;
+  }
+  return <Zaznamy />;
 }
 
 /** V20 — redirect signed-in users away from /auth/prihlaseni. */

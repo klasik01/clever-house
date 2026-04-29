@@ -67,6 +67,8 @@ export default function FabRadial() {
   }, [open]);
 
   const canNapad = roleHas("task.create.napad", role);
+  // V24 — CM nesmí vytvořit dokumentaci (jen ji čte). Stejný pattern jako napad.
+  const canDokumentace = roleHas("task.create.dokumentace", role);
 
   const items: FabItem[] = [
     ...(canNapad
@@ -76,17 +78,19 @@ export default function FabRadial() {
             icon: <Notebook size={20} />,
             label: t("fab.napad"),
             taskType: "napad" as TaskType,
-
           },
         ]
       : []),
-    {
-      key: "dokumentace",
-      icon: <FileText size={20} />,
-      label: t("fab.dokumentace"),
-      taskType: "dokumentace" as TaskType,
-
-    },
+    ...(canDokumentace
+      ? [
+          {
+            key: "dokumentace",
+            icon: <FileText size={20} />,
+            label: t("fab.dokumentace"),
+            taskType: "dokumentace" as TaskType,
+          },
+        ]
+      : []),
     {
       key: "ukol",
       icon: <Target size={20} />,

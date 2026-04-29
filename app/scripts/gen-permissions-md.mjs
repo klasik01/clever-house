@@ -122,7 +122,7 @@ const md = [
   "",
   "- **`anyone`** — stačí mít roli v allow-listu, žádné autorství navíc.",
   "- **`author`** — jen autor (createdBy === me). Cross-OWNER NEMÁ.",
-  "- **`author-or-cross-owner`** — autor + (OWNER edituje OWNER-created) — V17.1 cross-OWNER pattern.",
+  "- **`author-or-cross-team`** — autor + cross-team. V17.1: OWNER edituje OWNER-created. V24: CM edituje CM-created. PM je jednotlivec, cross-team mu nepomůže.",
   "",
   "## Jak to udržovat",
   "",

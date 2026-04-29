@@ -3,6 +3,7 @@ import {
   collection,
   query,
   orderBy,
+  where,
   onSnapshot,
   addDoc,
   deleteDoc,
@@ -11,7 +12,9 @@ import {
   updateDoc,
   serverTimestamp,
   Timestamp,
+  type DocumentData,
   type DocumentSnapshot,
+  type Query,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -29,6 +32,134 @@ export function subscribeTasks(
     (snap) => onChange(snap.docs.map(fromQueryDoc)),
     (err) => onError(err)
   );
+}
+
+/**
+ * V24 — subscribe to tasks for CONSTRUCTION_MANAGER (Stavbyvedoucí).
+ *
+ * CM má scoped read access (firestore.rules `canReadTaskByCm`). Plain
+ * `subscribeTasks` by selhal s permission-denied, protože collection-level
+ * query nesplňuje per-doc rule pro tasky mimo CM scope.
+ *
+ * Řešení: 4 paralelní rules-aligned queries, klient mergeuje a deduplikuje:
+ *   1. otazka/ukol kde assigneeUid == me
+ *   2. otazka/ukol kde createdBy == me
+ *   3. otazka/ukol kde authorRole == "CONSTRUCTION_MANAGER" (cross-CM team)
+ *   4. dokumentace kde sharedWithRoles array-contains "CONSTRUCTION_MANAGER"
+ *
+ * Známé omezení: tasky kde OWNER/PM přiřadil úkol druhému CM (a current
+ * user je první CM) tahle subscription neukáže — server rule by je
+ * povolila přes `assignee role je CM` clause, ale to vyžaduje 5. query
+ * (`where assigneeUid in [cmUids]`) + cache CM uids. V1 nepotřebné, dva
+ * CM se domluví přes mentions; přidá se až když fakticky chybí.
+ *
+ * Composite indexes potřebné (Firebase Console je vygeneruje na první
+ * query, nebo lze pre-define v `firestore.indexes.json`):
+ *   - tasks: (type ASC) + (assigneeUid ASC) + (createdAt DESC)
+ *   - tasks: (type ASC) + (createdBy ASC) + (createdAt DESC)
+ *   - tasks: (type ASC) + (authorRole ASC) + (createdAt DESC)
+ *   - tasks: (type ASC) + (sharedWithRoles ARRAY) + (createdAt DESC)
+ */
+export function subscribeTasksForCm(
+  uid: string,
+  onChange: (tasks: Task[]) => void,
+  onError: (err: Error) => void,
+): () => void {
+  const tasksCol = collection(db, TASKS);
+  // Per-source map: sourceKey → (taskId → Task). Snapshot replaces the
+  // whole sub-map, takže odebrané dokumenty z dané query mizí ze
+  // sjednoceného výstupu.
+  const sources: Record<string, Map<string, Task>> = {
+    assigned: new Map(),
+    created: new Map(),
+    crossCmTeam: new Map(),
+    sharedDocs: new Map(),
+  };
+
+  function emit(): void {
+    const merged = new Map<string, Task>();
+    for (const m of Object.values(sources)) {
+      for (const [id, t] of m) merged.set(id, t);
+    }
+    const out = [...merged.values()].sort(
+      (a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0),
+    );
+    onChange(out);
+  }
+
+  function attach(
+    key: keyof typeof sources,
+    q: Query<DocumentData>,
+  ): () => void {
+    return onSnapshot(
+      q,
+      (snap) => {
+        const m = new Map<string, Task>();
+        for (const d of snap.docs) m.set(d.id, fromQueryDoc(d));
+        sources[key] = m;
+        emit();
+      },
+      (err) => onError(err),
+    );
+  }
+
+  const unsubs: Array<() => void> = [];
+
+  // Q1 — otazka/ukol assigned to me
+  unsubs.push(
+    attach(
+      "assigned",
+      query(
+        tasksCol,
+        where("type", "in", ["otazka", "ukol"]),
+        where("assigneeUid", "==", uid),
+        orderBy("createdAt", "desc"),
+      ),
+    ),
+  );
+
+  // Q2 — otazka/ukol created by me
+  unsubs.push(
+    attach(
+      "created",
+      query(
+        tasksCol,
+        where("type", "in", ["otazka", "ukol"]),
+        where("createdBy", "==", uid),
+        orderBy("createdAt", "desc"),
+      ),
+    ),
+  );
+
+  // Q3 — otazka/ukol authored by some CM (cross-CM team scope)
+  unsubs.push(
+    attach(
+      "crossCmTeam",
+      query(
+        tasksCol,
+        where("type", "in", ["otazka", "ukol"]),
+        where("authorRole", "==", "CONSTRUCTION_MANAGER"),
+        orderBy("createdAt", "desc"),
+      ),
+    ),
+  );
+
+  // Q4 — dokumentace shared with CM role
+  unsubs.push(
+    attach(
+      "sharedDocs",
+      query(
+        tasksCol,
+        where("type", "==", "dokumentace"),
+        where("sharedWithRoles", "array-contains", "CONSTRUCTION_MANAGER"),
+        orderBy("createdAt", "desc"),
+      ),
+    ),
+  );
+
+  return () => {
+    for (const u of unsubs) u();
+  };
 }
 
 /** Subscribe to one task by ID. onChange(null) signals the task was deleted
@@ -163,7 +294,9 @@ function fromDocSnap(d: DocumentSnapshot): Task {
     //   chybí (legacy task před V17.1 deploy), necháme undefined; volající
     //   si ho doplní přes lib/authorRole.resolveAuthorRole({task, usersByUid}).
     authorRole:
-      data.authorRole === "PROJECT_MANAGER" || data.authorRole === "OWNER"
+      data.authorRole === "PROJECT_MANAGER"
+      || data.authorRole === "OWNER"
+      || data.authorRole === "CONSTRUCTION_MANAGER"
         ? data.authorRole
         : undefined,
     createdAt: toIso(data.createdAt),

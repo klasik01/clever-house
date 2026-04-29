@@ -56,11 +56,19 @@ export type ActionKey =
  * k role check.
  *
  *   - `anyone`: stačí mít roli v `roles[]` (žádný ownership constraint).
- *   - `author`: jen autor (createdBy === me). Cross-OWNER NEMÁ.
- *   - `author-or-cross-owner`: autor + (OWNER edituje OWNER-created).
- *     V17.1 cross-OWNER pattern.
+ *   - `author`: jen autor (createdBy === me). Cross-team NEMÁ.
+ *   - `author-or-cross-team`: autor + (OWNER edituje OWNER-created /
+ *     CM edituje CM-created). V17.1 cross-OWNER + V24 cross-CM pattern.
+ *     PM je jednotlivec, cross-team mu nepomůže.
  */
-export type Ownership = "anyone" | "author" | "author-or-cross-owner";
+/**
+ * V24 — `author-or-cross-team` generalizuje cross-OWNER (V17.1) na CM:
+ *   - OWNER pár (manželé) sdílí workspace → OWNER může editovat
+ *     OWNER-vytvořený task / event.
+ *   - CM tým ze stejné firmy → CM může editovat CM-vytvořený task / event.
+ *   - PM je jednotlivec → cross-team mu nepomůže (jen autor).
+ */
+export type Ownership = "anyone" | "author" | "author-or-cross-team";
 
 export interface PermissionRule {
   /** Které role v principu smí (před ownership checkem). */
@@ -89,97 +97,97 @@ export interface PermissionRule {
 export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
   // ---------- Tasks ----------
   "task.read": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description:
-      "Přečíst libovolný task v workspace (V15.2 — listing i detail).",
-    rulesAt: "tasks/read = isSignedIn()",
+      "Přečíst task. OWNER+PM listing i detail (V15.2). CM má scoped gate (V24, viz canReadTaskByCm) — server vrací jen otazka/ukol vlastní/cross-CM team + sdílenou dokumentaci. Klient mirroruje přes canViewTask.",
+    rulesAt: "tasks/read = canReadTask(resource.data) — isOwner() OR isProjectManager() OR (isConstructionManager() AND canReadTaskByCm(resource.data))",
   },
   "task.create.napad": {
     roles: ["OWNER"],
     description:
-      "Vytvořit nápad. Jen OWNER (PM nápady neeviduje, jen na ně reaguje).",
-    rulesAt: "tasks/create + UI gate v NewTask (allowedTypes)",
+      "Vytvořit nápad. Jen OWNER — PM nápady neeviduje (jen na ně reaguje), CM rodinný brainstorming nikdy nevidí (V24 NDA hranice).",
+    rulesAt: "tasks/create — authorRole != 'CONSTRUCTION_MANAGER' OR type in ['otazka','ukol']",
   },
   "task.create.otazka": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    description: "Vytvořit otázku.",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    description: "Vytvořit otázku. Všechny role mohou klást otázky.",
     rulesAt: "tasks/create + composer allowedTypes",
   },
   "task.create.ukol": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    description: "Vytvořit úkol.",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    description: "Vytvořit úkol. Všechny role mohou tvořit úkoly.",
     rulesAt: "tasks/create + composer allowedTypes",
   },
   "task.create.dokumentace": {
     roles: ["OWNER", "PROJECT_MANAGER"],
     description:
-      "Vytvořit dokumentaci. OWNER i PM (v budoucnu i další role).",
-    rulesAt: "tasks/create + composer allowedTypes",
+      "Vytvořit dokumentaci. OWNER i PM. CM má read-only (V24) — jen vidí sdílené dokumenty, nevytváří.",
+    rulesAt: "tasks/create — authorRole != 'CONSTRUCTION_MANAGER' OR type in ['otazka','ukol']",
   },
   "task.edit": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    ownership: "author-or-cross-owner",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    ownership: "author-or-cross-team",
     description:
-      "Editovat task. Autor vždy; OWNER navíc edituje libovolný OWNER-created.",
-    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable()",
+      "Editovat task. Autor vždy. OWNER navíc edituje libovolný OWNER-created (cross-OWNER, V17.1). CM navíc edituje libovolný CM-created (cross-CM team, V24). PM jen vlastní.",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() OR isCrossCmEditable()",
   },
   "task.delete": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     ownership: "author",
     description:
-      "Smazat task. Pouze autor — i cross-OWNER respektuje ownership pro delete.",
+      "Smazat task. Pouze autor — i cross-OWNER / cross-CM respektuje ownership pro delete.",
     rulesAt: "tasks/delete = isTaskAuthor()",
   },
   "task.comment": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description:
-      "Napsat komentář. Kdokoliv signed-in. Side-effect na parent (commentCount/status/assignee) řeší isCommentSideEffect rule.",
-    rulesAt: "comments/create + tasks/update isCommentSideEffect()",
+      "Napsat komentář. Všechny role s read access na parent task. CM nemůže komentovat napad ani nesdílenou dokumentaci (V24 — comments rule gated na canReadTask).",
+    rulesAt: "comments/create gated na canReadTask(parent) + tasks/update isCommentSideEffect() + canReadTask",
   },
   "task.changeType": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    ownership: "author-or-cross-owner",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    ownership: "author-or-cross-team",
     description:
-      "Změnit typ tasku (otázka ↔ úkol). Mutace v místě — zachová ID, autora, komentáře. Stejný permission pattern jako task.edit.",
-    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (changeType je podmnožina edit)",
+      "Změnit typ tasku (otázka ↔ úkol). Mutace v místě — zachová ID, autora, komentáře. Stejný permission pattern jako task.edit (cross-OWNER + cross-CM).",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() OR isCrossCmEditable() (changeType je podmnožina edit)",
   },
   "task.link": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    ownership: "author-or-cross-owner",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    ownership: "author-or-cross-team",
     description:
-      "Přidat / odebrat propojení mezi otázkou/úkolem a tématem (nápadem). Vyžaduje edit právo na obě strany — gating provádí caller per-task přes canActOn('task.link', ...) na obou dokumentech.",
-    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (link je podmnožina edit)",
+      "Přidat / odebrat propojení mezi otázkou/úkolem a tématem (nápadem). Vyžaduje edit právo na obě strany. CM nikdy nedosáhne na napad jako druhou stranu (canViewTask vrátí false), takže CM smí linkovat jen mezi svými otázkami/úkoly.",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() OR isCrossCmEditable() (link je podmnožina edit)",
   },
 
   // ---------- Events ----------
   "event.read": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description:
-      "Přečíst event. Kdokoliv signed-in; listing filtrujeme klientsky na 'jsem invitee/autor'.",
+      "Přečíst event. Všechny role; listing filtrujeme klientsky na 'jsem invitee/autor'. Events nejsou role-restricted (V24 — CM smí vidět + tvořit).",
     rulesAt: "events/read = isSignedIn()",
   },
   "event.create": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    description: "Vytvořit event s pozvánkou pro >=1 invitee.",
-    rulesAt: "events/create",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    description: "Vytvořit event s pozvánkou pro >=1 invitee. Všechny role.",
+    rulesAt: "events/create — authorRole in [OWNER, PROJECT_MANAGER, CONSTRUCTION_MANAGER]",
   },
   "event.edit": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    ownership: "author-or-cross-owner",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    ownership: "author-or-cross-team",
     description:
-      "Editovat event. Stejný pattern jako task — autor + cross-OWNER.",
-    rulesAt: "events/update — isTaskAuthor() OR isCrossOwnerEditable()",
+      "Editovat event. Stejný pattern jako task — autor + cross-OWNER + cross-CM team.",
+    rulesAt: "events/update — isTaskAuthor() OR isCrossOwnerEditable() OR isCrossCmEditable()",
   },
   "event.delete": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     ownership: "author",
-    description: "Smazat event. Jen autor.",
+    description: "Smazat event. Jen autor (i cross-OWNER / cross-CM respektuje).",
     rulesAt: "events/delete = isTaskAuthor()",
   },
   "event.rsvp": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description:
-      "Odpovědět na pozvánku (Můžu/Nemůžu). Self-write na rsvps/{userId}.",
+      "Odpovědět na pozvánku (Můžu/Nemůžu). Self-write na rsvps/{userId}. Pozvánka může jít komukoli z rolí.",
     rulesAt: "events/{id}/rsvps/{userId}/write = self",
   },
 
@@ -202,14 +210,14 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
 
   // ---------- Settings ----------
   "settings.profile": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description:
-      "Upravit vlastní přezdívku, contactEmail, notification prefs (diff-gate v rules).",
+      "Upravit vlastní přezdívku, contactEmail, notification prefs (diff-gate v rules). Všechny role.",
     rulesAt: "users/{uid}/update — self + diff hasOnly([whitelist])",
   },
   "settings.calendarToken": {
-    roles: ["OWNER", "PROJECT_MANAGER"],
-    description: "Generovat / rotovat osobní token pro webcal subscription.",
+    roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
+    description: "Generovat / rotovat osobní token pro webcal subscription. Všechny role.",
     rulesAt: "users/{uid}/update — self + diff hasOnly([calendarToken,…])",
   },
 };
@@ -263,7 +271,7 @@ export function canActOnResource(
   // k roli. Pokud je akce ownership-driven a já jsem autor, smím bez
   // ohledu na to, jestli profil zatím doloadnul roli (UX edge case).
   if (
-    (ownership === "author" || ownership === "author-or-cross-owner") &&
+    (ownership === "author" || ownership === "author-or-cross-team") &&
     ctx.resourceCreatedBy === ctx.uid
   ) {
     return true;
@@ -277,8 +285,15 @@ export function canActOnResource(
     case "author":
       // Autor větev byla výše; tady nejsem autor → false.
       return false;
-    case "author-or-cross-owner":
-      return ctx.role === "OWNER" && ctx.resourceAuthorRole === "OWNER";
+    case "author-or-cross-team":
+      // V17.1 cross-OWNER: OWNER edituje OWNER-created task.
+      // V24 cross-CM: CM edituje CM-created task. PM — jen autor (zachycen výš).
+      if (ctx.role === "OWNER" && ctx.resourceAuthorRole === "OWNER") return true;
+      if (
+        ctx.role === "CONSTRUCTION_MANAGER"
+        && ctx.resourceAuthorRole === "CONSTRUCTION_MANAGER"
+      ) return true;
+      return false;
   }
 }
 

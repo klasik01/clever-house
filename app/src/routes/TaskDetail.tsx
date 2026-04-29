@@ -981,9 +981,17 @@ export default function TaskDetail() {
   const showShareToggle = task.createdBy === user?.uid && !isReadOnly;
   const categoryIds = task.categoryIds ?? (task.categoryId ? [task.categoryId] : []);
 
+  // V19 — pro napad nabídnout sdílení s PM (rodinný brainstorming pro
+  //   projektanta). V24 — pro dokumentaci přidat CM volbu (stavbyvedoucí
+  //   read-only sdílení). Napad nikdy s CM (NDA hranice).
+  const shareableRoles: UserRole[] =
+    task.type === "dokumentace"
+      ? ["PROJECT_MANAGER", "CONSTRUCTION_MANAGER"]
+      : ["PROJECT_MANAGER"];
+
   const shareToggle = showShareToggle && (
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      {(["PROJECT_MANAGER"] as UserRole[]).map((role) => (
+      {shareableRoles.map((role) => (
         <label
           key={role}
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-pill bg-bg-subtle px-3 py-1.5 text-sm text-ink-muted hover:bg-bg-muted transition-colors"

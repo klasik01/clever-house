@@ -43,9 +43,10 @@ export interface TaskDoc {
   assigneeUid?: string | null;
   createdBy: string;
   /** V17.1 — snapshot role tvůrce (OWNER/PROJECT_MANAGER). Legacy tasky fallback OWNER. */
-  authorRole?: "OWNER" | "PROJECT_MANAGER";
-  /** V19 — role-based sharing (replaces legacy sharedWithPm boolean). */
-  sharedWithRoles?: ("OWNER" | "PROJECT_MANAGER")[];
+  authorRole?: "OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER";
+  /** V19 — role-based sharing (replaces legacy sharedWithPm boolean).
+   *  V24 — CONSTRUCTION_MANAGER joined the union for stavbyvedoucí share. */
+  sharedWithRoles?: ("OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER")[];
   status?: string;
   /** V16.4 — P1/P2/P3. Null = nenastaveno. */
   priority?: "P1" | "P2" | "P3" | null;
@@ -77,7 +78,7 @@ export interface EventDoc {
   address?: string;
   inviteeUids: string[];
   createdBy: string;
-  authorRole?: "OWNER" | "PROJECT_MANAGER";
+  authorRole?: "OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER";
   status: "UPCOMING" | "AWAITING_CONFIRMATION" | "HAPPENED" | "CANCELLED";
   /** V18-S13 — ISO kdy scheduled CF poslal RSVP reminder. Null = nikdy
    *  (nebo ještě ne). Dedupe flag aby invitees nedostali reminder 2×. */

@@ -4,6 +4,7 @@ import AvatarCircle from "./AvatarCircle";
 import { useUsers } from "@/hooks/useUsers";
 import { useAuth } from "@/hooks/useAuth";
 import { useT } from "@/i18n/useT";
+import type { UserRole } from "@/types";
 
 interface Props {
   value: string | null | undefined;
@@ -11,6 +12,15 @@ interface Props {
   disabled?: boolean;
   /** When true, shows a compact read-only display (for non-authors). */
   readOnly?: boolean;
+  /**
+   * V24 — vyfiltrovat uživatele s danými rolemi z dropdownu. Použité hlavně
+   * v napad context — `["CONSTRUCTION_MANAGER"]` zabrání přiřazení nápadu
+   * stavbyvedoucímu (defense in depth, server rules taky odmítnou).
+   * Aktuální `value` (i kdyby byl ve filtrované roli) se v read-only chip
+   * stále zobrazí, jen v dropdownu nelze takovou volbu vybrat — preventivní
+   * pro nové výběry.
+   */
+  excludeRoles?: UserRole[];
 }
 
 /**
@@ -20,10 +30,23 @@ interface Props {
  * - Own user flagged with "(já)" for quick identification.
  * - Read-only mode for non-authors: just the avatar + name, no dropdown.
  */
-export default function AssigneeSelect({ value, onChange, disabled, readOnly }: Props) {
+export default function AssigneeSelect({
+  value,
+  onChange,
+  disabled,
+  readOnly,
+  excludeRoles,
+}: Props) {
   const t = useT();
   const { user } = useAuth();
-  const { users, byUid } = useUsers(Boolean(user));
+  const { users: rawUsers, byUid } = useUsers(Boolean(user));
+  // V24 — pre-filter dropdown options dle excludeRoles. Aktuální value
+  //   (i v excluded roli) zůstává viditelná v chip; user ji jen nemůže
+  //   nově vybrat ze seznamu.
+  const users =
+    excludeRoles && excludeRoles.length > 0
+      ? rawUsers.filter((u) => !excludeRoles.includes(u.role))
+      : rawUsers;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 

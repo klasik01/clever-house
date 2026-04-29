@@ -207,7 +207,8 @@
     "assigneeSelf": "(já)",
     "shareWithRoles": "Sdílení",
     "role": {
-      "PROJECT_MANAGER": "Projektant (jen pro čtení + komentáře)"
+      "PROJECT_MANAGER": "Projektant (jen pro čtení + komentáře)",
+      "CONSTRUCTION_MANAGER": "Stavbyvedoucí (jen pro čtení)"
     },
     "shareOn": "Sdíleno",
     "shareOff": "Nesdíleno",
@@ -381,7 +382,9 @@
     "missingBody": "Tvůj účet nemá přiřazenou roli. Kontaktuj správce, aby tě přidal do workspace.",
     "signOut": "Odhlásit",
     "OWNER": "Majitel",
-    "PROJECT_MANAGER": "Projektant"
+    "PROJECT_MANAGER": "Projektant",
+    "CONSTRUCTION_MANAGER": "Stavbyvedoucí",
+    "CONSTRUCTION_MANAGER_SHORT": "Stavbyved."
   },
   "export": {
     "pageTitle": "Export pro Projektanta",
@@ -501,6 +504,7 @@
     "cancel": "Zrušit",
     "sendAndFlip": "Poslat → {name}",
     "sendAndClose": "Poslat a uzavřít",
+    "completeAsAssignee": "Hotovo",
     "flipToClient": "Poslat klientovi",
     "flipToPm": "Poslat projektantovi",
     "flipTo": "Poslat {name}",
@@ -849,6 +853,8 @@
     "pageTitle": "Dokumentace",
     "emptyTitle": "Zatím žádná dokumentace",
     "emptyBody": "Nahrajte první dokument pomocí + v hlavičce.",
+    "emptyTitleCm": "Zatím ti nebyla sdílena žádná dokumentace",
+    "emptyBodyCm": "Až ti OWNER nebo PM sdílí dokument, objeví se tu. Mezitím se zkus zeptat, co potřebuješ.",
     "ariaList": "Seznam dokumentace",
     "ariaLabel": "Dokumentace",
     "addCta": "Nová dokumentace",

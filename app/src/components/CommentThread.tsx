@@ -3,8 +3,11 @@ import CommentComposer from "./CommentComposer";
 import CommentItem from "./CommentItem";
 import Lightbox from "./Lightbox";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useComments } from "@/hooks/useComments";
 import { useUsers } from "@/hooks/useUsers";
+import { canCompleteAsAssignee, canFlipAssignee } from "@/lib/permissions";
+import { resolveAuthorRole } from "@/lib/authorRole";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
 import { isRealFlip, pickDefaultPeer } from "@/lib/commentTargeting";
@@ -41,10 +44,37 @@ export default function CommentThread({ task }: Props) {
   };
 
   // V10 + V14 — workflow active on otázka OR úkol while OPEN. Closed /
-  // cancelled / blocked úkoly don’t offer flip; use StatusSelect to re-open.
+  // cancelled / blocked úkoly don't offer flip; use StatusSelect to re-open.
   const isActionable = task.type === "otazka" || task.type === "ukol";
   const current = isActionable ? mapLegacyOtazkaStatus(task.status) : task.status;
   const workflowEnabled = isActionable && current === "OPEN" && Boolean(user);
+
+  // V24 — workflow mode dispatch:
+  //   - "full" — close + flip (autor / cross-team)
+  //   - "completeOnly" — jen close (CM-as-assignee, žádné cross-team na CM-OWNER hranici)
+  //   - undefined — workflow se neukáže
+  const roleState = useUserRole(user?.uid);
+  const currentUserRole =
+    roleState.status === "ready" ? roleState.profile.role : null;
+  const taskAuthorRole = resolveAuthorRole({ task, usersByUid: byUid });
+  const workflowMode: "full" | "completeOnly" | null = (() => {
+    if (!workflowEnabled) return null;
+    const canFlip = canFlipAssignee({
+      task,
+      taskAuthorRole,
+      currentUserUid: user?.uid,
+      currentUserRole,
+    });
+    if (canFlip) return "full";
+    const canComplete = canCompleteAsAssignee({
+      task,
+      taskAuthorRole,
+      currentUserUid: user?.uid,
+      currentUserRole,
+    });
+    if (canComplete) return "completeOnly";
+    return null;
+  })();
 
   // Peers = every other workspace user. Sorted alphabetically for predictable
   // dropdown ordering.
@@ -152,11 +182,16 @@ export default function CommentThread({ task }: Props) {
         offline={offline}
         onSubmit={handleSubmit}
         workflow={
-          workflowEnabled
+          workflowMode
             ? {
-                closeLabel: t("comments.sendAndClose"),
-                peers,
-                defaultPeerUid,
+                closeLabel:
+                  workflowMode === "completeOnly"
+                    ? t("comments.completeAsAssignee")
+                    : t("comments.sendAndClose"),
+                peers: workflowMode === "completeOnly" ? [] : peers,
+                defaultPeerUid:
+                  workflowMode === "completeOnly" ? null : defaultPeerUid,
+                mode: workflowMode,
               }
             : undefined
         }

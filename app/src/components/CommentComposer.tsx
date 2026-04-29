@@ -51,6 +51,12 @@ interface Props {
     closeLabel: string;
     peers: Peer[];
     defaultPeerUid: string | null;
+    /**
+     * V24 — `completeOnly` schová flip section úplně. Použité pro CM-as-assignee:
+     * smí jen "Hotovo" (close → DONE), ne reassign.
+     * Default `full` = původní chování (close + flip).
+     */
+    mode?: "full" | "completeOnly";
   };
 }
 
@@ -339,11 +345,20 @@ export default function CommentComposer({
                 type="button"
                 onClick={() => handleSubmit("close")}
                 disabled={!canSend}
-                className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+                className={[
+                  "inline-flex items-center gap-1 h-8 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-40 transition-colors",
+                  // V24 — pro completeOnly stylized jako primary akce (CM nemá flip,
+                  // close je hlavní cesta uzavření). Pro full mode zachováme
+                  // historický secondary look (border, neutrální barva).
+                  workflow.mode === "completeOnly"
+                    ? "bg-accent text-accent-on hover:bg-accent-hover"
+                    : "border border-line bg-transparent text-ink hover:bg-bg-subtle",
+                ].join(" ")}
               >
                 <Check aria-hidden size={12} />
                 {workflow.closeLabel}
               </button>
+              {workflow.mode !== "completeOnly" && (
               <div className="relative inline-flex">
                 <button
                   type="button"
@@ -397,6 +412,7 @@ export default function CommentComposer({
                   </ul>
                 )}
               </div>
+              )}
             </>
           ) : (
             <button

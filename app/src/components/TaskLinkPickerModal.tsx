@@ -2,7 +2,7 @@ import { useState } from "react";
 import { HelpCircle, Lightbulb, Search, Target, X } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import type { Task, UserProfile, UserRole } from "@/types";
-import { canLinkTasks } from "@/lib/permissions";
+import { canLinkTasks, canViewTask } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
 
 /**
@@ -53,12 +53,20 @@ export default function TaskLinkPickerModal({
   const alreadyLinked = new Set(me.linkedTaskIds ?? []);
 
   // Kandidáti: protilehlý typ. Z napadu lovíme otazka+ukol; z otazka/ukol lovíme napad.
-  const candidates = allTasks.filter((cand) => {
-    if (cand.id === me.id) return false;
-    if (alreadyLinked.has(cand.id)) return false;
-    if (isNapad) return cand.type === "otazka" || cand.type === "ukol";
-    return cand.type === "napad";
-  });
+  // V24 — gate přes canViewTask aby CM neviděl nápady (Hide entirely policy):
+  //   pro CM se modal otevře jen z otazka/ukol kontextu, a candidates by hledali
+  //   napady (které CM nikdy nevidí) → seznam zůstane prázdný. Z napad kontextu
+  //   se modal pro CM neotevře vůbec (TaskDetail napad je pro CM blokovaný).
+  const candidates = allTasks
+    .filter((cand) => {
+      if (cand.id === me.id) return false;
+      if (alreadyLinked.has(cand.id)) return false;
+      if (isNapad) return cand.type === "otazka" || cand.type === "ukol";
+      return cand.type === "napad";
+    })
+    .filter((cand) =>
+      canViewTask({ task: cand, currentUserUid, currentUserRole }),
+    );
 
   const filtered = query.trim()
     ? candidates.filter((c) => {

@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { NOTIFICATION_CATALOG } from "./catalog";
+import { canReadTaskForRecipient } from "./canRead";
 import { renderPayload } from "./copy";
 import { normalisePrefs } from "./prefs";
 import type {
@@ -41,6 +42,26 @@ async function loadPrefs(uid: string): Promise<NotificationPrefs> {
 }
 
 /**
+ * V24 — load recipient's role for read-scope gating.
+ * Returns undefined for missing users (treated as no-access by canRead).
+ */
+async function loadUserRole(
+  uid: string,
+): Promise<"OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER" | undefined> {
+  const snap = await admin.firestore().collection("users").doc(uid).get();
+  if (!snap.exists) return undefined;
+  const role = snap.data()?.role;
+  if (
+    role === "OWNER" ||
+    role === "PROJECT_MANAGER" ||
+    role === "CONSTRUCTION_MANAGER"
+  ) {
+    return role;
+  }
+  return undefined;
+}
+
+/**
  * Sends one NotifyInput to every device a recipient has registered.
  * Respects prefs + self-notify filter. Returns the number of tokens
  * actually pushed to — useful for logging / dedupe decisions upstream.
@@ -59,6 +80,26 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
     if (!spec?.allowSelf) {
       return 0;
     }
+  }
+
+  // V24 — 0.5) Recipient read-scope gate.
+  //   CM nemůže dostat push/inbox o tasku, který nemá v read scope (rules by
+  //   ho stejně odmítly při deep-link click → broken UX). Pro OWNER/PM
+  //   nadále plný průchod (canReadTaskForRecipient vrací true).
+  //   Event-scope notifikace (input.task === undefined) projdou bez gateu —
+  //   events nejsou role-restricted.
+  const recipientRole = await loadUserRole(input.recipientUid);
+  if (!canReadTaskForRecipient(input.task, {
+    role: recipientRole,
+    uid: input.recipientUid,
+  })) {
+    logger.debug("skip: recipient lacks read scope (V24)", {
+      recipient: input.recipientUid,
+      event: input.eventType,
+      taskType: input.task?.type,
+      taskId: input.taskId,
+    });
+    return 0;
   }
 
   // 1) Recipient's prefs — master + per-event gates.

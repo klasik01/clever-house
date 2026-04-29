@@ -24,22 +24,27 @@ export default function NewTask() {
   const role =
     roleState.status === "ready" ? roleState.profile.role : null;
   const canCreateNapad = roleHas("task.create.napad", role);
-  // V14 — pokud user nesmí vytvořit nápad (PM, později WORKER), composer
-  // mu povolí jen { otazka, ukol }. Pokud smí všechno, prop nenastavuje
-  // a composer nabídne plné menu (defaultní chování OWNER).
-  // V19 — PM can also create dokumentace (alongside otazka/ukol).
-  const allowedTypes: TaskType[] | undefined = canCreateNapad
-    ? undefined
-    : ["otazka", "ukol", "dokumentace"];
+  const canCreateDokumentace = roleHas("task.create.dokumentace", role);
+  // V24 — allowedTypes plně permission-driven, jeden řádek per typ. Místo
+  // dvou-cesty `if canNapad ? full : [...]` (V14/V19) vyhodnotíme každou
+  // create akci přes roleHas. Mirror pro UX gating; server rules zůstávají
+  // authoritative (composer + tasks/create v firestore.rules).
+  //   - OWNER: ["napad","otazka","ukol","dokumentace"]
+  //   - PM:    ["otazka","ukol","dokumentace"]
+  //   - CM:    ["otazka","ukol"]
+  const allowedTypes: TaskType[] = [
+    ...(canCreateNapad ? (["napad"] as TaskType[]) : []),
+    "otazka",
+    "ukol",
+    ...(canCreateDokumentace ? (["dokumentace"] as TaskType[]) : []),
+  ];
   const { show: showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   // V20 — ?type=dokumentace pre-selects the type in the composer.
   const qType = searchParams.get("type") as TaskType | null;
   const initialType: TaskType | undefined =
-    qType && (allowedTypes ?? ["napad", "otazka", "ukol", "dokumentace"]).includes(qType)
-      ? qType
-      : undefined;
+    qType && allowedTypes.includes(qType) ? qType : undefined;
 
   const onSave = useCallback(
     async (text: string, type: TaskType, imageFiles: File[], linkUrls: string[]) => {

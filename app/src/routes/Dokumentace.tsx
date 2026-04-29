@@ -6,6 +6,7 @@ import CategoryFilterChip from "@/components/CategoryFilterChip";
 import LocationFilterChip from "@/components/LocationFilterChip";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useCategories } from "@/hooks/useCategories";
 import { applySearch } from "@/lib/search";
@@ -33,6 +34,10 @@ const KEY = "dokumentace";
 export default function Dokumentace() {
   const t = useT();
   const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  const isCm =
+    roleState.status === "ready"
+    && roleState.profile.role === "CONSTRUCTION_MANAGER";
   const { tasks, loading, error } = useVisibleTasks(Boolean(user));
   const { categories } = useCategories(Boolean(user));
 
@@ -166,8 +171,12 @@ export default function Dokumentace() {
           categories={categories}
           loading={loading}
           error={error}
-          emptyTitle={t("dokumentacePage.emptyTitle")}
-          emptyBody={t("dokumentacePage.emptyBody")}
+          emptyTitle={t(
+            isCm ? "dokumentacePage.emptyTitleCm" : "dokumentacePage.emptyTitle",
+          )}
+          emptyBody={t(
+            isCm ? "dokumentacePage.emptyBodyCm" : "dokumentacePage.emptyBody",
+          )}
           emptyIcon={<FileText size={22} aria-hidden />}
           ariaLabel={t("dokumentacePage.ariaList")}
         />

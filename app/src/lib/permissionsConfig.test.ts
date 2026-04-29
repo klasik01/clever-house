@@ -19,7 +19,7 @@ import type { UserRole } from "@/types";
  *   - Smoke test pro `canActOn` sugar wrapper.
  */
 
-const ALL_ROLES: UserRole[] = ["OWNER", "PROJECT_MANAGER"];
+const ALL_ROLES: UserRole[] = ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"];
 
 // ---------- Invariants ----------
 
@@ -34,7 +34,7 @@ describe("PERMISSIONS catalog invariants", () => {
   });
 
   it("ownership values jsou validní enum", () => {
-    const allowed = new Set(["anyone", "author", "author-or-cross-owner"]);
+    const allowed = new Set(["anyone", "author", "author-or-cross-team"]);
     for (const key of listActions()) {
       const o = PERMISSIONS[key].ownership ?? "anyone";
       expect(allowed.has(o), `${key}: invalid ownership ${o}`).toBe(true);
@@ -56,9 +56,10 @@ describe("roleHas", () => {
     expect(roleHas("task.create.napad", undefined)).toBe(false);
   });
 
-  it("OWNER má napad.create, PM ne", () => {
+  it("OWNER má napad.create, PM ani CM ne (V24 — rodinný brainstorming)", () => {
     expect(roleHas("task.create.napad", "OWNER")).toBe(true);
     expect(roleHas("task.create.napad", "PROJECT_MANAGER")).toBe(false);
+    expect(roleHas("task.create.napad", "CONSTRUCTION_MANAGER")).toBe(false);
   });
 
   it("oba role mají task.create.otazka a task.create.ukol", () => {
@@ -71,18 +72,22 @@ describe("roleHas", () => {
   it("categories.manage + locations.manage jen pro OWNER", () => {
     expect(roleHas("categories.manage", "OWNER")).toBe(true);
     expect(roleHas("categories.manage", "PROJECT_MANAGER")).toBe(false);
+    expect(roleHas("categories.manage", "CONSTRUCTION_MANAGER")).toBe(false);
     expect(roleHas("locations.manage", "OWNER")).toBe(true);
     expect(roleHas("locations.manage", "PROJECT_MANAGER")).toBe(false);
+    expect(roleHas("locations.manage", "CONSTRUCTION_MANAGER")).toBe(false);
   });
 
-  it("task.create.dokumentace pro OWNER i PM (V20)", () => {
+  it("task.create.dokumentace pro OWNER i PM (V20), CM read-only (V24)", () => {
     expect(roleHas("task.create.dokumentace", "OWNER")).toBe(true);
     expect(roleHas("task.create.dokumentace", "PROJECT_MANAGER")).toBe(true);
+    expect(roleHas("task.create.dokumentace", "CONSTRUCTION_MANAGER")).toBe(false);
   });
 
   it("documentTypes.manage jen pro OWNER (V20)", () => {
     expect(roleHas("documentTypes.manage", "OWNER")).toBe(true);
     expect(roleHas("documentTypes.manage", "PROJECT_MANAGER")).toBe(false);
+    expect(roleHas("documentTypes.manage", "CONSTRUCTION_MANAGER")).toBe(false);
   });
 
   it("settings.profile + settings.calendarToken pro oba", () => {
@@ -345,5 +350,133 @@ describe("canActOn", () => {
   it("resolved=undefined + task.authorRole=undefined + ne-autor → false", () => {
     const task = { createdBy: "u-owner-1", authorRole: undefined };
     expect(canActOn("task.edit", task, undefined, "u-owner-2", "OWNER")).toBe(false);
+  });
+});
+
+
+// ---------- V24 — CONSTRUCTION_MANAGER permission cases ----------
+
+describe("V24 — CM (CONSTRUCTION_MANAGER) permissions", () => {
+  it("CM smí vytvořit otázku a úkol", () => {
+    expect(roleHas("task.create.otazka", "CONSTRUCTION_MANAGER")).toBe(true);
+    expect(roleHas("task.create.ukol", "CONSTRUCTION_MANAGER")).toBe(true);
+  });
+
+  it("CM NESMÍ vytvořit napad ani dokumentaci", () => {
+    expect(roleHas("task.create.napad", "CONSTRUCTION_MANAGER")).toBe(false);
+    expect(roleHas("task.create.dokumentace", "CONSTRUCTION_MANAGER")).toBe(false);
+  });
+
+  it("CM smí task.read (server scope-uje přes canReadTaskByCm)", () => {
+    expect(roleHas("task.read", "CONSTRUCTION_MANAGER")).toBe(true);
+  });
+
+  it("cross-CM team — CM-A smí editovat task vytvořený CM-B", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "cm-b",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM NESMÍ editovat OWNER-vytvořený task (žádný cross přes role boundary)", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "owner-1",
+        resourceAuthorRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM NESMÍ editovat PM-vytvořený task", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "pm-1",
+        resourceAuthorRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("OWNER NESMÍ cross-CM (žádný cross-team mezi OWNER a CM)", () => {
+    expect(
+      canActOnResource("task.edit", {
+        role: "OWNER",
+        uid: "owner-me",
+        resourceCreatedBy: "cm-a",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM autor smí mazat svůj task; ne-autor CM (přesto cross-team) NESMÍ", () => {
+    expect(
+      canActOnResource("task.delete", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "cm-a",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+    expect(
+      canActOnResource("task.delete", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-b",
+        resourceCreatedBy: "cm-a",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(false);
+  });
+
+  it("CM smí komentovat (server gated na canReadTask u parent)", () => {
+    expect(roleHas("task.comment", "CONSTRUCTION_MANAGER")).toBe(true);
+  });
+
+  it("CM smí všechny event akce + RSVP", () => {
+    expect(roleHas("event.read", "CONSTRUCTION_MANAGER")).toBe(true);
+    expect(roleHas("event.create", "CONSTRUCTION_MANAGER")).toBe(true);
+    expect(roleHas("event.rsvp", "CONSTRUCTION_MANAGER")).toBe(true);
+    expect(
+      canActOnResource("event.edit", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "cm-b",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+    expect(
+      canActOnResource("event.delete", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "cm-a",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM smí spravovat vlastní settings (profile + calendar token)", () => {
+    expect(roleHas("settings.profile", "CONSTRUCTION_MANAGER")).toBe(true);
+    expect(roleHas("settings.calendarToken", "CONSTRUCTION_MANAGER")).toBe(true);
+  });
+
+  it("CM změní typ otázka↔úkol u CM-vytvořeného (cross-CM team)", () => {
+    expect(
+      canActOnResource("task.changeType", {
+        role: "CONSTRUCTION_MANAGER",
+        uid: "cm-a",
+        resourceCreatedBy: "cm-b",
+        resourceAuthorRole: "CONSTRUCTION_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("CM smí task.link na vlastní + cross-CM team", () => {
+    expect(roleHas("task.link", "CONSTRUCTION_MANAGER")).toBe(true);
   });
 });
