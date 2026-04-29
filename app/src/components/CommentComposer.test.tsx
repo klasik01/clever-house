@@ -52,7 +52,7 @@ describe("CommentComposer (V10)", () => {
     expect(targetUid).toBe("u-peer");
   });
 
-  it("workflow: close button calls onSubmit with close", async () => {
+  it("workflow: close button calls onSubmit with complete (V25)", async () => {
     const fn = vi.fn();
     renderWithProviders(
       <CommentComposer
@@ -65,9 +65,11 @@ describe("CommentComposer (V10)", () => {
       />,
     );
     await userEvent.type(screen.getByPlaceholderText(/komentář/i), "done");
-    await userEvent.click(screen.getByRole("button", { name: "Uzavřít" }));
+    // V25 — default workflow mode "full" uses i18n actionComplete label "Hotovo"
+    // (closeLabel se používá jen v completeOnly režimu V24 CM).
+    await userEvent.click(screen.getByRole("button", { name: "Hotovo" }));
     const [, action] = fn.mock.calls[0];
-    expect(action).toBe("close");
+    expect(action).toBe("complete");
   });
 });
 

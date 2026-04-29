@@ -32,9 +32,14 @@ describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
     "event_calendar_token_reset", // V18-S12
     "event_rsvp_reminder",      // V18-S13
     "document_uploaded",        // V20
+    "task_completed",           // V25
+    "task_blocked",             // V25
+    "task_unblocked",           // V25
+    "task_canceled",            // V25
+    "task_reopened",            // V25
   ];
 
-  it("NOTIFICATION_EVENTS obsahuje všech 17 klíčů (V20)", () => {
+  it("NOTIFICATION_EVENTS obsahuje všech 22 klíčů (V25)", () => {
     expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 

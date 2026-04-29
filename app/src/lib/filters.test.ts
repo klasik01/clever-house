@@ -12,7 +12,7 @@ function mkTask(overrides: Partial<Task> = {}): Task {
     title: "Test",
     body: "",
     type: "napad",
-    status: "Nový nápad",
+    status: "OPEN",
     createdBy: "u1",
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
@@ -24,23 +24,23 @@ function mkTask(overrides: Partial<Task> = {}): Task {
   } as Task;
 }
 
-describe("applyOpenClosed", () => {
-  const open1 = mkTask({ id: "o1", status: "Nový nápad" });
-  const open2 = mkTask({ id: "o2", status: "Ve stavbě" });
-  const done1 = mkTask({ id: "d1", status: "Hotovo" });
-  const done2 = mkTask({ id: "d2", status: "Hotovo" });
+describe("applyOpenClosed (V25 canonical)", () => {
+  const open1 = mkTask({ id: "o1", status: "OPEN" });
+  const open2 = mkTask({ id: "o2", status: "BLOCKED" });
+  const done1 = mkTask({ id: "d1", status: "DONE" });
+  const done2 = mkTask({ id: "d2", status: "DONE" });
   const all = [open1, open2, done1, done2];
 
   it("'all' vrátí vše", () => {
     expect(applyOpenClosed(all, "all")).toEqual(all);
   });
 
-  it("'open' vyfiltruje Hotovo", () => {
+  it("'open' vyfiltruje DONE (V25 canonical)", () => {
     const result = applyOpenClosed(all, "open");
     expect(result).toEqual([open1, open2]);
   });
 
-  it("'done' vrátí jen Hotovo", () => {
+  it("'done' vrátí jen DONE", () => {
     const result = applyOpenClosed(all, "done");
     expect(result).toEqual([done1, done2]);
   });
@@ -50,7 +50,7 @@ describe("applyOpenClosed", () => {
   });
 
   it("dokumentace task s libovolným statusem projde open filtrem", () => {
-    const dok = mkTask({ id: "dok", type: "dokumentace", status: "Nový nápad" });
+    const dok = mkTask({ id: "dok", type: "dokumentace", status: "OPEN" });
     expect(applyOpenClosed([dok], "open")).toEqual([dok]);
   });
 });

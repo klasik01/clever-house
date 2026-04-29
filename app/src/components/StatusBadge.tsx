@@ -1,4 +1,4 @@
-import { CheckCheck, CheckCircle2, CircleSlash, Hammer, Hourglass, HelpCircle, Inbox, Lightbulb, XCircle } from "lucide-react";
+import { CheckCheck, CircleSlash, Inbox, XCircle } from "lucide-react";
 import type { TaskStatus, TaskType } from "@/types";
 import { useT } from "@/i18n/useT";
 import { mapLegacyOtazkaStatus, statusLabel } from "@/lib/status";
@@ -20,7 +20,7 @@ export default function StatusBadge({ status, size = "sm", type }: Props) {
   const t = useT();
   // V14 — úkol shares the otázka mapper.
   // V23 — napad (téma) now shares the canonical otázka/úkol status set.
-  const display: TaskStatus = (type === "otazka" || type === "ukol" || type === "napad") ? mapLegacyOtazkaStatus(status) : (isKnownStatus(status) ? status : "OPEN");
+  const display: TaskStatus = (type === "otazka" || type === "ukol" || type === "napad") ? mapLegacyOtazkaStatus(status) : status;
   const { bg, fg, dot } = statusColors(display);
 
   return (
@@ -43,25 +43,9 @@ export default function StatusBadge({ status, size = "sm", type }: Props) {
   );
 }
 
-/** All possible status values, including legacy otazka labels (for StatusSelect filter). */
-export const ALL_STATUSES: TaskStatus[] = [
-  "Nápad",
-  "Otázka",
-  "Čekám",
-  "Rozhodnuto",
-  "Ve stavbě",
-  "Hotovo",
-  "ON_PM_SITE",
-  "ON_CLIENT_SITE",
-  "OPEN",
-  "BLOCKED",
-  "CANCELED",
-  "DONE",
-];
+/** V25 — all task status values (canonical 4). */
+export const ALL_STATUSES: TaskStatus[] = ["OPEN", "BLOCKED", "CANCELED", "DONE"];
 
-function isKnownStatus(v: unknown): v is TaskStatus {
-  return typeof v === "string" && (ALL_STATUSES as string[]).includes(v);
-}
 
 /**
  * Returns CSS var() references per status, wired to design tokens.
@@ -107,59 +91,25 @@ export function statusColors(s: TaskStatus): {
         dot: "var(--color-status-hotovo-fg)",
         border: "var(--color-status-hotovo-border)",
       };
-    // --- Legacy V5 otazka aliases (read-only, render like OPEN) ---
-    case "ON_PM_SITE":
-    case "ON_CLIENT_SITE":
-    case "Otázka":
+    default:
+      // V25 — defensive: pokud by Firestore vrátilo neočekávaný legacy
+      // string, render ho jako OPEN. Migration script ošetřil všechny
+      // historické tasky, ale paranoid bridge.
       return {
         bg: "var(--color-status-otazka-bg)",
         fg: "var(--color-status-otazka-fg)",
         dot: "var(--color-status-otazka-fg)",
         border: "var(--color-status-otazka-border)",
       };
-    case "Čekám":
-      return {
-        bg: "var(--color-status-cekam-bg)",
-        fg: "var(--color-status-cekam-fg)",
-        dot: "var(--color-status-cekam-fg)",
-        border: "var(--color-status-cekam-border)",
-      };
-    case "Rozhodnuto":
-      return {
-        bg: "var(--color-status-rozhodnuto-bg)",
-        fg: "var(--color-status-rozhodnuto-fg)",
-        dot: "var(--color-status-rozhodnuto-fg)",
-        border: "var(--color-status-rozhodnuto-border)",
-      };
-    case "Ve stavbě":
-      return {
-        bg: "var(--color-status-vestavbe-bg)",
-        fg: "var(--color-status-vestavbe-fg)",
-        dot: "var(--color-status-vestavbe-fg)",
-        border: "var(--color-status-vestavbe-border)",
-      };
-    case "Hotovo":
-      return {
-        bg: "var(--color-status-hotovo-bg)",
-        fg: "var(--color-status-hotovo-fg)",
-        dot: "var(--color-status-hotovo-fg)",
-        border: "var(--color-status-hotovo-border)",
-      };
-    case "Nápad":
-    default:
-      return {
-        bg: "var(--color-status-napad-bg)",
-        fg: "var(--color-status-napad-fg)",
-        dot: "var(--color-status-napad-fg)",
-        border: "var(--color-status-napad-border)",
-      };
   }
 }
 
 /** Contextual icon per status for scannability at glance. */
 export function statusIcon(s: TaskStatus): React.ReactNode {
+  // V25 — canonical 4. Legacy hodnoty byly migrovány skriptem
+  // 2026-04-29-V25-canonical-status.mjs; defensive default kdyby
+  // se i přesto objevil jiný string (vrátí OPEN icon).
   switch (s) {
-    // V10 canonical
     case "OPEN":
       return <Inbox aria-hidden size={11} />;
     case "BLOCKED":
@@ -168,22 +118,7 @@ export function statusIcon(s: TaskStatus): React.ReactNode {
       return <XCircle aria-hidden size={11} />;
     case "DONE":
       return <CheckCheck aria-hidden size={11} />;
-    // Legacy V5 + old
-    case "ON_PM_SITE":
-    case "Otázka":
-      return <HelpCircle aria-hidden size={11} />;
-    case "ON_CLIENT_SITE":
-      return <Inbox aria-hidden size={11} />;
-    case "Čekám":
-      return <Hourglass aria-hidden size={11} />;
-    case "Rozhodnuto":
-      return <CheckCircle2 aria-hidden size={11} />;
-    case "Ve stavbě":
-      return <Hammer aria-hidden size={11} />;
-    case "Hotovo":
-      return <CheckCheck aria-hidden size={11} />;
-    case "Nápad":
     default:
-      return <Lightbulb aria-hidden size={11} />;
+      return <Inbox aria-hidden size={11} />;
   }
 }

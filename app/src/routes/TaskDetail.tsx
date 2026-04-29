@@ -805,7 +805,8 @@ export default function TaskDetail() {
             type: createType!,
             title: finalTitle,
             body: "",
-            status: createType === "dokumentace" ? "Nápad" : "OPEN",
+            // V25 — všechny typy sdílí "OPEN" canonical default.
+            status: "OPEN",
           },
           user.uid,
           currentRole,
@@ -963,17 +964,13 @@ export default function TaskDetail() {
   // V14 — both otázka and úkol use the same rich meta layout (deadline,
   // priority, assignee). Nápad gets the simpler layout + Výstup section.
   const isActionable = task.type === "otazka" || task.type === "ukol";
-  // Banner on nápad: "Doplň výstup" when nápad is in a closing status yet
-  // the vystup field is still empty. Encourage summarising before it drops
-  // off the radar. Statuses that count as "closing": Rozhodnuto / Ve stavbě /
-  // Hotovo.
+  // V25 — Banner na nápad: "Doplň výstup" když je nápad v terminálním
+  //   stavu ale `vystup` chybí. Terminální = DONE nebo CANCELED.
   const needsVystup =
     task.type === "napad" &&
     task.createdBy === user?.uid &&
     !(task.vystup ?? "").trim() &&
-    (task.status === "Rozhodnuto" ||
-      task.status === "Ve stavbě" ||
-      task.status === "Hotovo");
+    (task.status === "DONE" || task.status === "CANCELED");
   const created = new Date(task.createdAt);
   const updated = new Date(task.updatedAt);
 

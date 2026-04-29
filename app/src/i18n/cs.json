@@ -513,7 +513,19 @@
     "workflowFlipBadge": "→ Přehozeno na {name}",
     "workflowFlipBadgeToClient": "→ Přehozeno klientovi",
     "workflowFlipBadgeToPm": "→ Přehozeno projektantovi",
-    "workflowCloseBadge": "→ Uzavřeno"
+    "workflowCloseBadge": "→ Uzavřeno",
+    "actionComplete": "Hotovo",
+    "actionBlock": "Blokováno",
+    "actionReopen": "Znovu otevřít",
+    "actionCancel": "Zrušit",
+    "actionFlip": "Předat",
+    "actionSend": "Odeslat",
+    "blockReasonRequired": "Pro Blokováno napiš důvod do komentáře.",
+    "reopenPickAssignee": "Vyber, kdo bude pokračovat:",
+    "workflowCompleteBadge": "→ Hotovo",
+    "workflowBlockBadge": "→ Blokováno",
+    "workflowReopenBadge": "→ Znovu otevřeno",
+    "workflowCancelBadge": "→ Zrušeno"
   },
   "mentions": {
     "typeToSearch": "Piš pro vyhledání…",
@@ -625,7 +637,17 @@
       "event_rsvp_reminder": "Připomínka RSVP",
       "event_rsvp_reminderHint": "Den předem upozornění na události, kde jsem nepotvrdil ani nepřestavěl",
       "document_uploaded": "Nahrání dokumentu",
-      "document_uploadedHint": "Když někdo nahraje dokument do sdíleného záznamu"
+      "document_uploadedHint": "Když někdo nahraje dokument do sdíleného záznamu",
+      "task_completed": "Úkol dokončen",
+      "task_completedHint": "Někdo dokončil úkol nebo otázku, kterou jsem založil nebo jsem v ní byl assignee",
+      "task_blocked": "Úkol zablokován",
+      "task_blockedHint": "Někdo označil úkol jako blokovaný (čeká se na externí věc)",
+      "task_unblocked": "Úkol odblokován",
+      "task_unblockedHint": "Externí překážka pominula, úkol se znovu řeší",
+      "task_canceled": "Úkol zrušen",
+      "task_canceledHint": "Autor úkol zrušil, už se nebude řešit",
+      "task_reopened": "Úkol znovu otevřen",
+      "task_reopenedHint": "Někdo znovu otevřel uzavřený úkol nebo otázku"
     },
     "banner": {
       "title": "Zapni si notifikace",

@@ -2,24 +2,19 @@ import type { TaskStatus, TaskType } from "@/types";
 import type { TFn } from "@/i18n/useT";
 
 /**
- * V10 — canonical status set for úkoly (otázky).
+ * V25 — canonical status set: 4 hodnoty.
  *
- * V10 collapsed the V5 role-based model (ON_CLIENT_SITE / ON_PM_SITE) into a
- * single active state + three terminal ones. "Kdo to řeší" lives in
- * `task.assigneeUid` now, not in the status.
+ *   OPEN     — aktivní, někdo je na tahu (assigneeUid).
+ *   BLOCKED  — externí překážka (úřad, statik, materiál, počasí).
+ *   CANCELED — zrušeno.
+ *   DONE     — vyřešeno.
  *
- * OPEN     — úkol se aktivně řeší. Assignee = řešitel.
- * BLOCKED  — externě blokováno (např. čeká se na 3. stranu).
- * CANCELED — stornováno, žádná akce se neočekává.
- * DONE     — vyřešeno.
+ * V25 odstranilo legacy hodnoty (V5/V10 mix). `mapLegacyOtazkaStatus` zůstává
+ * jako paranoid bridge pro případ neočekávaných legacy reads — vrací OPEN
+ * jako safe default. Migration script v `app/deploy/pending/2026-04-29-V25-canonical-status.mjs`
+ * přepsal všechny historické tasky.
  */
-export type OtazkaStatusCanonical =
-  | "OPEN"
-  | "BLOCKED"
-  | "CANCELED"
-  | "DONE";
-
-export type NapadStatus = "Nápad" | "Rozhodnuto" | "Ve stavbě" | "Hotovo";
+export type OtazkaStatusCanonical = TaskStatus;
 
 export const OTAZKA_STATUSES: OtazkaStatusCanonical[] = [
   "OPEN",
@@ -28,63 +23,35 @@ export const OTAZKA_STATUSES: OtazkaStatusCanonical[] = [
   "DONE",
 ];
 
-export const NAPAD_STATUSES: NapadStatus[] = [
-  "Nápad",
-  "Rozhodnuto",
-  "Ve stavbě",
-  "Hotovo",
-];
-
 /**
- * Map a legacy otázka status value onto the V10 canonical set.
+ * V25 — defensive mapper. Vstup je teď garantovaně canonical (TaskStatus
+ * union má jen 4 hodnoty), ale runtime bridge zachová bezpečnost pro
+ * případ, kdyby se v Firestore objevily legacy hodnoty z neúspěšné
+ * migrace nebo bypass write.
  *
- *   "Otázka", "Čekám"                       → OPEN   (active, pre-V5 two-state)
- *   "ON_CLIENT_SITE", "ON_PM_SITE"           → OPEN   (active, V5 role-based)
- *   "Rozhodnuto", "Ve stavbě", "Hotovo"      → DONE
- *   "BLOCKED", "CANCELED", "DONE"             pass-through
- *   "OPEN"                                    pass-through
- *
- * Never destructive — only transforms for read/render; writes use the new
- * canonical values directly.
+ * Pre-V25 mapping (deprecated, zachovaný pro defensive read):
+ *   - "Otázka" | "Čekám" | "Ve stavbě" | "ON_CLIENT_SITE" | "ON_PM_SITE" | "Nápad" → OPEN
+ *   - "Rozhodnuto" | "Hotovo" → DONE
  */
-export function mapLegacyOtazkaStatus(s: TaskStatus): OtazkaStatusCanonical {
-  switch (s) {
-    case "OPEN":
-    case "BLOCKED":
-    case "CANCELED":
-    case "DONE":
-      return s;
-    case "ON_PM_SITE":
-    case "ON_CLIENT_SITE":
-    case "Otázka":
-    case "Čekám":
-      return "OPEN";
-    case "Rozhodnuto":
-    case "Ve stavbě":
-    case "Hotovo":
-      return "DONE";
-    case "Nápad":
-    default:
-      // Nápad never reaches here for a type=otazka task — fall back to OPEN
-      // so the task doesn’t visually disappear.
-      return "OPEN";
-  }
+export function mapLegacyOtazkaStatus(s: TaskStatus | string): OtazkaStatusCanonical {
+  if (s === "OPEN" || s === "BLOCKED" || s === "CANCELED" || s === "DONE") return s;
+  // Defensive — neznámé / legacy → OPEN (assignee dál ukáže kdo je na tahu).
+  if (s === "Rozhodnuto" || s === "Hotovo") return "DONE";
+  return "OPEN";
 }
 
 /**
- * Returns the canonical status for any task, branching on type.
- * For nápad the raw value is returned unchanged; for otázka the legacy mapper
- * normalises older records to V10 values.
+ * Returns the canonical status for any task. V25 — vstupy už jsou canonical,
+ * ale defensive bridge pro případ legacy reads.
  */
 export function canonicalStatus(
   type: TaskType,
   status: TaskStatus,
 ): TaskStatus {
-  // V14 — úkol shares the otázka canonical set (OPEN / BLOCKED / CANCELED / DONE).
-  // V23 — napad (téma) now shares the same canonical statuses.
+  // V14 — úkol shares the otázka canonical set.
+  // V23 — napad (téma) shares the same.
   if (type === "otazka" || type === "ukol" || type === "napad") return mapLegacyOtazkaStatus(status);
-  // V19 — dokumentace has no workflow status; return raw value (typically "Nápad"
-  // from createTask default, but never displayed in UI).
+  // V19 — dokumentace has no workflow status; raw value passes through.
   return status;
 }
 
@@ -111,9 +78,16 @@ export function isBallOnMe(
 }
 
 /**
- * Render a Czech label for any status. V10 status labels are role-agnostic
- * (assignee drives ownership, not role). Legacy values go through the mapper
- * first so old records still read correctly.
+ * V25 — Czech label for canonical status.
+ *
+ * UI label != technical status (Codequ recommendation):
+ *   OPEN     → "Otevřené"
+ *   BLOCKED  → "Blokováno"
+ *   CANCELED → "Zrušeno"
+ *   DONE     → "Hotovo"
+ *
+ * `opts.isPm` ponecháno pro backwards compat caller signature; aktuálně
+ * neoznačuje žádný PM-specifický label (V10 byly role-agnostic).
  */
 export function statusLabel(
   t: TFn,
@@ -121,7 +95,6 @@ export function statusLabel(
   opts: { isPm?: boolean; type?: TaskType } = {},
 ): string {
   const { type } = opts;
-  // V14 — úkol uses the same canonical labels as otázka. V23 — napad (téma) too.
   const s = (type === "otazka" || type === "ukol" || type === "napad") ? mapLegacyOtazkaStatus(status) : status;
   switch (s) {
     case "OPEN":
@@ -133,7 +106,6 @@ export function statusLabel(
     case "DONE":
       return t("statusOtazka.DONE");
     default:
-      // Nápad flat keys fall through.
-      return t(`status.${s}`);
+      return t(`statusOtazka.OPEN`);
   }
 }

@@ -38,7 +38,7 @@ interface Props {
       linkUrls: string[];
       mentionedUids: string[];
     },
-    action?: "flip" | "close" | null,
+    action?: "flip" | "close" | "complete" | "block" | "reopen" | "cancel" | null,
     targetUid?: string | null,
   ) => Promise<void> | void;
   /**
@@ -54,9 +54,16 @@ interface Props {
     /**
      * V24 — `completeOnly` schová flip section úplně. Použité pro CM-as-assignee:
      * smí jen "Hotovo" (close → DONE), ne reassign.
-     * Default `full` = původní chování (close + flip).
+     * V25 — režimy:
+     *   - "full"           — close + flip + block + cancel (autor) — OPEN status
+     *   - "completeOnly"   — jen close (CM-as-assignee, V24 legacy)
+     *   - "blocked"        — odblokovat (reopen) + complete (Hotovo)
+     *   - "terminal"       — DONE/CANCELED → znovu otevřít (reopen)
+     * Default `full`.
      */
-    mode?: "full" | "completeOnly";
+    mode?: "full" | "completeOnly" | "blocked" | "terminal";
+    /** V25 — Author-only actions: Zrušit. Když true, render dropdown s "Více". */
+    canCancel?: boolean;
   };
 }
 
@@ -171,11 +178,15 @@ export default function CommentComposer({
     setLinks((prev) => prev.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(action: "flip" | "close" | null = null) {
+  async function handleSubmit(
+    action: "flip" | "close" | "complete" | "block" | "reopen" | "cancel" | null = null,
+  ) {
     if (!canSend) return;
     try {
       const trimmed = body.trim();
-      const targetUid = action === "flip" ? selectedPeerUid : null;
+      // V25 — flip i reopen oba routují k peer (assigneeAfter).
+      const targetUid =
+        action === "flip" || action === "reopen" ? selectedPeerUid : null;
       await onSubmit({
         body: trimmed,
         imageFiles: stagedImages.map((s) => s.file),
@@ -340,80 +351,17 @@ export default function CommentComposer({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {workflow ? (
-            <>
-              <button
-                type="button"
-                onClick={() => handleSubmit("close")}
-                disabled={!canSend}
-                className={[
-                  "inline-flex items-center gap-1 h-8 rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-40 transition-colors",
-                  // V24 — pro completeOnly stylized jako primary akce (CM nemá flip,
-                  // close je hlavní cesta uzavření). Pro full mode zachováme
-                  // historický secondary look (border, neutrální barva).
-                  workflow.mode === "completeOnly"
-                    ? "bg-accent text-accent-on hover:bg-accent-hover"
-                    : "border border-line bg-transparent text-ink hover:bg-bg-subtle",
-                ].join(" ")}
-              >
-                <Check aria-hidden size={12} />
-                {workflow.closeLabel}
-              </button>
-              {workflow.mode !== "completeOnly" && (
-              <div className="relative inline-flex">
-                <button
-                  type="button"
-                  onClick={() => handleSubmit("flip")}
-                  disabled={!canSend || !selectedPeerUid}
-                  className="inline-flex items-center gap-1 h-8 rounded-l-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
-                >
-                  <CornerDownLeft aria-hidden size={12} />
-                  {submitting
-                    ? t("composer.saving")
-                    : t("comments.flipTo", {
-                        name:
-                          workflow.peers.find((p) => p.uid === selectedPeerUid)?.displayName ?? "?",
-                      })}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPeerMenuOpen((v) => !v)}
-                  disabled={workflow.peers.length === 0}
-                  aria-label={t("comments.pickPeer")}
-                  aria-expanded={peerMenuOpen}
-                  aria-haspopup="listbox"
-                  className="inline-flex items-center justify-center h-8 w-7 rounded-r-md bg-accent text-accent-on hover:bg-accent-hover border-l border-accent-on/30 disabled:opacity-40"
-                >
-                  <ChevronDown aria-hidden size={12} />
-                </button>
-                {peerMenuOpen && (
-                  <ul
-                    role="listbox"
-                    className="absolute right-0 top-full z-20 mt-1 max-h-60 min-w-[12rem] overflow-y-auto rounded-md border border-line bg-surface shadow-lg"
-                  >
-                    {workflow.peers.map((peer) => (
-                      <li key={peer.uid}>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={selectedPeerUid === peer.uid}
-                          onClick={() => {
-                            setSelectedPeerUid(peer.uid);
-                            setPeerMenuOpen(false);
-                          }}
-                          className={[
-                            "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-bg-subtle",
-                            selectedPeerUid === peer.uid ? "bg-bg-subtle font-medium" : "",
-                          ].join(" ")}
-                        >
-                          {peer.displayName}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              )}
-            </>
+            <V25WorkflowActions
+              t={t}
+              workflow={workflow}
+              canSend={canSend}
+              submitting={submitting}
+              selectedPeerUid={selectedPeerUid}
+              setSelectedPeerUid={setSelectedPeerUid}
+              peerMenuOpen={peerMenuOpen}
+              setPeerMenuOpen={setPeerMenuOpen}
+              handleSubmit={handleSubmit}
+            />
           ) : (
             <button
               type="button"
@@ -429,5 +377,240 @@ export default function CommentComposer({
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- V25 — kontextové akční tlačítka ----------
+
+interface V25Props {
+  t: (k: string, vars?: Record<string, string | number>) => string;
+  workflow: NonNullable<Props["workflow"]>;
+  canSend: boolean;
+  submitting: boolean;
+  selectedPeerUid: string | null;
+  setSelectedPeerUid: (uid: string | null) => void;
+  peerMenuOpen: boolean;
+  setPeerMenuOpen: (next: boolean | ((p: boolean) => boolean)) => void;
+  handleSubmit: (
+    action: "flip" | "close" | "complete" | "block" | "reopen" | "cancel" | null,
+  ) => void;
+}
+
+/**
+ * V25 — kontextové akční tlačítka pro CommentComposer.
+ *
+ * Render závisí na `workflow.mode`:
+ *
+ *   "completeOnly" (V24)  — jen "Hotovo" jako primary CTA. Backwards compat
+ *                            pro CM-as-assignee dle V24-S07.
+ *
+ *   "full" (OPEN)          — Hotovo + Předat (s peer dropdownem) + Blokováno.
+ *                            Author-only "Více ▼" s Zrušit.
+ *
+ *   "blocked"              — Odblokovat (reopen → OPEN) + Hotovo.
+ *
+ *   "terminal" (DONE/CANCELED) — Znovu otevřít (reopen, vyžaduje peer pick).
+ *
+ * Send tlačítko (bez akce) zůstává primary v `else` větvi rodiče (CommentComposer).
+ */
+function V25WorkflowActions({
+  t,
+  workflow,
+  canSend,
+  submitting,
+  selectedPeerUid,
+  setSelectedPeerUid,
+  peerMenuOpen,
+  setPeerMenuOpen,
+  handleSubmit,
+}: V25Props): React.ReactElement {
+  const mode = workflow.mode ?? "full";
+  const peerName =
+    workflow.peers.find((p) => p.uid === selectedPeerUid)?.displayName ?? "?";
+
+  const cancelButton = workflow.canCancel ? (
+    <button
+      type="button"
+      onClick={() => handleSubmit("cancel")}
+      disabled={!canSend}
+      className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink-muted hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+    >
+      <X aria-hidden size={12} />
+      {t("comments.actionCancel")}
+    </button>
+  ) : null;
+
+  if (mode === "completeOnly") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => handleSubmit("complete")}
+          disabled={!canSend}
+          className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-medium text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+        >
+          <Check aria-hidden size={12} />
+          {workflow.closeLabel}
+        </button>
+        {cancelButton}
+      </>
+    );
+  }
+
+  if (mode === "blocked") {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => handleSubmit("complete")}
+          disabled={!canSend}
+          className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+        >
+          <Check aria-hidden size={12} />
+          {t("comments.actionComplete")}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSubmit("reopen")}
+          disabled={!canSend || !selectedPeerUid}
+          className="inline-flex items-center gap-1 h-8 rounded-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+        >
+          <CornerDownLeft aria-hidden size={12} />
+          {submitting ? t("composer.saving") : `${t("comments.actionReopen")} → ${peerName}`}
+        </button>
+        {cancelButton}
+      </>
+    );
+  }
+
+  if (mode === "terminal") {
+    return (
+      <>
+        <div className="relative inline-flex">
+          <button
+            type="button"
+            onClick={() => handleSubmit("reopen")}
+            disabled={!canSend || !selectedPeerUid}
+            className="inline-flex items-center gap-1 h-8 rounded-l-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+          >
+            <CornerDownLeft aria-hidden size={12} />
+            {submitting ? t("composer.saving") : `${t("comments.actionReopen")} → ${peerName}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPeerMenuOpen((v) => !v)}
+            disabled={workflow.peers.length === 0}
+            aria-label={t("comments.pickPeer")}
+            aria-expanded={peerMenuOpen}
+            aria-haspopup="listbox"
+            className="inline-flex items-center justify-center h-8 w-7 rounded-r-md bg-accent text-accent-on hover:bg-accent-hover border-l border-accent-on/30 disabled:opacity-40"
+          >
+            <ChevronDown aria-hidden size={12} />
+          </button>
+          {peerMenuOpen && (
+            <ul
+              role="listbox"
+              className="absolute right-0 top-full z-20 mt-1 max-h-60 min-w-[12rem] overflow-y-auto rounded-md border border-line bg-surface shadow-lg"
+            >
+              {workflow.peers.map((peer) => (
+                <li key={peer.uid}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selectedPeerUid === peer.uid}
+                    onClick={() => {
+                      setSelectedPeerUid(peer.uid);
+                      setPeerMenuOpen(false);
+                    }}
+                    className={[
+                      "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-bg-subtle",
+                      selectedPeerUid === peer.uid ? "bg-bg-subtle font-medium" : "",
+                    ].join(" ")}
+                  >
+                    {peer.displayName}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {cancelButton}
+      </>
+    );
+  }
+
+  // mode === "full" — OPEN status, plný 6-akční set
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => handleSubmit("block")}
+        disabled={!canSend}
+        title={t("comments.blockReasonRequired")}
+        className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink-muted hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+      >
+        {t("comments.actionBlock")}
+      </button>
+      <button
+        type="button"
+        onClick={() => handleSubmit("complete")}
+        disabled={!canSend}
+        className="inline-flex items-center gap-1 h-8 rounded-md border border-line bg-transparent px-2.5 py-1 text-xs font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+      >
+        <Check aria-hidden size={12} />
+        {t("comments.actionComplete")}
+      </button>
+      <div className="relative inline-flex">
+        <button
+          type="button"
+          onClick={() => handleSubmit("flip")}
+          disabled={!canSend || !selectedPeerUid}
+          className="inline-flex items-center gap-1 h-8 rounded-l-md bg-accent px-2.5 py-1 text-xs font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-40 transition-colors"
+        >
+          <CornerDownLeft aria-hidden size={12} />
+          {submitting
+            ? t("composer.saving")
+            : t("comments.flipTo", { name: peerName })}
+        </button>
+        <button
+          type="button"
+          onClick={() => setPeerMenuOpen((v) => !v)}
+          disabled={workflow.peers.length === 0}
+          aria-label={t("comments.pickPeer")}
+          aria-expanded={peerMenuOpen}
+          aria-haspopup="listbox"
+          className="inline-flex items-center justify-center h-8 w-7 rounded-r-md bg-accent text-accent-on hover:bg-accent-hover border-l border-accent-on/30 disabled:opacity-40"
+        >
+          <ChevronDown aria-hidden size={12} />
+        </button>
+        {peerMenuOpen && (
+          <ul
+            role="listbox"
+            className="absolute right-0 top-full z-20 mt-1 max-h-60 min-w-[12rem] overflow-y-auto rounded-md border border-line bg-surface shadow-lg"
+          >
+            {workflow.peers.map((peer) => (
+              <li key={peer.uid}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedPeerUid === peer.uid}
+                  onClick={() => {
+                    setSelectedPeerUid(peer.uid);
+                    setPeerMenuOpen(false);
+                  }}
+                  className={[
+                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-bg-subtle",
+                    selectedPeerUid === peer.uid ? "bg-bg-subtle font-medium" : "",
+                  ].join(" ")}
+                >
+                  {peer.displayName}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {cancelButton}
+    </>
   );
 }

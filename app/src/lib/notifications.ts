@@ -49,6 +49,11 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "event_calendar_token_reset", // V18-S12
   "event_rsvp_reminder", // V18-S13
   "document_uploaded",   // V20
+  "task_completed",      // V25
+  "task_blocked",        // V25
+  "task_unblocked",      // V25
+  "task_canceled",       // V25
+  "task_reopened",       // V25
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
@@ -78,6 +83,11 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     event_calendar_token_reset: true,
     event_rsvp_reminder: true,
     document_uploaded: true,
+    task_completed: true,
+    task_blocked: true,
+    task_unblocked: true,
+    task_canceled: true,
+    task_reopened: true,
   },
 };
 

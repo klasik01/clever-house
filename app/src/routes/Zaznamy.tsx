@@ -65,7 +65,8 @@ export default function Zaznamy() {
 
   const counts = {
     all: napady.length,
-    open: napady.filter((x) => x.status !== "Hotovo").length,
+    // V25 — "open" = ještě nedokončené (OPEN nebo BLOCKED).
+    open: napady.filter((x) => x.status !== "DONE" && x.status !== "CANCELED").length,
   };
 
   const visible = applySort(

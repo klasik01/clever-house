@@ -312,31 +312,6 @@ function toIso(v: unknown): string {
 }
 
 
-// ---------- S10: PM-specific actions ----------
-
-import type { TaskStatus } from "@/types";
-
-/** PM submits an answer and closes the task (status → Rozhodnuto). */
-export async function answerAsProjektant(id: string, answer: string): Promise<void> {
-  await updateDoc(doc(db, TASKS, id), {
-    projektantAnswer: answer.trim(),
-    projektantAnswerAt: serverTimestamp(),
-    status: "Rozhodnuto" as TaskStatus,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-/** PM saves an answer but keeps the task open (needs OWNER to clarify). */
-export async function needMoreInfoAsProjektant(id: string, answer: string): Promise<void> {
-  await updateDoc(doc(db, TASKS, id), {
-    projektantAnswer: answer.trim(),
-    projektantAnswerAt: serverTimestamp(),
-    status: "Čekám" as TaskStatus,
-    updatedAt: serverTimestamp(),
-  });
-}
-
-
 /**
  * S11: Convert a nápad into an otázka for the Projektant.
  * Creates a new task (type=otazka) pre-filled with the nápad's content and

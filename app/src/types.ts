@@ -8,32 +8,27 @@
 export type TaskType = "napad" | "otazka" | "ukol" | "dokumentace";
 
 /**
- * Union of every status a Task can have. Historically role-based values
- * (ON_CLIENT_SITE, ON_PM_SITE — V5) were canonical for otázka. V10 collapses
- * "kdo to řeší" into `assigneeUid`, so status only tracks whether the task
- * is still active (OPEN) or reached a terminal state (BLOCKED / CANCELED / DONE).
+ * V25 — task status: 4 canonical hodnoty.
  *
- * Legacy values stay in the union — `mapLegacyOtazkaStatus` (see lib/status.ts)
- * collapses them at read time. New writes on otázka only use the V10 canonical
- * set (OPEN | BLOCKED | CANCELED | DONE).
+ *   OPEN     — aktivní, někdo je na tahu (assigneeUid ukáže kdo).
+ *   BLOCKED  — nejde pokračovat kvůli externí překážce (úřad, statik,
+ *              materiál, počasí). Vyžaduje komentář s důvodem.
+ *   CANCELED — zrušeno, už se nebude řešit. Reopen vrací na OPEN.
+ *   DONE     — vyřešeno / hotovo. Reopen vrací na OPEN.
+ *
+ * V25 odstranilo legacy hodnoty `Nápad | Otázka | Čekám | Rozhodnuto |
+ * Ve stavbě | Hotovo | ON_CLIENT_SITE | ON_PM_SITE` — všechny historické
+ * tasky byly migrovány skriptem `2026-04-29-V25-canonical-status.mjs`.
+ * `lib/status.ts` zachovává `mapLegacyOtazkaStatus` jako paranoid bridge
+ * pro případ neočekávaných legacy reads (vrací OPEN/DONE pass-through
+ * pro neznámé hodnoty).
+ *
+ * CANCELED (US, jedno L) — záměrně se liší od `EventStatus.CANCELLED`
+ * (UK, dvě L). Events musí používat dvě L kvůli ICS RFC 5545 spec
+ * compliance (`STATUS:CANCELLED`). Žádná hodnota se nepoužívá v obou
+ * doménách současně.
  */
-export type TaskStatus =
-  | "Nápad"
-  | "Otázka"
-  | "Čekám"
-  | "Rozhodnuto"
-  | "Ve stavbě"
-  | "Hotovo"
-  | "ON_CLIENT_SITE"
-  | "ON_PM_SITE"
-  | "OPEN"
-  | "BLOCKED"
-  // CANCELED (US, jedno L) — V10/V14 origin pro tasks. Záměrně se liší od
-  // EventStatus.CANCELLED (UK, dvě L) — events musí používat dvě L kvůli
-  // ICS RFC 5545 spec compliance (STATUS:CANCELLED). Nesjednocujeme — žádná
-  // hodnota se nepoužívá v obou doménách současně, takže drift neškodí.
-  | "CANCELED"
-  | "DONE";
+export type TaskStatus = "OPEN" | "BLOCKED" | "CANCELED" | "DONE";
 
 /**
  * V24 — třetí role pro externí stavbyvedoucí (CM).
@@ -89,8 +84,33 @@ export type TaskPriority = "P1" | "P2" | "P3";
 /** Emoji reaction map: emoji → array of UIDs who reacted. */
 export type ReactionMap = { [emoji: string]: string[] };
 
-/** V4 — workflow action attached to a comment in the Q&A flow. */
-export type CommentWorkflowAction = "flip" | "close";
+/**
+ * V4 + V25 — workflow action attached to a comment.
+ *
+ *   "flip"     — Předat na jiného člověka (změna assigneeUid). Status zůstává
+ *                OPEN. Vyžaduje `assigneeAfter` ve výsledku.
+ *   "complete" — Hotovo. Status → DONE. (V4 měl `"close"`, V25 přejmenoval pro
+ *                konzistenci s ostatními akcemi a UI labelem "Hotovo".)
+ *   "block"    — Blokováno externí překážkou. Status → BLOCKED. Vyžaduje
+ *                neprázdný comment body s důvodem.
+ *   "reopen"   — Znovu otevřít z DONE/CANCELED → OPEN. Vyžaduje volbu
+ *                nového assigneeho.
+ *   "cancel"   — Zrušit, už se nebude řešit. Status → CANCELED.
+ *
+ * Komentář bez workflowAction je čistě informativní — nemění stav ani assignee
+ * (V25 — žádné magické auto-flip).
+ *
+ * Legacy `"close"` v existujících komentářích se v UI renderuje stejně jako
+ * `"complete"`. Komenty se nepřepisují (immutable history).
+ */
+export type CommentWorkflowAction =
+  | "flip"
+  | "complete"
+  | "block"
+  | "reopen"
+  | "cancel"
+  // V4 legacy — keep readable in CommentItem timeline. New writes use "complete".
+  | "close";
 
 export interface Comment {
   id: string;
@@ -337,7 +357,12 @@ export type NotificationEventKey =
   | "event_cancelled"    // V18-S08
   | "event_calendar_token_reset"   // V18-S12
   | "event_rsvp_reminder"          // V18-S13
-  | "document_uploaded";           // V20
+  | "document_uploaded"            // V20
+  | "task_completed"               // V25 — "Hotovo" akcí
+  | "task_blocked"                 // V25 — "Blokováno" akcí (s důvodem)
+  | "task_unblocked"               // V25 — odblokováno (z BLOCKED → OPEN přes Reopen)
+  | "task_canceled"                // V25 — "Zrušit" akcí (autor)
+  | "task_reopened";               // V25 — DONE/CANCELED → OPEN
 
 /** Per-user notification preferences, stored on the user profile doc. */
 export interface NotificationPrefs {

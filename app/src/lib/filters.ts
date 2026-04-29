@@ -27,9 +27,10 @@ export function saveFilter(key: string, value: OpenClosedFilter): void {
 }
 
 export function applyOpenClosed(tasks: Task[], f: OpenClosedFilter): Task[] {
+  // V25 — canonical statuses; "Hotovo" legacy → "DONE".
   if (f === "all") return tasks;
-  if (f === "done") return tasks.filter((t) => t.status === "Hotovo");
-  return tasks.filter((t) => t.status !== "Hotovo");
+  if (f === "done") return tasks.filter((t) => t.status === "DONE");
+  return tasks.filter((t) => t.status !== "DONE");
 }
 
 // ---------- Category ----------

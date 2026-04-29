@@ -531,6 +531,122 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     clientLabelKey: "assigned_with_comment",
     defaultEnabled: true,
   },
+
+  // ---------- V25 — task lifecycle akcí ----------
+
+  task_completed: {
+    key: "task_completed",
+    category: "immediate",
+    // V25 dedupe priorita 17 (po document_uploaded=16). Lifecycle akcí
+    // jsou nezávislé na ostatních eventech — když přijdou společně s
+    // mention/comment, ostatní vyhrávají; to je OK, "Hotovo" stejně
+    // dorazí v inboxu jen jednou.
+    dedupePriority: 17,
+    trigger:
+      "triggers/onCommentCreate.ts — comment.workflowAction === 'complete' (V25). Status fliponul na DONE.",
+    recipients:
+      "Autor tasku (createdBy) + původní assignee, pokud se liší od actora. Ostatní účastníci dostanou comment_on_thread.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} dokončil: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "task_completed",
+    defaultEnabled: true,
+  },
+
+  task_blocked: {
+    key: "task_blocked",
+    category: "immediate",
+    dedupePriority: 18,
+    trigger:
+      "triggers/onCommentCreate.ts — comment.workflowAction === 'block' (V25). Status na BLOCKED. Komentář povinný (důvod).",
+    recipients:
+      "Autor tasku + původní assignee, kromě actora.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} blokuje: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "task_blocked",
+    defaultEnabled: true,
+  },
+
+  task_unblocked: {
+    key: "task_unblocked",
+    category: "immediate",
+    dedupePriority: 19,
+    trigger:
+      "triggers/onCommentCreate.ts — comment.workflowAction === 'reopen' z BLOCKED → OPEN (V25).",
+    recipients:
+      "Autor tasku + nový assignee (assigneeAfter), kromě actora.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} odblokoval: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "task_unblocked",
+    defaultEnabled: true,
+  },
+
+  task_canceled: {
+    key: "task_canceled",
+    category: "immediate",
+    dedupePriority: 20,
+    trigger:
+      "triggers/onCommentCreate.ts — comment.workflowAction === 'cancel' (V25). Status → CANCELED.",
+    recipients:
+      "Autor tasku + původní assignee, kromě actora. Ostatní účastníci přes comment_on_thread.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} zrušil: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "task_canceled",
+    defaultEnabled: true,
+  },
+
+  task_reopened: {
+    key: "task_reopened",
+    category: "immediate",
+    dedupePriority: 21,
+    trigger:
+      "triggers/onCommentCreate.ts — comment.workflowAction === 'reopen' z DONE/CANCELED → OPEN (V25).",
+    recipients:
+      "Nový assignee (assigneeAfter) + autor, kromě actora.",
+    renderTitle: (ctx) =>
+      `${ctx.actorName} znovu otevřel: ${truncate(
+        taskTitleOrFallback(ctx.task!.title, ctx.task!.body),
+        40,
+      )}`,
+    renderBody: (ctx) => commentPreview(ctx.comment?.body ?? ""),
+    renderDeepLink: (ctx) =>
+      ctx.commentId
+        ? `/t/${ctx.taskId}#comment-${ctx.commentId}`
+        : `/t/${ctx.taskId}`,
+    clientLabelKey: "task_reopened",
+    defaultEnabled: true,
+  },
 };
 
 /**

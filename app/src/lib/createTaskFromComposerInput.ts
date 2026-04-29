@@ -32,9 +32,11 @@ export async function createTaskFromComposerInput(opts: {
   //   nápad       → "OPEN"  (V23 canonical, same set as otázka/úkol)
   //   otázka      → "OPEN"  (V10 canonical)
   //   úkol        → "OPEN"  (V14 canonical, same set as otázka)
-  //   dokumentace → "Nápad" (no workflow status — stored but never displayed)
-  const seedStatus =
-    type === "dokumentace" ? "Nápad" : "OPEN";
+  // V25 — všechny typy sdílí canonical "OPEN" jako počáteční status.
+  //   dokumentace nemá workflow status v UI; pole se zachová pro back-compat
+  //   readers, ale "OPEN" je benigní default (na rozdíl od pre-V25 "Nápad",
+  //   který je už mimo TaskStatus union).
+  const seedStatus = "OPEN";
   const taskId = await createTask(
     {
       type,

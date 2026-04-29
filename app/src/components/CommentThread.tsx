@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useComments } from "@/hooks/useComments";
 import { useUsers } from "@/hooks/useUsers";
-import { canCompleteAsAssignee, canFlipAssignee } from "@/lib/permissions";
+import { canFlipAssignee } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
 import { useOnline } from "@/hooks/useOnline";
 import { createComment, deleteComment, toggleReaction, updateComment } from "@/lib/comments";
@@ -15,7 +15,7 @@ import { uploadTaskImage, uploadTaskFile, isImageFile } from "@/lib/attachments"
 import { newId } from "@/lib/id";
 import { useT } from "@/i18n/useT";
 import { mapLegacyOtazkaStatus } from "@/lib/status";
-import type { ImageAttachment, Task, TaskStatus } from "@/types";
+import type { ImageAttachment, Task } from "@/types";
 
 interface Props {
   task: Task;
@@ -49,30 +49,50 @@ export default function CommentThread({ task }: Props) {
   const current = isActionable ? mapLegacyOtazkaStatus(task.status) : task.status;
   const workflowEnabled = isActionable && current === "OPEN" && Boolean(user);
 
-  // V24 — workflow mode dispatch:
-  //   - "full" — close + flip (autor / cross-team)
-  //   - "completeOnly" — jen close (CM-as-assignee, žádné cross-team na CM-OWNER hranici)
-  //   - undefined — workflow se neukáže
+  // V25 — workflow mode dispatch podle aktuálního statusu + permission:
+  //   - "full"          — OPEN (vlastník/cross-team) — close+flip+block+cancel
+  //   - "blocked"       — BLOCKED — odblokovat (reopen) + complete
+  //   - "terminal"      — DONE/CANCELED — znovu otevřít (reopen)
+  //   - "completeOnly"  — V24 legacy: CM-as-assignee bez edit, jen Hotovo.
   const roleState = useUserRole(user?.uid);
   const currentUserRole =
     roleState.status === "ready" ? roleState.profile.role : null;
   const taskAuthorRole = resolveAuthorRole({ task, usersByUid: byUid });
-  const workflowMode: "full" | "completeOnly" | null = (() => {
-    if (!workflowEnabled) return null;
-    const canFlip = canFlipAssignee({
+  const isAuthor = Boolean(user && user.uid === task.createdBy);
+  const isActionableType = task.type === "otazka" || task.type === "ukol";
+  const currentCanonical = isActionableType ? mapLegacyOtazkaStatus(task.status) : null;
+
+  const workflowMode: "full" | "completeOnly" | "blocked" | "terminal" | null = (() => {
+    if (!isActionableType || !user) return null;
+    // V25 — gating:
+    //   - canEdit  = autor / cross-OWNER / cross-CM (per canEditTask)
+    //   - isAssign = current user je task.assigneeUid
+    //   - Anyone participating (autor / assignee / cross-team) má plný workflow.
+    //   - Reopen pro terminal je otevřený všem s read access.
+    const canEdit = canFlipAssignee({
       task,
       taskAuthorRole,
-      currentUserUid: user?.uid,
+      currentUserUid: user.uid,
       currentUserRole,
     });
-    if (canFlip) return "full";
-    const canComplete = canCompleteAsAssignee({
-      task,
-      taskAuthorRole,
-      currentUserUid: user?.uid,
-      currentUserRole,
-    });
-    if (canComplete) return "completeOnly";
+    const isAssign = task.assigneeUid === user.uid;
+    const canParticipate = canEdit || isAssign;
+
+    if (currentCanonical === "OPEN") {
+      // Plný 6-akční set pro všechny participants (autor / assignee / cross-team).
+      if (canParticipate) return "full";
+      return null;
+    }
+    if (currentCanonical === "BLOCKED") {
+      // V25 — odblokovat (reopen) i complete pro participants.
+      if (canParticipate) return "blocked";
+      return null;
+    }
+    if (currentCanonical === "DONE" || currentCanonical === "CANCELED") {
+      // V25 — Reopen kdokoliv s read access. canViewTask gate v parent
+      //   TaskDetail garantuje, že sem dorazíme jen pokud read prošel.
+      return "terminal";
+    }
     return null;
   })();
 
@@ -106,10 +126,15 @@ export default function CommentThread({ task }: Props) {
       linkUrls: string[];
       mentionedUids: string[];
     },
-    action?: "flip" | "close" | null,
+    action?: "flip" | "close" | "complete" | "block" | "reopen" | "cancel" | null,
     targetUid?: string | null,
   ) {
     if (!user) return;
+    // V25 — block requires non-empty body (důvod externí překážky).
+    if (action === "block" && !input.body.trim()) {
+      console.warn("block action without comment body — ignoring");
+      return;
+    }
     setSubmitting(true);
     try {
       // 1. Upload images first (sequential, compress via attachments util)
@@ -124,21 +149,33 @@ export default function CommentThread({ task }: Props) {
         uploaded.push({ id: newId(), url, path });
       }
 
-      // 2. Resolve workflow side-effect.
-      //    V17.3 — no-op flip (targetUid === current assignee) je obyčejný
-      //    comment, ne flip. Logika v lib/commentTargeting.isRealFlip.
+      // 2. V25 — resolve workflow akcí na status/assignee patch.
+      //    V17.3 isRealFlip ošetřuje no-op flip (targetUid === current assignee).
       const realFlip = isRealFlip({
-        action: action ?? null,
+        action: action === "flip" ? "flip" : null,
         workflowEnabled,
         targetUid: targetUid ?? null,
         currentAssigneeUid: task.assigneeUid ?? null,
       });
-      const workflow =
-        realFlip && targetUid
-          ? { action: "flip" as const, assigneeAfter: targetUid }
-          : action === "close"
-          ? { action: "close" as const, statusAfter: "DONE" as TaskStatus }
-          : undefined;
+
+      let workflow: Parameters<typeof createComment>[1]["workflow"] = undefined;
+      if (realFlip && targetUid) {
+        workflow = { action: "flip", assigneeAfter: targetUid };
+      } else if (action === "complete" || action === "close") {
+        // V25 — close legacy → complete; oba dělají DONE.
+        workflow = { action: "complete", statusAfter: "DONE" };
+      } else if (action === "block") {
+        workflow = { action: "block", statusAfter: "BLOCKED" };
+      } else if (action === "reopen" && targetUid) {
+        // Reopen vrací na OPEN + nastavuje nového assigneeho.
+        workflow = {
+          action: "reopen",
+          statusAfter: "OPEN",
+          assigneeAfter: targetUid,
+        };
+      } else if (action === "cancel") {
+        workflow = { action: "cancel", statusAfter: "CANCELED" };
+      }
 
       // 3. Create comment doc s uploaded refs + workflow patch + priorAssignee.
       await createComment(task.id, {
@@ -184,14 +221,16 @@ export default function CommentThread({ task }: Props) {
         workflow={
           workflowMode
             ? {
-                closeLabel:
-                  workflowMode === "completeOnly"
-                    ? t("comments.completeAsAssignee")
-                    : t("comments.sendAndClose"),
-                peers: workflowMode === "completeOnly" ? [] : peers,
-                defaultPeerUid:
-                  workflowMode === "completeOnly" ? null : defaultPeerUid,
+                closeLabel: t("comments.actionComplete"),
+                peers,
+                defaultPeerUid,
                 mode: workflowMode,
+                // V25 — Zrušit smí jen autor (a jen pokud je task aktivní;
+                //   na DONE/CANCELED Cancel skryjeme — Reopen pokrývá scénář).
+                canCancel:
+                  isAuthor &&
+                  workflowMode !== "terminal" &&
+                  currentCanonical !== "CANCELED",
               }
             : undefined
         }

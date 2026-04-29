@@ -22,7 +22,12 @@ export type NotificationEventKey =
   | "event_cancelled"    // V18-S08
   | "event_calendar_token_reset"   // V18-S12
   | "event_rsvp_reminder"          // V18-S13
-  | "document_uploaded";           // V20
+  | "document_uploaded"            // V20
+  | "task_completed"               // V25
+  | "task_blocked"                 // V25
+  | "task_unblocked"               // V25
+  | "task_canceled"                // V25
+  | "task_reopened";               // V25
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -58,7 +63,8 @@ export interface CommentDoc {
   authorUid: string;
   body: string;
   mentionedUids?: string[];
-  workflowAction?: "flip" | "close" | null;
+  /** V4 + V25 — komentový workflow akcí. Legacy "close" se renderuje jako "complete". */
+  workflowAction?: "flip" | "close" | "complete" | "block" | "reopen" | "cancel" | null;
   /** V17.5 — hodnota task.assigneeUid PŘED batch commitem. */
   priorAssigneeUid?: string | null;
   /** V17.5 — hodnota task.assigneeUid PO batch commitu (když comment flipuje). */

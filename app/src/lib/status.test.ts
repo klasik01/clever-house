@@ -25,7 +25,7 @@ describe("mapLegacyOtazkaStatus (V10)", () => {
     expect(mapLegacyOtazkaStatus("Otázka")).toBe("OPEN");
     expect(mapLegacyOtazkaStatus("Čekám")).toBe("OPEN");
     expect(mapLegacyOtazkaStatus("Rozhodnuto")).toBe("DONE");
-    expect(mapLegacyOtazkaStatus("Ve stavbě")).toBe("DONE");
+    expect(mapLegacyOtazkaStatus("Ve stavbě")).toBe("OPEN"); // V25 — Codequ remap
     expect(mapLegacyOtazkaStatus("Hotovo")).toBe("DONE");
   });
 
@@ -44,7 +44,7 @@ describe("canonicalStatus", () => {
   it("V23 — maps napad (téma) values through legacy mapper like otázka", () => {
     expect(canonicalStatus("napad", "Nápad")).toBe("OPEN");
     expect(canonicalStatus("napad", "Rozhodnuto")).toBe("DONE");
-    expect(canonicalStatus("napad", "Ve stavbě")).toBe("DONE");
+    expect(canonicalStatus("napad", "Ve stavbě")).toBe("OPEN"); // V25
     expect(canonicalStatus("napad", "Hotovo")).toBe("DONE");
     expect(canonicalStatus("napad", "OPEN")).toBe("OPEN");
     expect(canonicalStatus("napad", "BLOCKED")).toBe("BLOCKED");

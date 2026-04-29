@@ -64,14 +64,21 @@ export async function createComment(
      *  doc a sám rozhodne, jestli je to flip (prior != after) a koho má
      *  notifikovat jako "assigned_with_comment". */
     priorAssigneeUid?: string | null;
-    /** V4/V10 — workflow action to apply to parent task atomically with comment write.
-     *  V10: statusAfter is OPTIONAL on flip (assignee changes, status stays OPEN).
-     *  Close always carries statusAfter: "DONE". */
+    /** V4/V10/V25 — workflow action to apply to parent task atomically with comment write.
+     *
+     *   "flip"     — change assigneeUid only. Status stays.
+     *   "complete" — set statusAfter to DONE.
+     *   "block"    — set statusAfter to BLOCKED. Requires non-empty comment body
+     *                (caller-side gate; rules don't enforce body shape).
+     *   "reopen"   — set statusAfter to OPEN; flip assigneeUid to reopener's pick.
+     *   "cancel"   — set statusAfter to CANCELED.
+     *   "close"    — V4 legacy alias pro "complete"; new code uses "complete".
+     */
     workflow?: {
-      action: "flip" | "close";
+      action: "flip" | "complete" | "block" | "reopen" | "cancel" | "close";
       /** Next status for the task. Omit on flip to leave status untouched. */
       statusAfter?: import("@/types").TaskStatus;
-      /** Next assigneeUid. Set on flip to route the ball; leave undefined to preserve. */
+      /** Next assigneeUid. Set on flip / reopen to route the ball. */
       assigneeAfter?: string | null;
     };
   }
@@ -81,7 +88,8 @@ export async function createComment(
   const wf = input.workflow ?? null;
   // V17.5 — explicitní "assignee after": pokud je workflow=flip s assigneeAfter,
   //   má přednost; jinak je rovno priorAssigneeUid (komentář nezměnil assignee).
-  const assigneeAfter = wf && wf.action === "flip"
+  // V25 — flip a reopen oba mění assignee. Ostatní akce assignee zachovávají.
+  const assigneeAfter = wf && (wf.action === "flip" || wf.action === "reopen")
     ? (wf.assigneeAfter ?? null)
     : (input.priorAssigneeUid ?? null);
   batch.set(ref, {
@@ -103,12 +111,20 @@ export async function createComment(
     updatedAt: serverTimestamp(),
   };
   if (wf) {
-    // Status only changes if the caller explicitly asks. V10 flip keeps the
-    // úkol at OPEN and only moves assigneeUid; close sets DONE.
+    // V25 — status změna podle akce:
+    //   flip:     statusAfter omit, assigneeUid se mění
+    //   complete: statusAfter = DONE
+    //   block:    statusAfter = BLOCKED
+    //   reopen:   statusAfter = OPEN, assigneeUid se mění
+    //   cancel:   statusAfter = CANCELED
+    //   close:    legacy alias pro complete (DONE)
     if (wf.statusAfter !== undefined) {
       taskPatch.status = wf.statusAfter;
     }
-    if (wf.action === "flip" && wf.assigneeAfter !== undefined) {
+    if (
+      (wf.action === "flip" || wf.action === "reopen")
+      && wf.assigneeAfter !== undefined
+    ) {
       taskPatch.assigneeUid = wf.assigneeAfter;
     }
   }

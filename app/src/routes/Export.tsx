@@ -32,9 +32,11 @@ export default function Export() {
   const filtered = useMemo<Task[]>(() => {
     let base = otazky;
     if (preset === "open") {
-      base = base.filter((x) => x.status === "Otázka" || x.status === "Čekám");
+      // V25 — "open" preset = aktivně řešené (OPEN nebo BLOCKED ještě otevřené).
+      base = base.filter((x) => x.status === "OPEN" || x.status === "BLOCKED");
     } else if (preset === "allOpen") {
-      base = base.filter((x) => x.status !== "Hotovo");
+      // V25 — všechno kromě DONE/CANCELED.
+      base = base.filter((x) => x.status !== "DONE" && x.status !== "CANCELED");
     }
     // custom: no status filter, only category+location
     base = applyLocation(applyCategory(base, categoryId), locationId);
