@@ -491,6 +491,37 @@ describe("linkTaskToNapad / unlinkTaskFromNapad (V18-S40)", () => {
     const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
     expect(napad.linkedTaskIds).toEqual(["o1"]);
     expect(otazka.linkedTaskIds).toEqual(["n1"]);
+    // V18-S40 fix — linkedTaskId musí být null, aby bridge nikdy nefallbackoval
+    expect(napad.linkedTaskId).toBeNull();
+    expect(otazka.linkedTaskId).toBeNull();
+  });
+
+  it("unlink + bridge regrese — po unlinku se link nevrátí přes legacy linkedTaskId", async () => {
+    // Repro: otázka má prázdný linkedTaskIds + legacy linkedTaskId. Po unlinku
+    // se musí oba vyčistit, jinak bridgeLinkedTaskIds propadne na legacy a
+    // UI uvidí link dál.
+    __firestoreState.store.set("tasks/n1", {
+      type: "napad",
+      linkedTaskIds: ["o1"],
+      createdBy: "u1",
+    });
+    __firestoreState.store.set("tasks/o1", {
+      type: "otazka",
+      // Edge case: prázdný array + legacy field naplněný (typický stav po
+      // V14 convertNapadToOtazka).
+      linkedTaskIds: [],
+      linkedTaskId: "n1",
+      createdBy: "u1",
+    });
+    await unlinkTaskFromNapad({ taskId: "o1", napadId: "n1" });
+    const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
+    const napad = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;
+    expect(otazka.linkedTaskIds).toEqual([]);
+    expect(otazka.linkedTaskId).toBeNull();
+    expect(napad.linkedTaskIds).toEqual([]);
+    // Simuluj re-read přes getTask — bridge musí vrátit prázdné pole.
+    const reread = await getTask("o1");
+    expect(reread?.linkedTaskIds).toEqual([]);
   });
 
   it("link je idempotentní — duplicate volání nepřidá podruhé", async () => {
@@ -511,7 +542,7 @@ describe("linkTaskToNapad / unlinkTaskFromNapad (V18-S40)", () => {
     expect(otazka.linkedTaskIds).toEqual(["n1"]);
   });
 
-  it("unlink odebere ID z obou polí", async () => {
+  it("unlink odebere ID z obou polí + vyčistí legacy linkedTaskId", async () => {
     __firestoreState.store.set("tasks/n1", {
       type: "napad",
       linkedTaskIds: ["o1", "o2"],
@@ -527,6 +558,8 @@ describe("linkTaskToNapad / unlinkTaskFromNapad (V18-S40)", () => {
     const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
     expect(napad.linkedTaskIds).toEqual(["o2"]);
     expect(otazka.linkedTaskIds).toEqual(["n2"]);
+    expect(napad.linkedTaskId).toBeNull();
+    expect(otazka.linkedTaskId).toBeNull();
   });
 
   it("link bridge: legacy linkedTaskId na otázce/úkolu se rovněž započítá", async () => {

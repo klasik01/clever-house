@@ -380,12 +380,17 @@ export async function linkTaskToNapad(args: {
   if (!taskLinks.includes(args.napadId)) {
     batch.update(taskRef, {
       linkedTaskIds: [...taskLinks, args.napadId],
+      // V18-S40 — clear legacy single-link field; linkedTaskIds je nově
+      // jediný zdroj pravdy. Bez tohoto by bridge nadále četl legacy field
+      // jako fallback, když by byl array v budoucnu vyprázdněný.
+      linkedTaskId: null,
       updatedAt: serverTimestamp(),
     });
   }
   if (!napadLinks.includes(args.taskId)) {
     batch.update(napadRef, {
       linkedTaskIds: [...napadLinks, args.taskId],
+      linkedTaskId: null,
       updatedAt: serverTimestamp(),
     });
   }
@@ -417,12 +422,19 @@ export async function unlinkTaskFromNapad(args: {
   if (newTaskLinks.length !== taskLinks.length) {
     batch.update(taskRef, {
       linkedTaskIds: newTaskLinks,
+      // V18-S40 — kritické: clear legacy linkedTaskId. Bez toho by se po
+      // unlinku, kdy linkedTaskIds skončí prázdné, bridgeLinkedTaskIds
+      // propadl na legacy field a vrátil "obnovený" link (snapshot reload
+      // by ukázal odkaz dál existovat). Symptom: X klikne, potvrdí, "nic se
+      // nestane".
+      linkedTaskId: null,
       updatedAt: serverTimestamp(),
     });
   }
   if (newNapadLinks.length !== napadLinks.length) {
     batch.update(napadRef, {
       linkedTaskIds: newNapadLinks,
+      linkedTaskId: null,
       updatedAt: serverTimestamp(),
     });
   }

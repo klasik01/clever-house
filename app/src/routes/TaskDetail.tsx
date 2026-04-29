@@ -108,12 +108,12 @@ function LinkedList({
             >
               <Link
                 to={taskDetail(id)}
-                className="flex items-center justify-between gap-3 flex-1 px-4 py-3"
+                className="flex items-center justify-between gap-3 flex-1 min-w-0 px-4 py-3"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <Icon aria-hidden size={18} className="text-accent-visual shrink-0" />
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <Icon aria-hidden size={18} className="text-accent-visual shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink truncate">{title}</p>
+                    <p className="text-sm font-medium text-ink break-words [overflow-wrap:anywhere] line-clamp-3">{title}</p>
                     {ot && c && (
                       <span
                         className="mt-1 inline-flex items-center gap-1.5 text-xs"
@@ -139,7 +139,7 @@ function LinkedList({
                   onClick={() => onUnlink?.(id)}
                   disabled={unlinkingId === id}
                   aria-label={t("detail.unlinkAria")}
-                  className="grid place-items-center px-3 text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
+                  className="grid place-items-center shrink-0 w-12 text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
                 >
                   <XIcon aria-hidden size={16} />
                 </button>
@@ -1659,14 +1659,14 @@ export default function TaskDetail() {
                   return (
                     <li
                       key={parent.id}
-                      className="flex items-center gap-2 rounded-md border border-line bg-surface px-2 py-1.5 hover:bg-bg-subtle transition-colors"
+                      className="flex items-stretch gap-1 rounded-md border border-line bg-surface hover:bg-bg-subtle transition-colors"
                     >
                       <Link
                         to={taskDetail(parent.id)}
-                        className="flex flex-1 items-center gap-3 min-w-0"
+                        className="flex flex-1 items-start gap-3 min-w-0 px-2 py-1.5"
                       >
-                        <Lightbulb aria-hidden size={18} className="text-ink-subtle shrink-0" />
-                        <p className="text-sm text-ink truncate">{ptitle}</p>
+                        <Lightbulb aria-hidden size={18} className="text-ink-subtle shrink-0 mt-0.5" />
+                        <p className="text-sm text-ink break-words [overflow-wrap:anywhere] line-clamp-3">{ptitle}</p>
                       </Link>
                       {canUnlink && (
                         <button
@@ -1674,7 +1674,7 @@ export default function TaskDetail() {
                           onClick={() => handleUnlink(parent.id)}
                           disabled={linkingId === parent.id}
                           aria-label={t("detail.unlinkAria")}
-                          className="inline-flex shrink-0 items-center justify-center min-h-tap min-w-tap rounded-md text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
+                          className="grid place-items-center shrink-0 w-12 text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
                         >
                           <XIcon aria-hidden size={16} />
                         </button>
