@@ -472,7 +472,71 @@ describe("changeTaskType (V18-S40)", () => {
       changeTaskType("nx", "otazka", "dokumentace"),
     ).rejects.toThrow(/not supported/);
   });
+
+
+  it("changeTaskType: source bez priority dostane defaultní P2", async () => {
+    __firestoreState.store.set("tasks/t-noprio", {
+      type: "otazka",
+      title: "Bez priority",
+      createdBy: "u1",
+      // záměrně bez priority field
+    });
+    await changeTaskType("t-noprio", "ukol", "otazka");
+    const upd = __firestoreState.store.get("tasks/t-noprio") as Record<string, unknown>;
+    expect(upd.type).toBe("ukol");
+    expect(upd.priority).toBe("P2");
+  });
+
+  it("changeTaskType: source s priority P3 ji zachová", async () => {
+    __firestoreState.store.set("tasks/t-p3", {
+      type: "otazka",
+      priority: "P3",
+      createdBy: "u1",
+    });
+    await changeTaskType("t-p3", "ukol", "otazka");
+    const upd = __firestoreState.store.get("tasks/t-p3") as Record<string, unknown>;
+    expect(upd.priority).toBe("P3");
+  });
 });
+
+describe("convertNapadToUkol — V18-S40 priority", () => {
+  it("vytvoří ukol s explicit priority P2 i když source nemá", async () => {
+    const source = {
+      id: "n1",
+      type: "napad" as const,
+      title: "T",
+      body: "",
+      status: "Nápad" as const,
+      createdBy: "u1",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    } as Task;
+    const newId = await convertNapadToUkol(source, "u1", "OWNER");
+    const created = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(created.type).toBe("ukol");
+    expect(created.priority).toBe("P2");
+  });
+});
+
+describe("convertNapadToOtazka — V18-S40 priority", () => {
+  it("kopíruje priority ze source pokud existuje", async () => {
+    const source = {
+      id: "n2",
+      type: "napad" as const,
+      title: "T",
+      body: "",
+      status: "Nápad" as const,
+      priority: "P1" as const,
+      createdBy: "u1",
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
+    } as Task;
+    const newId = await convertNapadToOtazka(source, "u1", "OWNER");
+    const created = __firestoreState.store.get(`tasks/${newId}`) as Record<string, unknown>;
+    expect(created.priority).toBe("P1");
+  });
+});
+
 
 describe("linkTaskToNapad / unlinkTaskFromNapad (V18-S40)", () => {
   it("link přidá ID do obou linkedTaskIds polí (bidirectional)", async () => {

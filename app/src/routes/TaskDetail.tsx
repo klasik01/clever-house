@@ -20,7 +20,9 @@ import DeadlinePicker from "@/components/DeadlinePicker";
 import { statusColors } from "@/components/StatusBadge";
 import Lightbox from "@/components/Lightbox";
 import { deleteTaskImage, isSupportedFile, isImageFile, uploadTaskImage, uploadTaskFile } from "@/lib/attachments";
-import { ArrowRight, Check, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Upload, X as XIcon } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, HelpCircle as HelpCircleIcon, Image as ImageIcon, Lightbulb, Link as LinkIconLc, Pencil, Upload, User as UserIcon, X as XIcon } from "lucide-react";
+import { resolveUserName } from "@/lib/names";
+import type { UserProfile as UProf } from "@/types";
 import type { LucideIcon } from "lucide-react";
 import { normalizeUrl, parseDomain } from "@/lib/links";
 import { useCategories } from "@/hooks/useCategories";
@@ -53,6 +55,7 @@ function LinkedList({
   canUnlink,
   onUnlink,
   unlinkingId,
+  byUid,
 }: {
   items: LinkedItem[];
   headingId: string;
@@ -69,6 +72,8 @@ function LinkedList({
   canUnlink?: (other: TaskT) => boolean;
   onUnlink?: (otherId: string) => void;
   unlinkingId?: string | null;
+  /** V18-S40 — uid → user profile pro render assignee. */
+  byUid?: Map<string, UProf>;
 }) {
   if (items.length === 0) return null;
   const Icon = forceIcon;
@@ -114,19 +119,35 @@ function LinkedList({
                   <Icon aria-hidden size={18} className="text-accent-visual shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-ink break-words [overflow-wrap:anywhere] line-clamp-3">{title}</p>
-                    {ot && c && (
-                      <span
-                        className="mt-1 inline-flex items-center gap-1.5 text-xs"
-                        style={{ color: c.fg }}
-                      >
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      {ot && c && (
                         <span
-                          aria-hidden
-                          className="inline-block size-1.5 rounded-full"
-                          style={{ background: c.dot }}
-                        />
-                        {statusLabel(t as unknown as (k: string) => string, ot.status, { isPm, type: ot.type })}
-                      </span>
-                    )}
+                          className="inline-flex items-center gap-1.5"
+                          style={{ color: c.fg }}
+                        >
+                          <span
+                            aria-hidden
+                            className="inline-block size-1.5 rounded-full"
+                            style={{ background: c.dot }}
+                          />
+                          {statusLabel(t as unknown as (k: string) => string, ot.status, { isPm, type: ot.type })}
+                        </span>
+                      )}
+                      {ot?.assigneeUid && byUid && (() => {
+                        const profile = byUid.get(ot.assigneeUid);
+                        const name = resolveUserName({
+                          profileDisplayName: profile?.displayName,
+                          email: profile?.email,
+                          uid: ot.assigneeUid,
+                        });
+                        return (
+                          <span className="inline-flex items-center gap-1 text-ink-subtle">
+                            <UserIcon aria-hidden size={12} />
+                            <span className="truncate max-w-[10rem]">{name}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
                 {!showUnlink && (
@@ -1591,6 +1612,7 @@ export default function TaskDetail() {
               canUnlink={canUnlinkRow}
               onUnlink={handleUnlink}
               unlinkingId={linkingId}
+              byUid={byUid}
             />
             <LinkedList
               items={ukolLinks}
@@ -1603,6 +1625,7 @@ export default function TaskDetail() {
               canUnlink={canUnlinkRow}
               onUnlink={handleUnlink}
               unlinkingId={linkingId}
+              byUid={byUid}
             />
           </>
         );

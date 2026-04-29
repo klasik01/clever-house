@@ -75,6 +75,8 @@ export async function createTask(
     projektantAnswer: null,
     projektantAnswerAt: null,
     linkedTaskIds: [],
+    // V18-S40 — explicit priority pro actionable types (jinak undefined).
+    priority: isActionable ? "P2" : undefined,
     attachmentImages: [],
     attachmentImageUrl: null,
     attachmentImagePath: null,
@@ -232,10 +234,15 @@ export async function convertNapadToOtazka(
     assigneeUid: defaultAssignee,
     categoryId: source.categoryId ?? null,
     locationId: source.locationId ?? null,
+    // V18-S40 — both linkedTaskIds (parent ref) i legacy linkedTaskId. Bridge
+    //   čte primárně array, legacy zůstává jen pro pre-V18-S40 reads.
     linkedTaskId: source.id,
+    linkedTaskIds: [source.id],
     projektantAnswer: null,
     projektantAnswerAt: null,
-    linkedTaskIds: [],
+    // V18-S40 — explicit priority na otázce (default P2). Bridge jinak
+    //   defaultuje, ale explicit zápis usnadňuje debugging + queries.
+    priority: source.priority ?? "P2",
     attachmentImageUrl: source.attachmentImageUrl ?? null,
     attachmentImagePath: null,
     attachmentLinkUrl: source.attachmentLinkUrl ?? null,
@@ -284,9 +291,10 @@ export async function convertNapadToUkol(
     categoryId: source.categoryId ?? null,
     locationId: source.locationId ?? null,
     linkedTaskId: source.id,
+    linkedTaskIds: [source.id],
     projektantAnswer: null,
     projektantAnswerAt: null,
-    linkedTaskIds: [],
+    priority: source.priority ?? "P2",
     attachmentImageUrl: source.attachmentImageUrl ?? null,
     attachmentImagePath: null,
     attachmentLinkUrl: source.attachmentLinkUrl ?? null,
@@ -335,8 +343,20 @@ export async function changeTaskType(
     );
   }
   if (newType === currentType) return; // no-op
+  // V18-S40 — fetch existing doc; persist priority explicitly so document
+  //   nikdy nezůstane bez něj. Bridge sice defaultuje na "P2", ale explicit
+  //   zápis ulehčí debug + případné dotazy "where priority IN [...]".
+  const snap = await getDoc(doc(db, TASKS, taskId));
+  const existingPriority = snap.exists() ? snap.data()?.priority : undefined;
+  const priority =
+    existingPriority === "P1" ||
+    existingPriority === "P2" ||
+    existingPriority === "P3"
+      ? existingPriority
+      : "P2";
   await updateDoc(doc(db, TASKS, taskId), {
     type: newType,
+    priority,
     updatedAt: serverTimestamp(),
   });
 }

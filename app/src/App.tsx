@@ -50,7 +50,7 @@ export default function App() {
         <Route path={ROUTES.login} element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
 
         <Route element={<ProtectedLayout />}>
-          <Route path={ROUTES.home} element={<Navigate to={ROUTES.dokumentace} replace />} />
+          <Route path={ROUTES.home} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.legacyNapady} element={<Navigate to={ROUTES.zaznamy} replace />} />
           <Route path={ROUTES.legacyOtazky} element={<Navigate to={ROUTES.ukoly} replace />} />
           <Route path={ROUTES.zaznamy} element={<Zaznamy />} />
