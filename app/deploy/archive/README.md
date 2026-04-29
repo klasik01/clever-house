@@ -70,3 +70,5 @@ Historie je cenná:
 | 2026-04-25 | V18.S12 | `2026-04-25-V18.S12-calendar-tokens.mjs` | Backfill calendarToken do users/{uid} pro webcal subscription |
 | 2026-04-27 | V19 | `2026-04-27-V19-sharedWithRoles.mjs` | Backfill sharedWithPm: true → sharedWithRoles: ["PROJECT_MANAGER"] on nápad tasks. |
 | 2026-04-29 | V18-S40 | `2026-04-29-V18-S40-linkedTaskIds-bridge.mjs` | Bridge legacy single linkedTaskId → many-to-many linkedTaskIds. |
+| 2026-04-29 | V25 | `2026-04-29-V25-canonical-status.mjs` | Hard-migrate task.status to canonical 4-value union. |
+| 2026-04-29 | V25-fix | `2026-04-29-V25-fix-participant-uids.mjs` | Backfill participantUids[] na existujících tascích. |
