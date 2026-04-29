@@ -1,456 +1,665 @@
 # CLAUDE.md — konvence a patterns
 
-Tenhle soubor je pro **Claude** (AI asistenta). Drží condensed soubor
-patternů, rozhodnutí a pravidel, která musí respektovat při práci na
-projektu **Chytrý dům na vsi** — PWA pro záznam a řešení nápadů,
-otázek a úkolů kolem stavby domu mezi OWNER (Stáňa + manželka) a
-PROJECT_MANAGER.
+Tenhle soubor je pro **Claude** (AI asistenta). Drží condensed soubor patternů, rozhodnutí a pravidel, která musí respektovat při práci na projektu **Chytrý dům na vsi** — PWA pro záznam a řešení nápadů, otázek, úkolů a dokumentace kolem stavby domu mezi OWNER (Stáňa + manželka) a PROJECT_MANAGER.
 
-Když Claude řeší úlohu, projde tenhle soubor **před** implementací a
-následuje popsané konvence. Když narazí na rozhodnutí, které tu chybí
-a přijde mu zajímavé pro budoucnost, přidá ho sem.
+Když Claude řeší úlohu, projde tenhle soubor **před** implementací a následuje popsané konvence. Když narazí na rozhodnutí, které tu chybí a přijde mu zajímavé pro budoucnost, přidá ho sem.
 
 ---
 
-## 1. Architektura stručně
+## 1. App tour — co kde žije
 
-- `app/` — React 19 + Vite + TypeScript + Tailwind PWA
-  - `src/components/` — UI komponenty
-  - `src/routes/` — top-level stránky (React Router)
-  - `src/hooks/` — React hooks (useAuth, useTask, useInbox, useUsers…)
-  - `src/lib/` — čistá logika (firebase, tasks, comments, notifications,
-    permissions, authorRole, commentTargeting, names, presence, inbox)
-  - `src/i18n/` — `cs.json` + `useT.ts` (česká lokalizace; `t("ns.key")`)
-- `app/functions/` — Firebase Cloud Functions (Node 20 runtime)
-  - `src/triggers/` — Firestore event handlery (`onTaskWrite`,
-    `onTaskDeleted`, `onCommentCreate`)
-  - `src/notify/` — notifikační pipeline (`catalog`, `send`, `dedupe`,
-    `prefs`, `commentFlip`, `protistrana`, `copy`)
-  - `src/index.ts` — wiring + exporty CF
-  - `scripts/` — deploy orchestrator, jednorázové admin skripty,
-    service account JSONy (dev.json, ope.json — gitignored), wrapper
-    `firebase-deploy.mjs` pro ad-hoc CLI volání (viz sekci 6)
-- `app/deploy/firestore.rules` + `app/deploy/storage.rules` — security
-  rules (single source of auth). `firebase.json` v `app/` na ně odkazuje
-  relativně.
+### Top-level
 
----
+```
+app/
+├── src/                       # React 19 + Vite + TS PWA frontend
+├── functions/                 # Firebase Cloud Functions (Node 20)
+├── deploy/                    # Deploy orchestrátor + Firestore/Storage rules
+├── scripts/                   # Dev utility skripty
+├── public/                    # Static assets, manifest, sw.js source
+├── PERMISSIONS_GENERATED.md   # Auto-generated permission matrix
+└── CLAUDE.md                  # Tenhle soubor
+```
 
-## 2. Permissions model (V17.1/V17.8)
+### `src/` — frontend
 
-**Zdroj pravdy**: `app/deploy/firestore.rules`. Klientské kontroly
-(`canEditTask`) jsou jen UX gating.
+**`components/`** (~50 souborů) — UI primitivy, pickery, modaly, karty.
+- Modaly: `DocumentPickerModal`, `DocumentUploadModal`, `OnboardingModal`, `TaskLinkPickerModal`
+- Pickery: `CategoryPicker`, `LocationPicker(Inline)`, `AssigneeSelect`, `DeadlinePicker`, `StatusPickerInline`, `PriorityPickerInline`, `PhasePickerInline`
+- Karty/seznamy: `NapadCard`, `TaskList`, `TaskGroupedView`, `Composer`
+- Editor + komentáře: `RichTextEditor` (Tiptap, lazy), `CommentThread`, `CommentItem`, `CommentComposer`
+- Layout: `Shell`, `BusyOverlay`, `NotificationBell`, `Toast`, `Lightbox`, `SwipeReveal`
+- Filter chips: `FilterChips`, `StatusFilterChip`, `PriorityFilterChip`, …
 
-### Pravidla edit práv
+**`routes/`** — top-level stránky.
+- Listy: `Zaznamy` (nápady), `Ukoly`, `Otazky`, `Dokumentace`, `Events`, `Harmonogram`, `Prehled`
+- Detaily: `TaskDetail`, `EventDetail`
+- Composer: `EventComposer` (úkoly mají `Composer.tsx` a spawn přes `/t/new`)
+- Settings: `Settings`, `Kategorie`, `KategorieDetail`, `Lokace*`, `DocTypes*`, `Phases*`
+- Auth: `Auth/Login`
+- Misc: `Export`, `Rozpocet`, `Home` (deprecated stub — redirect na `/ukoly`)
 
-1. Autor tasku (`createdBy === currentUserUid`) vždy může edit.
-2. OWNER může editovat libovolný **OWNER-vytvořený** task
-   (cross-OWNER — sdílený domácnostní účet mezi manželi).
-3. PM-vytvořené tasky smí editovat **jen autor-PM**.
-4. **Delete**: pouze autor — i pro cross-OWNER zachováváme.
-5. Jakýkoliv signed-in user smí aplikovat `isCommentSideEffect` diff
-   (`commentCount`, `updatedAt`, volitelně `status`, `assigneeUid`) —
-   aby `createComment` batch prošel nezávisle na autorovi.
+**`hooks/`** — Firestore subscriptions + cache + utility hooky.
+- Data: `useTask`, `useTasks`, `useEvent`, `useUsers`, `useCategories`, `useLocations`, `usePhases`, `useDocumentTypes`, `useComments`, `useRsvps`, `useInbox`, `useEventsActionCount`, `useVisibleTasks`
+- User: `useAuth`, `useUserRole`, `useNotificationPermission`, `useDeviceRegistrationSanity`, `useRegisterFcm`, `useInboxAutoRead`, `useAppBadge`
+- Misc: `useTheme`, `useOnline`, `useInstallState`, `useSwNavigate`
 
-### `permissionsConfig.ts` (V18-S38) — single source pro klient
+Pattern: data hooks vrací **discriminated union state** — `{status: "loading"} | {status: "ready", task: Task} | {status: "error", error}`.
 
-`app/src/lib/permissionsConfig.ts` je deklarativní matrix akcí × rolí ×
-ownership. **Klientské helpery** (`canEditTask`, `canEditEvent`, UI gates
-typu `roleHas("categories.manage", role)`) z něj čtou — config je
-jediné místo, kde se mění klientská permission politika.
+**`lib/`** (~45 souborů) — pure helpers + Firestore wrappery.
+- Tasks/Events/Comments: `tasks`, `events`, `comments`, `rsvp`, `inbox`
+- Pure helpers: `permissions`, `permissionsConfig`, `authorRole`, `commentTargeting`, `mentions`, `names`, `presence`
+- Bridge/format: `status` (legacy → V10 mapper), `deadline`, `eventFormatting`, `eventDateInput`
+- Filters/search: `filters`, `eventsFilter`, `search`, `prehled`, `subscriptionStatus`
+- I/O: `auth`, `firebase`, `messaging` (FCM), `attachments`, `storage`, `pdf`, `ics`
+- Config: `enums`, `limits`, `storageKeys`, `routes`, `theme`, `typeColors`, `pdfTokens`
+- Categories/locations/phases/docs: `categories`, `locations`, `phases`, `documentTypes`
+- User: `userProfile`, `users`, `calendarToken`, `installPrompt`, `id`
+- Composers/text: `createTaskFromComposerInput`, `textExport`, `links`
 
-**Server-side rules** (`app/deploy/firestore.rules`) jsou stále
-authoritative. Config sám rules nepřegeneruje. Při změně **musíš
-updatovat oba** — config má `rulesAt` pointer u každé `PermissionRule`,
-abys věděl kam mrknout.
+**`i18n/`** — `cs.json` (~880 řádků, 49 namespaces) + `useT.ts` hook. Pattern: `t("ns.key")`, vars přes `t("k", { n: 5 })` + `{n}` placeholder.
 
-#### Přidání nové akce
+**`test/`** — sdílené test plumbing.
+- `firestoreMock.ts` — in-memory Firestore stand-in (Map<path, data> + calls log)
+- `render.tsx` — `renderWithProviders` (MemoryRouter wrapper) + `fakeUser` factory
+- `setup.ts` — registruje `@testing-library/jest-dom/vitest` + cleanup po každém testu
 
-1. Rozšiř `ActionKey` union v `permissionsConfig.ts`.
-2. Přidej entry do `PERMISSIONS` mapy (roles + ownership + description + rulesAt).
-3. Updatuj `firestore.rules` přesně tam, kam ukazuje `rulesAt`.
-4. Spusť `npm run docs:permissions` — regeneruje `app/PERMISSIONS_GENERATED.md`.
-5. Spusť `npm test` — invariant testy v `permissionsConfig.test.ts`
-   ověří, že všechny entries mají rulesAt + popis + neprázdné roles.
-6. Commit všechno (config + rules + generated MD) v jednom PR.
+**`types.ts`** — všechny shared types: `Task`, `Event`, `Comment`, `UserProfile`, `Category`, `Phase`, `Location`, `DocumentType`, `Rsvp`, `NotificationEventKey`, `NotificationPrefs`, `NotificationDevice`, `NotificationItem`, …
 
-#### Přidání nové role
+### `functions/src/` — backend
 
-1. Rozšiř `UserRole` union v `app/src/types.ts`.
-2. TypeScript ti označí `roles: [...]` arraye v configu — projdi je,
-   doplň novou roli tam, kde patří.
-3. Updatuj `firestore.rules` (typicky přidání nové helper funkce
-   `isWorker()` + úprava existujících `userRole() in [...]` checků).
-4. Re-gen MD + run tests.
+- `index.ts` — exports + Admin SDK init (region `europe-west1`). 11 funkcí: `helloPing` (smoke), 6 event handlers (`onTaskCreated/Updated/Deleted`, `onCommentCreate`, `onEventCreated/Updated`, `onRsvpWrite`, `onUserUpdated`), 2 scheduled (`eventLifecycleTick`, `rsvpReminderTick`), 1 HTTP (`calendarSubscription`)
+- `triggers/` — Firestore event handlery (`onTaskWrite`, `onTaskDeleted`, `onCommentCreate`, `onEventWrite`, `onRsvpWrite`, `onUserWrite`)
+- `notify/` — push pipeline (14 souborů; viz sekci 4)
+- `scheduled/` — cron triggery (`eventLifecycle`, `rsvpReminder`)
+- `cal/` — ICS subscription endpoint, ICS generator
+- `lib/` — build artefakt (TypeScript output, gitignored)
 
-#### ❌ NEDĚLAT
+### `deploy/`
 
-- Inline `role === "PROJECT_MANAGER"` checky v komponentách. Místo
-  toho `roleHas("…", role)` z configu. Výjimka: layout decisions
-  (např. které tabs ukázat v Shell.tsx) — to není permission check.
-- Editovat `PERMISSIONS_GENERATED.md` ručně. Jen přes gen script.
-- Vynechat `rulesAt` v nové PermissionRule — invariant test selže.
+- `deploy.mjs` — orchestrátor (rules → migrace → functions → archivace)
+- `firebase-deploy.mjs` — wrapper kolem `firebase` CLI
+- `dev.json`, `ope.json` — service account JSONy (gitignored)
+- `firestore.rules`, `storage.rules` — bezpečnostní pravidla
+- `pending/` — čekající migrační skripty (v steady state prázdný)
+- `archive/` — proběhlé migrace + tabulka v `README.md`
+- `package.json` — npm scripty `deploy:dev:dry`, `deploy:dev`, `deploy:ope:dry`, `deploy:ope`, ad-hoc `rules:deploy:*`, `functions:deploy:*`, `storage:deploy:*`
 
----
+### `scripts/`
 
-### `authorRole` snapshot
-
-Při create tasku se uloží `authorRole: "OWNER" | "PROJECT_MANAGER"` —
-snapshot role autora v ten okamžik. Role se v čase nemění (PM zůstává
-PM i kdyby se mu změnila v účtu později), takže snapshot je stabilní.
-
-- Při `createTask`, `convertNapadToOtazka`, `convertNapadToUkol` **vždy**
-  předávej `authorRole` třetím argumentem.
-- `createTaskFromComposerInput` taky bere `authorRole` explicitně.
-- Legacy tasky před V17.1 deploy nemají `authorRole` — **nefallbackuj ho
-  na OWNER**, nech `undefined`. Resolver v UI si ho doplní přes user
-  lookup (viz níž).
-
-### `resolveAuthorRole({task, usersByUid})`
-
-Helper `app/src/lib/authorRole.ts`. Pořadí fallbacků:
-
-1. `task.authorRole` (pokud field je platný).
-2. `users[task.createdBy].role` (z `useUsers` hooku — live).
-3. `undefined` → caller musí rozhodnout co s tím. `canEditTask` to bere
-   jako "nedovol edit" (safe default proti legacy PM-tasks bez field +
-   smazaný user).
-
-### `canEditTask({task, taskAuthorRole, currentUserUid, currentUserRole})`
-
-Helper `app/src/lib/permissions.ts`. **Pure**. Vrací `boolean`.
-
-Signatura bere **resolved** `taskAuthorRole` — neděláme fallback uvnitř.
-Caller (`TaskDetail.tsx`) resolvuje přes `resolveAuthorRole` před voláním.
-
-### Migrace legacy tasků
-
-Backfill skript: `app/functions/scripts/pending/2026-04-24-V17.8-authorRole.mjs`
-(po úspěšném nasazení se přesune do `archive/`). Doplní `authorRole`
-do tasků bez field přes user lookup. Idempotentní, má `--dry-run`.
-Nasazuje se přes orchestrátor (viz sekci 6).
+- `gen-permissions-md.mjs` — generuje `app/PERMISSIONS_GENERATED.md` z `permissionsConfig.ts`. Spouštěno přes `npm run docs:permissions`.
 
 ---
 
-## 3. Notification pipeline
+## 2. Schema model
 
-### Tři soubory, tři zodpovědnosti
+Authoritative source: **`app/src/types.ts`**. Bridge funkce (legacy → modern shape) v `lib/tasks.ts/fromDocSnap`, `lib/events.ts`, …
+
+### Task
+
+```ts
+type TaskType = "napad" | "otazka" | "ukol" | "dokumentace";
+
+interface Task {
+  // ---- core ----
+  id, type, title, body, status, createdBy, createdAt, updatedAt
+  authorRole?: UserRole          // V17.1 snapshot (cross-OWNER edit gate)
+
+  // ---- taxonomy (legacy + N:M modern) ----
+  categoryId?: string | null     // legacy single
+  categoryIds?: string[]         // V3 modern
+  locationId?: string | null
+  phaseId?: string | null        // V23
+
+  // ---- linking (V18-S40 many-to-many) ----
+  linkedTaskIds?: string[]       // modern bidirectional
+  linkedTaskId?: string | null   // legacy single (bridged)
+
+  // ---- attachments ----
+  attachmentImages?: ImageAttachment[]   // S24 modern
+  attachmentImageUrl?: string | null     // legacy
+  attachmentImagePath?: string | null
+  attachmentLinks?: string[]             // S25 modern
+  attachmentLinkUrl?: string | null      // legacy
+
+  // ---- actionable (otazka/ukol) ----
+  priority?: TaskPriority        // P1/P2/P3, default "P2"
+  deadline?: number | null       // ms epoch nebo null
+  assigneeUid?: string | null
+
+  // ---- otazka-specific ----
+  projektantAnswer?: string | null
+  projektantAnswerAt?: string | null
+
+  // ---- ukol-specific ----
+  dependencyText?: string | null   // V14
+
+  // ---- napad-specific ----
+  vystup?: string | null    // V14 — durable resolution summary
+
+  // ---- dokumentace-specific (V19) ----
+  documents?: DocumentAttachment[]
+  auditLog?: AuditEntry[]
+  linkedDocIds?: string[]
+
+  // ---- sharing (V19) ----
+  sharedWithRoles?: UserRole[]   // replaces legacy sharedWithPm
+
+  // ---- comments meta ----
+  commentCount?: number          // cached, batch-maintained
+}
+```
+
+### Bridge tabulka (legacy → modern, čte `fromDocSnap`)
+
+| Legacy field | Modern field | Bridge funkce |
+|--------------|--------------|---------------|
+| `categoryId` (string) | `categoryIds` (string[]) | `bridgeCategoryIds` |
+| `attachmentImageUrl/Path` | `attachmentImages[]` | `bridgeImages` |
+| `attachmentLinkUrl` | `attachmentLinks[]` | `bridgeLinks` |
+| `linkedTaskId` (single) | `linkedTaskIds[]` | `bridgeLinkedTaskIds` |
+| `sharedWithPm: true` | `sharedWithRoles: ["PROJECT_MANAGER"]` | inline |
+| `priority` undefined (otazka/ukol) | `"P2"` default | `bridgePriority` |
+
+⚠️ **Při zápisu modern field vždy clear legacy field na `null`** (např. `linkedTaskId: null` při zápisu `linkedTaskIds: [...]`). Bez toho bridge re-bridguje legacy zpátky a UI ukáže stav, který "myslel že smazal" — repro V18-S40 unlink bug.
+
+### Status
+
+V10 canonical: `OPEN | BLOCKED | CANCELED | DONE`. Plus legacy: `Nápad | Otázka | Čekám | Rozhodnuto | Ve stavbě | Hotovo | ON_CLIENT_SITE | ON_PM_SITE`. Read-time mapper `mapLegacyOtazkaStatus` v `lib/status.ts`.
+
+⚠️ **CANCELED vs CANCELLED drift:**
+- **Tasks** používají `CANCELED` (US, jedno L)
+- **Events** používají `CANCELLED` (UK, dvě L) — vyžaduje ICS RFC 5545
+
+Hodnoty se nepoužívají v jedné doméně, takže drift je bezpečný. Když přidáš nové místo se status comparison, mrkni do typu (TS to vynutí).
+
+### Event (V18)
+
+```ts
+type EventStatus = "UPCOMING" | "AWAITING_CONFIRMATION" | "HAPPENED" | "CANCELLED";
+
+interface Event {
+  id, title, description, startAt, endAt, isAllDay, address
+  inviteeUids: string[]               // min 1
+  createdBy, authorRole?, status
+  linkedTaskId?: string | null        // optional ref na /t/:id
+  happenedConfirmedAt?, cancelledAt?
+  reminderSentAt?: string             // V18-S13 RSVP reminder
+  createdAt, updatedAt
+}
+
+interface Rsvp { uid, response: "yes"|"no", respondedAt }
+// Subkolekce: /events/{eventId}/rsvps/{uid}, doc id = uid → max 1 RSVP per pozvaný
+```
+
+### UserProfile
+
+```ts
+interface UserProfile {
+  uid, email, role: "OWNER" | "PROJECT_MANAGER"
+  displayName?               // "Přezdívka", editovatelná v Settings
+  contactEmail?              // V18-S24, pro Apple Calendar matching
+  notificationPrefs?: { enabled, events: Record<NotificationEventKey, boolean> }
+  calendarToken?             // V18-S12, webcal subscription
+  calendarTokenRotatedAt?
+  calendarLastFetchedAt?     // V18-S25, throttled CF update
+  onboardingCompletedAt?     // V18-S30, modal done flag
+}
+```
+
+`role` + `email` writable jen Admin SDK. Self-update přes diff-gate v rules: jen `notificationPrefs`, `displayName`, `contactEmail`, `calendarToken*`, `calendarLastFetchedAt`, `onboardingCompletedAt`, `updatedAt`.
+
+### Další modely
+
+- **Comment** (subkolekce `/tasks/{id}/comments/{cid}`) — `body, authorUid, attachments, mentions, reactions, workflowAction?, statusAfter?, assigneeAfter?, priorAssigneeUid?` (V17.5)
+- **Category, DocumentType, Phase, Location** — taxonomie, OWNER-managed, jednoduché `{id, label, createdBy, createdAt}` shapes
+- **NotificationItem** — subkolekce `/users/{uid}/notifications/`, server-only write (CF)
+
+---
+
+## 3. Permissions model
+
+**Authoritative**: `app/deploy/firestore.rules`. Klientské helpery jsou jen UX gating — rules jsou final word.
+
+### Klient mirror
+
+`app/src/lib/permissionsConfig.ts` — declarative matrix akcí × rolí × ownership. **Single source pro klient**, ale **rules musíš updatovat ručně** (config sám rules nepřegeneruje, jen ukazuje na ně přes `rulesAt` pointer).
+
+### 20 aktuálních akcí
+
+```
+tasks:    read, create.napad, create.otazka, create.ukol, create.dokumentace,
+          edit, delete, comment, changeType (V18-S40), link (V18-S40)
+events:   read, create, edit, delete, rsvp
+taxonomy: categories.manage, locations.manage, documentTypes.manage
+settings: profile, calendarToken
+```
+
+Po změně automaticky regen: `npm run docs:permissions` → `app/PERMISSIONS_GENERATED.md`.
+
+### Ownership patterny
+
+- `anyone` — jen role check (např. `task.read`, `task.comment`)
+- `author` — striktně autor `createdBy === me` (např. `task.delete`, `event.delete`)
+- `author-or-cross-owner` — autor + (OWNER edituje OWNER-created task). V17.1 cross-OWNER pattern; PM-created tasky může editovat jen PM-autor.
+
+### V17.1 cross-OWNER edit (klíčový pattern)
+
+OWNER účet je sdílený prostor (manželé). Co vytvořil jeden OWNER, druhý OWNER smí editovat. PM-created tasky jsou soukromé jen pro PM-autora. Snapshot role autora je v `task.authorRole` (zaznamenaný při create); pro legacy tasky se resolvuje přes `resolveAuthorRole({task, usersByUid})` v `lib/authorRole.ts`.
+
+### Postup změny permissions
+
+1. Rozšiř `ActionKey` union v `permissionsConfig.ts`
+2. Přidej entry do `PERMISSIONS` (`roles`, `ownership`, `description`, `rulesAt`)
+3. Updatuj `firestore.rules` přesně tam, kam ukazuje `rulesAt`
+4. `npm run docs:permissions` — regen markdown
+5. `npm test` — invariant testy v `permissionsConfig.test.ts` ověří, že každá rule má `rulesAt`, `description`, neprázdné `roles[]`
+6. Commit všechno (config + rules + generated MD) v jednom PR
+
+### V18-S40 — `task.changeType` + `task.link`
+
+- **`task.changeType`** — mutace `type` pole (otazka ↔ ukol). Stejný permission pattern jako edit. Napad/dokumentace nelze měnit.
+- **`task.link`** — bidirectional update `linkedTaskIds` na obou tasích (otazka/ukol ↔ napad). Klient gates přes `canLinkTasks(both sides)`. Server: každý update musí projít edit rule individuálně; když nemá oprávnění na jeden, batch atomicky padne.
+
+### `isCommentSideEffect` rule
+
+Kdokoli signed-in smí aplikovat diff `{commentCount, updatedAt, status?, assigneeUid?}` na task — aby `createComment` batch prošel i když není autor. Diff-gate v rules zajišťuje, že tahle escape hatch nemůže flipnout status nezávisle.
+
+---
+
+## 4. Notification pipeline
+
+### Tři zodpovědnosti, tři místa
 
 | Co | Kde |
 |----|-----|
-| **KDY** spustit notifikaci (routing) | `app/functions/src/triggers/*.ts` |
-| **CO** napsat (title, body, deep-link) | `app/functions/src/notify/catalog.ts` |
-| **JAK** doručit (FCM + inbox + prefs) | `app/functions/src/notify/send.ts` |
+| **KDY** spustit (routing) | `functions/src/triggers/*.ts` |
+| **CO** napsat (title, body, deep-link) | `functions/src/notify/catalog.ts` |
+| **JAK** doručit (FCM + inbox + prefs) | `functions/src/notify/send.ts` |
 
-Když chceš **přidat nový event type**:
+### Catalog (single source)
 
-1. Rozšiř `NotificationEventKey` union v `app/functions/src/notify/types.ts`
-   i v `app/src/types.ts` (mirror).
-2. Přidej entry do `NOTIFICATION_CATALOG` v `catalog.ts`:
-   `key`, `category` (immediate|debounced), `dedupePriority`, `trigger`
-   (dokumentace kdy se spouští), `recipients` (dokumentace komu),
-   `renderTitle`, `renderBody`, `renderDeepLink`, `clientLabelKey`,
-   `defaultEnabled`.
-3. Přidej i18n klíče do `app/src/i18n/cs.json` (`notifikace.events.<key>`
-   a `notifikace.events.<key>Hint`).
-4. Přidej ikonu do `EVENT_ICONS` v `NotificationPrefsForm.tsx` a
-   `EVENT_ICON` v `NotificationList.tsx`.
-5. Přidej klíč do `NOTIFICATION_EVENTS` array + `DEFAULT_PREFS.events` v
-   `app/src/lib/notifications.ts`.
-6. Spusť trigger: `sendNotification({ eventType: "<nový>", recipientUid,
-   actorUid, actorName, taskId, task, ... })`.
+`NOTIFICATION_CATALOG` v `notify/catalog.ts`. Pro každý event:
+- `category` — `immediate` | `debounced`
+- `dedupePriority` — nižší číslo = vyšší priorita
+- `trigger` — dokumentace kdy se posílá
+- `recipients` — dokumentace komu
+- `renderTitle/Body/DeepLink` — pure functions
+- `clientLabelKey` — i18n key pro toggle v Settings
+- `defaultEnabled` — opt-in/out default
+
+### 17 event types
+
+```
+mention, assigned, comment_on_mine, comment_on_thread,
+shared_with_pm, priority_changed, deadline_changed,
+task_deleted, assigned_with_comment,
+event_invitation, event_rsvp_response, event_update,
+event_uninvited, event_cancelled, event_calendar_token_reset,
+event_rsvp_reminder, document_uploaded
+```
 
 ### Render pipeline
 
-`renderPayload` v `copy.ts` je **tenký wrapper** — deleguje do
-`renderNotification` v katalogu. **Neměň switch tam**, uprav katalog.
+`renderPayload` v `copy.ts` je **tenký wrapper** — deleguje do `renderNotification` v katalogu. Switch v `copy.ts` neměníme; uprav katalog.
 
-### Dedupe
+### Klíčové patterny
 
-`EVENT_PRIORITY` v `dedupe.ts` je **odvozeno** z katalogu
-(`eventPriorityList()`). Nejnižší číslo = nejvyšší priorita.
-
-Když nový event musí vyhrát nad ostatními pro konkrétního recipienta
-(např. `assigned_with_comment` pro nového assignee), dej mu
-`dedupePriority: 0` a v triggeru zavolej
-`applyAssignedWithCommentOverride(recipients, ctx)` nebo vlastní override.
-
-### V17.3/V17.5 — comment + assignee flip = jedna notifikace
-
-- Klient při `createComment` **vždy** posílá `priorAssigneeUid:
-  task.assigneeUid`. Pokud composer flipnul assignee, posílá taky
-  `workflow.assigneeAfter`. Jinak `assigneeAfter = priorAssigneeUid`
-  (stejný = no-op flip, uloží se jako obyčejný komentář).
-- CF `onCommentCreate` detekuje flip přes
-  `applyAssignedWithCommentOverride` a novému assignee přepíše event na
-  `assigned_with_comment` (nejvyšší dedupe priorita).
-- CF `onTaskUpdated` přes `isCommentBatchUpdate({before, after})`
-  přeskočí notifikace pokud update je comment-side-effect
-  (`afterCount > beforeCount`). `onCommentCreate` to řeší.
-
-### Self-filter "protistrana" (V16.4)
-
-`app/functions/src/notify/protistrana.ts` — pure helper. Pro change
-events (priority/deadline na assignutém tasku): recipient = ten z
-{createdBy, assigneeUid}, kdo NENÍ actor. Vrací null pokud není
-assignee nebo actor = oba.
+- **Dedupe** — `EVENT_PRIORITY` array z katalogu (`eventPriorityList()`). `buildRecipientMap(sources)` zajišťuje max 1 event per recipient.
+- **V17.5 comment+flip merge** — když komentář flipuje assignee, `applyAssignedWithCommentOverride` přepíše event na `assigned_with_comment` (nejvyšší dedupe priority). Klient v `createComment` posílá `priorAssigneeUid` (= `task.assigneeUid` před batch).
+- **`isCommentBatchUpdate({before, after})`** v `onTaskUpdated` — detekuje comment-side-effect (afterCount > beforeCount) a skipne notifikaci, kterou už `onCommentCreate` pokryje.
+- **V16.4 protistrana self-filter** — pro change events (priority/deadline na assignutém tasku): recipient = ten z `{createdBy, assigneeUid}`, kdo NENÍ actor. `protistrana.ts`.
+- **V16.9 presence suppression** — SW `onBackgroundMessage` přes `clients.matchAll` zjistí jestli je app visible. Pokud ano, skip `showNotification()`. Na `/t/{taskId}` navíc pošle `INBOX_AUTO_READ` postMessage — `useInboxAutoRead` mark-readne okamžitě.
 
 ### Push vs. inbox vs. badge
 
-- **Inbox** (`/users/{uid}/notifications/`) — zapisuje se serverově v
-  `send.ts` **i když user nemá FCM token**. Bell v appce se rozsvítí
-  přes Firestore snapshot.
-- **Push FCM** — jde jen když má user zaregistrované zařízení.
-- **Badge** (červené číslo) — počítá se z unread inbox items přes
-  `useInbox` + `useAppBadge`.
-- **V16.9 presence suppression** — SW `onBackgroundMessage` přes
-  `clients.matchAll` zjistí jestli je app visible. Pokud ano, skip
-  `showNotification()`. Na `/t/{taskId}` navíc pošle `INBOX_AUTO_READ`
-  postMessage — klientský `useInboxAutoRead` ho mark-readne okamžitě.
+- **Inbox** (`/users/{uid}/notifications/`) — zapisuje se serverově **i** když user nemá FCM token. Bell ve UI bere přes `useInbox` Firestore snapshot.
+- **Push FCM** — jen když je zaregistrované zařízení (`/users/{uid}/devices/{deviceId}`).
+- **Badge** (červené číslo) — `useInbox` + `useAppBadge` z unread inbox items.
+
+### Přidání nového event type
+
+1. Rozšiř `NotificationEventKey` union v `functions/src/notify/types.ts` **i** `app/src/types.ts` (mirror)
+2. Entry do `NOTIFICATION_CATALOG` (`catalog.ts`)
+3. i18n klíče v `cs.json` (`notifikace.events.<key>` + `<key>Hint`)
+4. Ikona v `EVENT_ICONS` (`NotificationPrefsForm.tsx`) + `EVENT_ICON` (`NotificationList.tsx`)
+5. Klíč v `NOTIFICATION_EVENTS` array + `DEFAULT_PREFS.events` (`lib/notifications.ts`)
+6. Trigger pošle `sendNotification({ eventType, recipientUid, actorUid, actorName, taskId, task, ... })`
 
 ---
 
-## 4. Pure helpers pattern (V17.7)
+## 5. Pure helpers + state patterns
 
-Logiku, která se dá izolovat od React stavu a Firestore, vytahuj do
-**pure funkcí** v `app/src/lib/` (nebo `app/functions/src/notify/`) a
-piš k nim unit testy.
+### Pure helper extraction (V17.7+)
 
-Příklady: `canEditTask`, `resolveAuthorRole`, `pickDefaultPeer`,
-`isRealFlip`, `applyAssignedWithCommentOverride`,
-`isCommentBatchUpdate`, `protistrana`, `resolveUserName`,
-`shouldAutoReadOnPath`, `taskIdFromPath`.
+Logiku, která se dá izolovat od React state a Firestore, vytahuj do **pure funkcí** v `lib/` (nebo `functions/src/notify/`) a piš k nim unit testy.
+
+Příklady: `canEditTask`, `canChangeTaskType`, `canLinkTasks`, `resolveAuthorRole`, `applyAssignedWithCommentOverride`, `isCommentBatchUpdate`, `protistrana`, `resolveUserName`, `shouldAutoReadOnPath`, `taskIdFromPath`, `bridgeLinkedTaskIds`, …
 
 **Postup**:
+1. Identifikuj inline logiku v komponentě / triggeru
+2. Extrahuj do `lib/<téma>.ts` s jasnou input/output signaturou (žádný implicitní state, I/O)
+3. Caller volá helper místo inline kódu
+4. Napiš `<téma>.test.ts` ve stejném adresáři — vitest, describe/it/expect. Snap scénáře: happy path, edge case, null/undefined inputs, self-loop
 
-1. Identifikuj inline logiku v komponentě / triggeru.
-2. Extrahuj do `lib/<téma>.ts` s jasnou vstup/výstup signaturou (žádný
-   implicitní state, žádné I/O).
-3. Caller zavolá helper místo inline kódu.
-4. Napiš `<téma>.test.ts` ve stejném adresáři — vitest, describe + it +
-   expect. Snap scenáře: happy path, edge case, null/undefined vstupy,
-   self-loop.
+### State pattern: discriminated union
 
-Benefit: testy jsou rychlé (žádný jsdom ani firebase mock), regrese
-zachyceny, refaktor bezpečnější.
+Pro async stavy (Firestore subscriptions):
+```ts
+type State =
+  | { status: "loading" }
+  | { status: "ready"; task: Task }
+  | { status: "error"; error: Error };
+```
+Použito v `useTask`, `useEvent`, `useUserRole`, `useCategories`, `useLocations`, `usePhases`, `useDocumentTypes`. Caller pak `if (state.status !== "ready") return ...`.
+
+### Lazy loading + Suspense
+
+Heavy komponenty lazy import, fallback `<Suspense fallback={null}>` (nebo skeleton):
+- `RichTextEditor` (Tiptap) — TaskDetail
+- `CommentThread`, `AuditTimeline` — TaskDetail
+- `DocumentUploadModal`, `DocumentPickerModal`, `TaskLinkPickerModal` — TaskDetail
+- `EventComposer` — Events route
+
+### Auto-save (TaskDetail blur-driven)
+
+`BLUR_SAVE_DELAY_MS = 1000ms`. Pattern:
+- `pendingRef` drží diff (title/body/vystup)
+- `flushOnBlur()` schedule timer
+- Refocus do editoru cancelluje timer
+- Unmount + `pagehide` flushne pending
+- `isReadOnlyRef.current` safety — nikdy save z read-only view
+
+### Read-only gating
+
+```ts
+const canEdit = canEditTask({task, taskAuthorRole, currentUserUid, currentUserRole});
+const isReadOnly = !canEdit;
+isReadOnlyRef.current = isReadOnly;
+```
+Disabled na všech inputech, RichTextEditor `disabled` prop.
 
 ---
 
-## 5. Test stack
+## 6. Test stack + playbook
 
-- **Vitest** v `app/` i `app/functions/` (samostatné balíčky).
-- `vi.mock("firebase/firestore", () => import("@/test/firestoreMock"))`
-  pro integrační testy co sahnou přes `firestoreMock`.
-- `vi.mock("@/lib/firebase", () => ({ db: {} }))` obejde real firebase init.
-- **Preferuj pure funkce** (sekce 4) — testy bez mocků jsou nejrobustnější.
-- **Invariant-based** assertace místo pozicionálních: `expect(catalog[k].dedupePriority).toBeLessThan(...)` místo
-  `expect(KEYS[0]).toBe("x")`. Odolné proti sort order / Object.keys
-  insertion order změnám.
-- Spouští se `npm test` v příslušném balíčku.
-- CI: pipeline `validate` job spouští oboje.
+### Stack
 
----
+- **Vitest** v `app/` i `app/functions/` (samostatné balíčky)
+- **@testing-library/react** + `@testing-library/jest-dom` pro komponentní testy
+- `@/test/firestoreMock` — in-memory Firestore stand-in
+- `@/test/render` — `renderWithProviders` (MemoryRouter wrapper) + `fakeUser`
 
-## 6. Jednorázové migrační skripty + deploy orchestrátor
+### Decision tree
 
-Celý flow je automatizovaný přes `app/functions/scripts/deploy.mjs`.
-Claude když potřebuje napsat migraci (jakýkoliv backfill nebo data
-cleanup na Firestore), vytvoří ho jako **pending skript** v správném
-tvaru — orchestrátor se postará o spuštění, archivaci a záznam.
+| Co testuju | Typ | Příklad |
+|-----------|-----|---------|
+| Pure logika bez state/I/O | Pure helper test | `permissions.test.ts`, `authorRole.test.ts`, `deadline.test.ts`, `names.test.ts` |
+| Firestore wrapper (`createTask`, `linkTaskToNapad`) | firestoreMock | `tasks.test.ts`, `events.test.ts`, `comments.test.ts` |
+| UI komponenta s providery | RTL + `renderWithProviders` | `Composer.test.tsx`, `NapadCard.test.tsx`, `CategoryPicker.test.tsx` |
+| Backend trigger / notify pipeline | Pure helper test | `catalog.test.ts`, `dedupe.test.ts`, `commentFlip.test.ts` |
 
-### Struktura adresářů
+**Preference**: pure helper test > firestoreMock test > komponentní test. Pure jsou nejrychlejší, nejstabilnější, nejlépe lokalizované.
 
+### firestoreMock pattern
+
+```ts
+import { vi } from "vitest";
+vi.mock("firebase/firestore", () => import("@/test/firestoreMock"));
+vi.mock("@/lib/firebase", () => ({ db: {} }));
+
+import { __firestoreState } from "@/test/firestoreMock";
+beforeEach(() => __firestoreState.reset());
+
+it("...", async () => {
+  __firestoreState.store.set("tasks/t1", { ... });
+  await myFunc();
+  const updated = __firestoreState.store.get("tasks/t1");
+  expect(updated.field).toBe(...);
+});
 ```
-app/functions/scripts/
-├── deploy.mjs          — orchestrátor (nesmí se měnit jen tak)
-├── pending/            — čekající migrace (run pořadí = alfabetické)
-│   └── YYYY-MM-DD-Vxx-popis.mjs
-└── archive/            — proběhlé migrace + README tabulka
-    └── YYYY-MM-DD-Vxx-popis.mjs
-```
+`__firestoreState.calls` — array of `{op, path, data}` pro assertion na write shape.
 
-### Jak vytvořit novou migraci
+### renderWithProviders pattern
 
-1. Nový soubor v `app/functions/scripts/pending/` s naming
-   **`YYYY-MM-DD-V{verze}-{popis-kebab-case}.mjs`**. Datum je datum
-   vytvoření (ne deploy). Prefix datem zajistí chronologické pořadí.
-2. Header musí obsahovat JSDoc tagy (orchestrátor je parsuje do
-   archivní tabulky):
-   ```
-   @migration V17.8
-   @date 2026-04-24
-   @description Krátký popis co to dělá
-   ```
-3. První positional arg = `dev | ope` → skript si načte service account
-   z `app/functions/scripts/{env}.json` (cesta z pending/: `../`).
-4. Volitelný `--dry-run` flag — vypíše co by zapsal bez actual write.
-5. **Idempotentní** — druhé spuštění nic nezapíše. Safe i kdyby
-   orchestrátor skript spustil omylem vícekrát.
-6. **Guard** na začátku: pokud
-   `basename(dirname(__filename)) === "archive"`, skript
-   `console.error` a `process.exit(2)`. Ochrana proti omylovému rerunu
-   po archivaci.
-7. Exit 0 při úspěchu → orchestrátor skript přesune do `archive/` a
-   doplní řádek do tabulky v `archive/README.md`.
+```tsx
+import { renderWithProviders } from "@/test/render";
 
-Šablona je v `archive/2026-04-24-V17.8-authorRole.mjs` (po prvním
-deployi) — zkopíruj + uprav.
-
-### Jak nasadit (owner/dev pustí ručně)
-
-```
-cd app/functions
-npm run deploy:dev:dry        # dry-run na dev — ověř co se stane
-npm run deploy:dev            # ostrý deploy na dev
-npm run deploy:ope:dry        # dry-run na prod
-npm run deploy:ope            # ostrý deploy na prod
-```
-
-Orchestrátor:
-
-1. Resolvuje project ID ze service account JSON.
-2. `firebase deploy --only firestore:rules --project <id>`
-3. Pro každý pending skript: `node <script> <env>`.
-4. `npm run build` (functions) → `firebase deploy --only functions`.
-
-**Archivace jen po `ope`**: pending skripty se přesouvají do
-`archive/` a zapisují do README tabulky **pouze** když je env `ope`
-(prod). Pro `dev` pending zůstává — stejný skript ještě musí běžet
-proti produkční DB. Idempotence skriptů zajistí, že druhý dev deploy
-nic nezapíše podruhé.
-
-Typický flow pro jednu migraci:
-```
-npm run deploy:dev        # testovací, pending zůstává
-# ... ověř na dev že vše OK ...
-npm run deploy:ope        # prod, pending → archive + README tabulka
+it("...", () => {
+  renderWithProviders(<MyComp ... />, { route: "/t/123" });
+  expect(screen.getByRole("button", { name: /label/i })).toBeInTheDocument();
+});
 ```
 
-Když některý pending skript selže, orchestrátor se zastaví (zbytek
-pending zůstane neběhlý, už archivované zůstanou v archive). Oprav,
-pusť znovu — idempotence zajistí že už úspěšně proběhlé kroky nic
-nezapíší podruhé.
+### Invariant-based aserce
 
-**Frontend je mimo scope** — nasazuje se přes git push (develop → dev
-prostředí, main → prod).
-
-**`--skip-firebase` flag** — spustí jen pending migrace, přeskočí rules
-+ functions deploy. Užitečné když chceš migrovat data aniž bys
-aktualizoval code.
-
----
-
-## 7. Deploy pořadí
-
-**Při schema změnách**: rules → functions → frontend.
-
-Preferovaná cesta — orchestrátor (rules + migrace + functions
-v jednom kroku):
-
-```
-cd app/functions
-npm run deploy:dev         # nebo deploy:ope
+Místo pozicionálních (`expect(KEYS[0]).toBe("x")`) preferuj invariant — odolnost proti sort order / Object.keys insertion order:
+```ts
+expect(catalog["mention"].dedupePriority).toBeLessThan(catalog["comment_on_mine"].dedupePriority);
 ```
 
-Ad-hoc (jednotlivé kroky):
+### Spuštění
 
-1. Rules: `npm run rules:deploy:dev` / `rules:deploy:ope` (z `app/functions/`).
-2. Functions: `npm run functions:deploy:dev` / `functions:deploy:ope`.
-3. Storage: `npm run storage:deploy:dev` / `storage:deploy:ope`.
-4. Frontend: push na `develop` (dev) nebo `main` (prod) → CI/CD.
+```
+cd app && npm test                # frontend
+cd app/functions && npm test      # backend
+```
 
-Všechny npm scripty v `functions/package.json` používají wrapper
-`scripts/firebase-deploy.mjs` co vyčte project ID ze service account
-JSON a předá `--project <id>` firebase CLI. Není potřeba globální
-`firebase login` ani `.firebaserc`.
-
-**Proč pořadí**: rules musí vědět o novém field před tím, než klient
-začne zapisovat (jinak `create` validation padne). Functions pak
-zpracují data podle nové logiky. Frontend nakonec.
-
-**Při čistě-client změně** (žádný schema ani CF): stačí frontend deploy.
-
-**Migrace dat** (jako V17.8): mezi rules deploy a frontend deploy
-spusť migrační skript z sekce 6, aby nová rule měla co gate-ovat.
+CI: `validate` pipeline spouští oboje.
 
 ---
 
-## 8. Node + TypeScript
+## 7. Deploy + migrace
 
-- **Node 24.15.0** pro `app/` (přes `.nvmrc`). **Node 20** pro
-  `app/functions/` (Cloud Functions runtime).
-- `tsconfig`: `"module": "Node16"` + `"moduleResolution": "Node16"` v
-  functions (TS 5.7+ deprecated node10/node).
-- `tsx` není dostupný v sandbox bezinstalace — pro ad-hoc testy použij
-  `npx tsc` build + `node ./lib/...`.
+### Orchestrátor (kanonická cesta)
+
+```
+cd app/deploy
+npm run deploy:dev:dry        # dev dry-run (echo only)
+npm run deploy:dev            # dev ostrý — pending zůstává po úspěchu
+# ...ověř na dev environmentu
+npm run deploy:ope:dry        # prod dry-run
+npm run deploy:ope            # prod ostrý — pending → archive + záznam v README
+```
+
+### Co dělá `deploy.mjs`
+
+1. Resolvuje project ID ze service account (`dev.json` / `ope.json`)
+2. `firebase deploy --only firestore:rules`
+3. `firebase deploy --only storage`
+4. Spustí každý pending skript: `node <script> <env>`. Selže → orchestrátor zastaví.
+5. Functions build + `firebase deploy --only functions`
+6. Pokud env=`ope` a vše OK: pending → archive + řádek v `archive/README.md` (parsuje JSDoc tagy `@migration`, `@date`, `@description`)
+
+### Flagy
+
+- `--dry-run` — echo only, nic se nezapíše
+- `--skip-firebase` — jen migrace, přeskočí rules + functions deploy. Užitečné pro data fixlety bez code change.
+
+### Deploy pořadí (proč rules → migrace → functions → frontend)
+
+Při schema změnách:
+1. **Rules** musí vědět o novém field před tím, než klient zapíše (jinak `create` validation padne)
+2. **Migrace** doplní field do historických tasků (jinak nová rule by je zamítla)
+3. **Functions** zpracují data podle nové logiky
+4. **Frontend** nakonec — přes git push (`develop` → dev environment, `main` → prod)
+
+### Ad-hoc deploy (mimo orchestrátor)
+
+```
+npm run rules:deploy:dev / rules:deploy:ope
+npm run functions:deploy:dev / functions:deploy:ope
+npm run storage:deploy:dev / storage:deploy:ope
+```
+
+### Migrace — kdy psát pending skript?
+
+#### NUTNÝ skript:
+- Nová rule by zamítla writes nad existujícími daty (povinný field)
+- Aplikace by spadla nebo špatně renderovala bez backfillu
+- Runtime bridge nemůže problém řešit lazily
+
+#### NEPSAT skript, když:
+- Runtime bridge ve `fromDocSnap` / `bridge*` funkce stačí
+- Data se postupně samy migrují normální interakcí (např. unlink clear `linkedTaskId: null`)
+- Nejistota → **zeptej se uživatele**, nikdy nepiš preemptivně "pro jistotu"
+
+> Zkušenost: V18-S40 — psal jsem skript, který nebyl potřeba. Bridge řešil legacy reads, unlink clearoval per-task. Nepiš zbytečně.
+
+#### Šablona pending skriptu
+
+- Cesta: `app/deploy/pending/YYYY-MM-DD-V{verze}-{popis-kebab-case}.mjs`
+- Header — JSDoc tagy:
+  ```
+  @migration V17.8
+  @date 2026-04-24
+  @description Krátký popis co dělá
+  ```
+- První positional arg: `dev | ope` → service account z `../{env}.json`
+- `--dry-run` flag (echo only)
+- **Idempotentní** (druhé spuštění nic nezapíše)
+- Guard na začátku: pokud `basename(dirname(__filename)) === "archive"` → `console.error` + `process.exit(2)`
+- Po `ope` úspěchu: orchestrátor přesune do `archive/`
+
+Šablona — viz `app/deploy/archive/2026-04-27-V19-sharedWithRoles.mjs` (nejčistší příklad).
 
 ---
 
-## 9. i18n
+## 8. i18n + a11y
 
-Jediný jazyk: **čeština** (`app/src/i18n/cs.json`).
+### i18n (`cs.json`)
 
-- Klíče formát: `namespace.key` s tečkou (`t("detail.back")`).
-- Nested: `t("notifikace.events.mention")`.
-- Vars: `t("card.minutesAgo", { n: 5 })` — `{n}` placeholder.
-- Když přidáš nový string, **vždy** přes `t()` — nikdy hardcoded text
-  v komponentě. Tím je připravené na V2 i18n stack pokud přijde.
+Single soubor, jediný jazyk (čeština). 49 top-level namespaces, ~880 řádků.
 
----
+**Hlavní namespaces** (každý 5–110 klíčů): `app`, `tabs`, `composer`, `detail`, `settings`, `ukoly`, `otazky`, `events`, `notifikace`, `inbox`, `comments`, `dokumentace`, `kategorie`, `locations`, `phases`, `docTypes`, `role`, `common`, `aria`, `toast`, `priority`, `deadline`, `status`, `auth`, `onboarding`, `prehled`, `export`, `install`, `update`, `filter`, `card`, `editor`, `list`.
 
-## 10. Konvence jmen
+**Pravidla**:
+- Klíče: `namespace.key` (tečka). Nested: `notifikace.events.mention`
+- Vars: `t("card.minutesAgo", { n: 5 })` — `{n}` placeholder
+- **Nikdy** hardcoded text v komponentě — vždy přes `t()`. Připravený na V2 i18n stack.
 
-- `OWNER` / `PROJECT_MANAGER` (všechny caps, underscore) — `UserRole`.
-- `napad` / `otazka` / `ukol` (lowercase, bez diakritiky) — `TaskType`.
-- Status: `"OPEN" | "BLOCKED" | "CANCELED" | "DONE"` (V10 canonical) +
-  legacy (Nápad, Otázka, Rozhodnuto, Ve stavbě, Hotovo…).
-- Feature flags: `V{N}.{m}` (`V17.1`, `V16.9`) — shoda s task listy a
-  commit messages.
-- Komentáře v kódu: česky je OK, směs s angličtinou dovolena (historické).
+### a11y konvence
 
----
+#### Modaly
 
-### CANCELED vs CANCELLED — záměrný drift (V18-S39)
+```jsx
+<div
+  onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+  className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 pt-safe pb-safe"
+  role="dialog"
+  aria-modal="true"
+  aria-label={t("...")}
+>
+```
+- ESC keydown → close (handler v komponentě)
+- Backdrop click → close (`target === currentTarget`)
+- Focus trap nedoporučeno víc než dlouhé form modaly; jednoduché dialogy se obejdou.
 
-- **Tasks** používají `"CANCELED"` (US, jedno L) — viz `Status` v `types.ts`.
-- **Events** používají `"CANCELLED"` (UK, dvě L) — viz `EventStatus`.
+#### Tlačítka
 
-**Nesjednocujeme.** Důvod: ICS RFC 5545 spec vyžaduje `STATUS:CANCELLED` pro
-canceled události (`buildCalendarIcs` v `lib/ics.ts`). Tasks nemají vnější
-contract, jen V10/V14 origin. Hodnoty se nikde nemíchají (jiné domény, jiné
-typy), takže drift nezpůsobuje confusion v běžném code review.
+- Icon-only button: vždy `aria-label`
+- Decorative icons (uvnitř buttonu/labelu): `aria-hidden`
+- Min tap target: Tailwind utility `min-h-tap` (44px) + `min-w-tap`
 
-Když přidáváš nové místo, kde se srovnává status, mrkni do typu (TS ti to
-stejně označí), ať voláš správnou variantu.
+#### Status indikátory
 
----
+Color isn't sole channel — vždy color **+** text label. Status border-left + text label.
 
-## 11. Co NEDĚLAT
+### Tone konvence
 
-- ❌ Neměň `switch` v `copy.ts` — jen v `catalog.ts`.
-- ❌ Neřeš permissions "jen v UI" — vždy mirror v `firestore.rules`.
-- ❌ Neházej service account JSON do gitu. `**/scripts/*.json` v
-  `.gitignore` chrání před omylem, ale pohlídej si i manuálně.
-- ❌ Nespouštěj migrační skript na prod bez předchozího dev testu.
-- ❌ Nenechávej jednorázové skripty v `scripts/` — archivuj po run.
-- ❌ Neupravuj `NOTIFICATION_EVENT_KEYS` ručně — je derivováno ze sortu
-  katalogu.
-- ❌ Netvoř fallback na "OWNER" pro missing `authorRole` — nech
-  `undefined`, caller resolvuje přes user lookup.
+- Komentáře v kódu: česky OK, směs s angličtinou dovolena (historicky)
+- UI text: česky, neformálně-zdvořile (tykání)
 
 ---
 
-## 12. Historie verzí (stručný changelog)
+## 9. Konvence jmen + Node/TS
 
-- **V10** — canonical status (OPEN/BLOCKED/CANCELED/DONE), assignee-driven ball-on-me, multi-OWNER
-- **V14** — ukol type, dependencyText, vystup field, convert napad→ukol
-- **V15** — FCM push pipeline (CF + client + SW), data-only payload
-- **V15.1** — in-app inbox (bell v headeru)
-- **V15.2** — read permissions uvolněny pro všechny signed-in users
-- **V16** — `notification catalog` single source (V16.7), debounce
-  plánováno ale nezapojeno (V16.5 pending), presence suppression (V16.9),
-  přezdívka, collapsible settings, změny v change-detection triggerech
-- **V17** — nový permissions model (authorRole + cross-OWNER +
-  delete-just-author), TaskDetail canEdit refactor, composer assignee
-  povinný, merged `assigned_with_comment`, device sanity hook, pure
-  helpers extracted + testy, backfill skript pro legacy tasks
+| Doména | Konvence | Příklad |
+|--------|----------|---------|
+| User role | UPPER_SNAKE | `OWNER`, `PROJECT_MANAGER` |
+| TaskType | lowercase, bez diakritiky | `napad`, `otazka`, `ukol`, `dokumentace` |
+| Status (task) | UPPER (V10) + Czech (legacy) | `OPEN`, `BLOCKED`, `CANCELED`, `DONE`, `Nápad`, … |
+| Status (event) | UPPER s 2-L | `UPCOMING`, `CANCELLED` |
+| Feature flag | `V{N}.{m}` nebo `V{N}-S{NN}` | `V17.1`, `V18-S40` |
+| File `.test.ts` | Vitest unit (lib) | `permissions.test.ts` |
+| File `.test.tsx` | Component test (RTL) | `Composer.test.tsx` |
+| File `.mjs` | Node ES module | `deploy.mjs`, migrace |
+
+### Node + TypeScript
+
+- **Node 24.15.0** pro `app/` (přes `.nvmrc`)
+- **Node 20** pro `app/functions/` (Cloud Functions runtime)
+- TS config functions: `"module": "Node16"` + `"moduleResolution": "Node16"` (TS 5.7+ deprecated `node10`/`node`)
+- `tsx` není dostupný v sandbox bez instalace — pro ad-hoc skripty použij `npx tsc` build + `node ./lib/...`
+
+---
+
+## 10. Co NEDĚLAT
+
+### UI / komponenty
+- ❌ Hardcoded text — vždy přes `t()`
+- ❌ Inline `role === "PROJECT_MANAGER"` checky → použij `roleHas("…", role)` nebo `canActOn(...)` z `permissionsConfig` (výjimka: layout decisions, např. které taby v `Shell.tsx`)
+- ❌ Modal bez `role="dialog"` + `aria-modal`
+- ❌ Icon-only button bez `aria-label`
+
+### Permissions / rules
+- ❌ Permissions jen v UI bez mirroru v `firestore.rules`
+- ❌ Editovat `PERMISSIONS_GENERATED.md` ručně — jen přes `npm run docs:permissions`
+- ❌ Vynechat `rulesAt` v nové `PermissionRule` — invariant test selže
+
+### Schema / Firestore
+- ❌ `priority: undefined` (nebo jakýkoli `field: undefined`) v Firestore payloadu → vyhodí `FirebaseError: Unsupported field value: undefined`. Vynech klíč úplně.
+- ❌ Při zápisu modern field zapomenout legacy clear (např. `linkedTaskIds: []` bez `linkedTaskId: null` → bridge fall-through ukáže smazaný link dál)
+- ❌ Fallback na `"OWNER"` pro missing `authorRole` — nech `undefined`, caller resolvuje přes `resolveAuthorRole({task, usersByUid})`
+
+### Notification pipeline
+- ❌ Switch v `copy.ts` — uprav `catalog.ts`
+- ❌ Editovat `NOTIFICATION_EVENT_KEYS` ručně — derivováno z catalog sortu
+- ❌ Nový event type bez i18n klíčů + ikony + `DEFAULT_PREFS` entry (5 míst, nezapomenout)
+
+### Deploy / migrace
+- ❌ Service account JSON do gitu (`.gitignore` chrání, ale dvakrát kontroluj)
+- ❌ Spustit migrační skript na prod bez předchozího dev testu
+- ❌ Nechávat jednorázové skripty v `pending/` po dokončení — orchestrátor archivuje sám, ale ověř
+- ❌ **Preemptive migrační skript** pro něco, co řeší runtime bridge (zkušenost V18-S40)
+- ❌ **Přepisovat / mazat skripty v `archive/`** — historie a audit trail
+
+### Testy
+- ❌ Mockovat Firebase tam, kde stačí pure-helper extrakce
+- ❌ Pozicionální aserce (`KEYS[0]`) místo invariant (`expect(catalog[k].priority).toBeLessThan(...)`)
+
+---
+
+## 11. Version history (changelog)
+
+- **V3** — N:M categories, priority/deadline/assignee na otázce
+- **V4** — workflow actions na komentářích (flip, close)
+- **V5** — multi-author ready (createdBy)
+- **V7** — locations editable, 3-group taxonomy
+- **V10** — canonical status (OPEN/BLOCKED/CANCELED/DONE), assignee-driven ball-on-me
+- **V14** — `ukol` task type, dependency, vystup, `convertNapadToUkol`
+- **V15** — FCM push pipeline (CF + client + SW)
+- **V15.1** — in-app inbox bell
+- **V15.2** — read permissions uvolněny pro všechny signed-in
+- **V16** — notification catalog single source (V16.7), debounce (V16.5), presence suppression (V16.9), self-filter (V16.4), task_deleted event (V16.6)
+- **V17.1** — cross-OWNER edit + `authorRole` snapshot
+- **V17.2** — composer assignee povinný
+- **V17.3 / V17.5** — comment+flip merged → `assigned_with_comment`
+- **V17.7** — pure helpers extraction
+- **V17.8** — backfill skript pro legacy authorRole
+- **V17.9 – V17.11** — deploy orchestrátor + pending/archive workflow
+- **V18-S04 – S08** — Events feature (invitations, RSVP, update, cancel)
+- **V18-S09** — event lifecycle scheduled CF
+- **V18-S11** — webcal ICS subscription (HTTP CF)
+- **V18-S12** — calendar token rotation
+- **V18-S13** — RSVP reminder scheduled
+- **V18-S24 / S25** — `contactEmail` (Apple Calendar match), `calendarLastFetchedAt`
+- **V18-S30** — onboarding modal
+- **V18-S38** — `permissionsConfig.ts` single source
+- **V18-S39** — `limits.ts`, `storageKeys.ts` consolidation
+- **V18-S40** — task `changeType` (otazka↔ukol) + many-to-many `linkedTaskIds`, default route `/ukoly`
+- **V19** — `sharedWithRoles` (replaces `sharedWithPm`), `dokumentace` task type, audit log
+- **V20** — `document_uploaded` notification, OWNER-managed document types
+- **V21** — collapsible diskuse pro nápady/dokumentace
+- **V22** — `updateTask` strip undefined, `isReadOnlyRef` safety
+- **V23** — phases (configurable build phases), `canViewTask` visibility gate

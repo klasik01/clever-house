@@ -12,3 +12,6 @@ coverage/
 
 # V18-S46 — lokální testovací ICS soubory (gen:ics script)
 sample-*.ics
+
+# vitest dočasné config kompiláty (zůstávají po killnutí test runneru)
+*.timestamp-*.mjs
