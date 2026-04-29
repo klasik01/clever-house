@@ -66,7 +66,7 @@ export async function createTask(
   const isActionable = data.type === "otazka" || data.type === "ukol";
   const defaultAssignee =
     isActionable && authorRole === "OWNER" ? uid : null;
-  const ref = await addDoc(collection(db, TASKS), {
+  const payload: Record<string, unknown> = {
     ...data,
     assigneeUid: defaultAssignee,
     categoryId: null,
@@ -75,8 +75,6 @@ export async function createTask(
     projektantAnswer: null,
     projektantAnswerAt: null,
     linkedTaskIds: [],
-    // V18-S40 — explicit priority pro actionable types (jinak undefined).
-    priority: isActionable ? "P2" : undefined,
     attachmentImages: [],
     attachmentImageUrl: null,
     attachmentImagePath: null,
@@ -87,7 +85,14 @@ export async function createTask(
     authorRole,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  // V18-S40 — explicit priority jen pro actionable types. Firebase odmítá
+  //   undefined hodnoty (FirebaseError: Unsupported field value: undefined),
+  //   takže pole pro napad/dokumentace prostě nezapisujeme.
+  if (isActionable) {
+    payload.priority = "P2";
+  }
+  const ref = await addDoc(collection(db, TASKS), payload);
   return ref.id;
 }
 
