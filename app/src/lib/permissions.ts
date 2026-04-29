@@ -42,6 +42,70 @@ export function isReadOnlyTask(input: CanEditInput): boolean {
 }
 
 /**
+ * V18-S40 — kdo smí změnit typ tasku (otazka ↔ ukol).
+ *
+ * Stejný pattern jako canEditTask (autor + cross-OWNER), ale ostře gated
+ * jen na otazka↔ukol mutaci. Napad a dokumentace nelze měnit (mají
+ * fundamentálně jiný workflow / pole).
+ */
+export interface CanChangeTypeInput extends CanEditInput {
+  task: Pick<Task, "createdBy" | "type">;
+}
+
+export function canChangeTaskType(input: CanChangeTypeInput): boolean {
+  // Convert je definovaný jen mezi otazka a ukol. Napad a dokumentace
+  // mají vlastní type-specific fields a workflow.
+  if (input.task.type !== "otazka" && input.task.type !== "ukol") return false;
+  return canActOnResource("task.changeType", {
+    role: input.currentUserRole,
+    uid: input.currentUserUid,
+    resourceCreatedBy: input.task.createdBy,
+    resourceAuthorRole: input.taskAuthorRole,
+  });
+}
+
+/**
+ * V18-S40 — kdo smí přidat/odebrat propojení mezi tasky.
+ *
+ * Pravidlo: caller musí mít edit (autor nebo cross-OWNER) na **obě strany**
+ * propojení. Tj. uživatel propojí otázku/úkol s tématem jen tehdy, když
+ * smí editovat oba dokumenty. Tímto:
+ *   - PM nemůže nasadit cizí téma na PM-otázku, ledaže je téma OWNER-created
+ *     (pak má cross-OWNER edit) — ale u OWNER-created tématu by stejně měl
+ *     být oprávněný šťourat.
+ *   - OWNER nemůže přidat svoji otázku do PM-soukromého tématu (PM-tasks
+ *     nelze měnit cross-OWNER).
+ *
+ * Server-side rules to nemůžou plně vynutit (rule vidí jen jeden dokument),
+ * ale obě strany se updatují v jednom batch — když permise selže na jednom,
+ * celý batch padne. Tím rules cross-validate efektivně z UI.
+ */
+export interface CanLinkInput {
+  task: Pick<Task, "createdBy">;
+  taskAuthorRole: UserRole | undefined;
+  other: Pick<Task, "createdBy">;
+  otherAuthorRole: UserRole | undefined;
+  currentUserUid: string | null | undefined;
+  currentUserRole: UserRole | null | undefined;
+}
+
+export function canLinkTasks(input: CanLinkInput): boolean {
+  const onTask = canActOnResource("task.link", {
+    role: input.currentUserRole,
+    uid: input.currentUserUid,
+    resourceCreatedBy: input.task.createdBy,
+    resourceAuthorRole: input.taskAuthorRole,
+  });
+  const onOther = canActOnResource("task.link", {
+    role: input.currentUserRole,
+    uid: input.currentUserUid,
+    resourceCreatedBy: input.other.createdBy,
+    resourceAuthorRole: input.otherAuthorRole,
+  });
+  return onTask && onOther;
+}
+
+/**
  * V18-S07 — canEditEvent.
  *
  * Stejný pattern jako canEditTask (V17.1 cross-OWNER model). Po V18-S38

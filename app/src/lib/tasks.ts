@@ -308,6 +308,144 @@ export async function convertNapadToUkol(
 }
 
 
+/**
+ * V18-S40 — In-place mutace `type` pole (otazka ↔ ukol).
+ *
+ * Zachovává **všechna ostatní pole** včetně ID, autora, komentářů, history,
+ * priority, deadline, assignee, kategorie, propojení atd. Type-specific
+ * pole (projektantAnswer, dependencyText) zůstávají v dokumentu — UI je
+ * pro nový type prostě nezobrazí. Kdyby uživatel převedl zpět, data se
+ * vrátí do hry. Per CLAUDE.md sekce 11: nemažeme legacy fieldy zbytečně.
+ *
+ * Permission gating provádí caller (canChangeTaskType ve `lib/permissions.ts`).
+ * Server-side rules vyhodnotí jako standardní `tasks/update` — autor nebo
+ * cross-OWNER projde, ostatní padnou.
+ *
+ * `napad` a `dokumentace` nelze tímto helperem měnit — caller by měl být
+ * gated, ale pro jistotu throwujeme i tady.
+ */
+export async function changeTaskType(
+  taskId: string,
+  newType: "otazka" | "ukol",
+  currentType: import("@/types").Task["type"],
+): Promise<void> {
+  if (currentType !== "otazka" && currentType !== "ukol") {
+    throw new Error(
+      `changeTaskType: source type ${currentType} not supported (only otazka↔ukol).`,
+    );
+  }
+  if (newType === currentType) return; // no-op
+  await updateDoc(doc(db, TASKS, taskId), {
+    type: newType,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+
+/**
+ * V18-S40 — Bidirectional link mezi otázkou/úkolem a nápadem (téma).
+ *
+ * Many-to-many model: jedna otázka/úkol může patřit do víc témat, jedno
+ * téma má víc otázek/úkolů. Linkujeme jednoduchým symmetrickým updatem
+ * `linkedTaskIds` na obou dokumentech v jednom batch — atomické.
+ *
+ * Idempotentní: pokud už link existuje, druhé volání nezpůsobí duplikát.
+ *
+ * Permission gating provádí caller (canLinkTasks v `lib/permissions.ts`).
+ * Server-side: každý update musí projít přes update rule (autor nebo
+ * cross-OWNER edit). Když nemá oprávnění na jednu stranu, batch padne
+ * jako celek.
+ *
+ * Legacy `linkedTaskId` field zůstává v dokumentu pro back-compat reads
+ * — fromDocSnap si ho bridguje do `linkedTaskIds` přes bridgeLinkedTaskIds.
+ */
+export async function linkTaskToNapad(args: {
+  taskId: string;
+  napadId: string;
+}): Promise<void> {
+  const batch = writeBatch(db);
+  const taskRef = doc(db, TASKS, args.taskId);
+  const napadRef = doc(db, TASKS, args.napadId);
+
+  const [taskSnap, napadSnap] = await Promise.all([
+    getDoc(taskRef),
+    getDoc(napadRef),
+  ]);
+  if (!taskSnap.exists()) throw new Error(`linkTaskToNapad: task ${args.taskId} not found`);
+  if (!napadSnap.exists()) throw new Error(`linkTaskToNapad: napad ${args.napadId} not found`);
+
+  const taskLinks = readBridgedLinks(taskSnap.data() ?? {});
+  const napadLinks = readBridgedLinks(napadSnap.data() ?? {});
+
+  if (!taskLinks.includes(args.napadId)) {
+    batch.update(taskRef, {
+      linkedTaskIds: [...taskLinks, args.napadId],
+      updatedAt: serverTimestamp(),
+    });
+  }
+  if (!napadLinks.includes(args.taskId)) {
+    batch.update(napadRef, {
+      linkedTaskIds: [...napadLinks, args.taskId],
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  await batch.commit();
+}
+
+export async function unlinkTaskFromNapad(args: {
+  taskId: string;
+  napadId: string;
+}): Promise<void> {
+  const batch = writeBatch(db);
+  const taskRef = doc(db, TASKS, args.taskId);
+  const napadRef = doc(db, TASKS, args.napadId);
+
+  const [taskSnap, napadSnap] = await Promise.all([
+    getDoc(taskRef),
+    getDoc(napadRef),
+  ]);
+  if (!taskSnap.exists()) return; // nothing to unlink
+  if (!napadSnap.exists()) return;
+
+  const taskLinks = readBridgedLinks(taskSnap.data() ?? {});
+  const napadLinks = readBridgedLinks(napadSnap.data() ?? {});
+
+  const newTaskLinks = taskLinks.filter((id) => id !== args.napadId);
+  const newNapadLinks = napadLinks.filter((id) => id !== args.taskId);
+
+  if (newTaskLinks.length !== taskLinks.length) {
+    batch.update(taskRef, {
+      linkedTaskIds: newTaskLinks,
+      updatedAt: serverTimestamp(),
+    });
+  }
+  if (newNapadLinks.length !== napadLinks.length) {
+    batch.update(napadRef, {
+      linkedTaskIds: newNapadLinks,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  await batch.commit();
+}
+
+/** Inline helper — re-čte linkedTaskIds z raw firestore data, s bridgem
+ *  legacy linkedTaskId. Používáno v link/unlink helpers, kde nechceme
+ *  full Task deserializaci (jen list IDs). */
+function readBridgedLinks(data: Record<string, unknown>): string[] {
+  const arr = data.linkedTaskIds;
+  if (Array.isArray(arr)) {
+    const filtered = arr.filter((x): x is string => typeof x === "string" && x.length > 0);
+    if (filtered.length > 0) return filtered;
+  }
+  if (typeof data.linkedTaskId === "string" && data.linkedTaskId) {
+    return [data.linkedTaskId];
+  }
+  return [];
+}
+
+
 /** Bridge legacy single-image fields to the S24 array shape. Returns an array. */
 function bridgeImages(data: Record<string, unknown>): import("@/types").ImageAttachment[] {
   const arr = (data.attachmentImages as import("@/types").ImageAttachment[] | undefined) ?? [];
@@ -369,8 +507,11 @@ function bridgePriority(data: Record<string, unknown>): import("@/types").TaskPr
 function bridgeLinkedTaskIds(data: Record<string, unknown>): string[] {
   const arr = data.linkedTaskIds as string[] | undefined;
   if (Array.isArray(arr) && arr.length > 0) return arr.filter((x) => typeof x === "string");
-  // Only nápad's legacy linkedTaskId maps to the array; otázka keeps its own.
-  if (data.type === "napad" && typeof data.linkedTaskId === "string" && data.linkedTaskId) {
+  // V18-S40 — bridge legacy single linkedTaskId pro VŠECHNY typy:
+  //   - napad: legacy single-child link (pre-S26)
+  //   - otazka/ukol: legacy single-parent link (pre-V18-S40)
+  // Přidáním do linkedTaskIds sjednotíme model na many-to-many bidir array.
+  if (typeof data.linkedTaskId === "string" && data.linkedTaskId) {
     return [data.linkedTaskId];
   }
   return [];

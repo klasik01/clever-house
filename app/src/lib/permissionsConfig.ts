@@ -34,6 +34,8 @@ export type ActionKey =
   | "task.edit"
   | "task.delete"
   | "task.comment"
+  | "task.changeType"
+  | "task.link"
   // ---------- Events ----------
   | "event.read"
   | "event.create"
@@ -133,6 +135,20 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
     description:
       "Napsat komentář. Kdokoliv signed-in. Side-effect na parent (commentCount/status/assignee) řeší isCommentSideEffect rule.",
     rulesAt: "comments/create + tasks/update isCommentSideEffect()",
+  },
+  "task.changeType": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author-or-cross-owner",
+    description:
+      "Změnit typ tasku (otázka ↔ úkol). Mutace v místě — zachová ID, autora, komentáře. Stejný permission pattern jako task.edit.",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (changeType je podmnožina edit)",
+  },
+  "task.link": {
+    roles: ["OWNER", "PROJECT_MANAGER"],
+    ownership: "author-or-cross-owner",
+    description:
+      "Přidat / odebrat propojení mezi otázkou/úkolem a tématem (nápadem). Vyžaduje edit právo na obě strany — gating provádí caller per-task přes canActOn('task.link', ...) na obou dokumentech.",
+    rulesAt: "tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (link je podmnožina edit)",
   },
 
   // ---------- Events ----------

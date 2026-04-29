@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canEditTask, isReadOnlyTask } from "./permissions";
+import { canEditTask, isReadOnlyTask, canChangeTaskType, canLinkTasks } from "./permissions";
 
 describe("canEditTask — V17.1/V17.8 permissions model", () => {
   it("autor vždy edituje vlastní task", () => {
@@ -221,3 +221,145 @@ describe("canEditEvent — V18-S07", () => {
     ).toBe(false);
   });
 });
+
+
+describe("canChangeTaskType (V18-S40)", () => {
+  it("autor otázky smí převést na úkol", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "me", type: "otazka" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("autor úkolu smí převést na otázku", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "me", type: "ukol" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("napad NESMÍ být převeden (jiný workflow)", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "me", type: "napad" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("dokumentace NESMÍ být převedena", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "me", type: "dokumentace" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "me",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+
+  it("cross-OWNER smí převést OWNER-vytvořenou otázku", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "owner-1", type: "otazka" },
+        taskAuthorRole: "OWNER",
+        currentUserUid: "owner-2",
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(true);
+  });
+
+  it("PM ne-autor PM-otázky NESMÍ", () => {
+    expect(
+      canChangeTaskType({
+        task: { createdBy: "pm-1", type: "otazka" },
+        taskAuthorRole: "PROJECT_MANAGER",
+        currentUserUid: "pm-2",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canLinkTasks (V18-S40)", () => {
+  const me = { uid: "me", role: "OWNER" as const };
+  const myOwnerTask = { createdBy: "me" };
+  const otherOwnerTask = { createdBy: "owner-2" };
+  const pmTask = { createdBy: "pm-1" };
+
+  it("autor obou stran smí linkovat", () => {
+    expect(
+      canLinkTasks({
+        task: myOwnerTask,
+        taskAuthorRole: "OWNER",
+        other: myOwnerTask,
+        otherAuthorRole: "OWNER",
+        currentUserUid: me.uid,
+        currentUserRole: me.role,
+      }),
+    ).toBe(true);
+  });
+
+  it("OWNER smí linkovat 2 OWNER-vytvořené tasky (cross-OWNER na obě)", () => {
+    expect(
+      canLinkTasks({
+        task: otherOwnerTask,
+        taskAuthorRole: "OWNER",
+        other: otherOwnerTask,
+        otherAuthorRole: "OWNER",
+        currentUserUid: me.uid,
+        currentUserRole: me.role,
+      }),
+    ).toBe(true);
+  });
+
+  it("OWNER NESMÍ linkovat když je druhá strana PM-vytvořená a OWNER nemá edit", () => {
+    expect(
+      canLinkTasks({
+        task: myOwnerTask,
+        taskAuthorRole: "OWNER",
+        other: pmTask,
+        otherAuthorRole: "PROJECT_MANAGER",
+        currentUserUid: me.uid,
+        currentUserRole: me.role,
+      }),
+    ).toBe(false);
+  });
+
+  it("PM smí linkovat svoji otázku se svým úkolem", () => {
+    expect(
+      canLinkTasks({
+        task: pmTask,
+        taskAuthorRole: "PROJECT_MANAGER",
+        other: pmTask,
+        otherAuthorRole: "PROJECT_MANAGER",
+        currentUserUid: "pm-1",
+        currentUserRole: "PROJECT_MANAGER",
+      }),
+    ).toBe(true);
+  });
+
+  it("missing uid → false", () => {
+    expect(
+      canLinkTasks({
+        task: myOwnerTask,
+        taskAuthorRole: "OWNER",
+        other: myOwnerTask,
+        otherAuthorRole: "OWNER",
+        currentUserUid: null,
+        currentUserRole: "OWNER",
+      }),
+    ).toBe(false);
+  });
+});
+

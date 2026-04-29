@@ -4,11 +4,11 @@ import { ArrowLeft, ChevronDown, FileText, HelpCircle, Notebook, Target, Trash2 
 import { useT, formatRelative } from "@/i18n/useT";
 import { useTask } from "@/hooks/useTask";
 import { useTasks } from "@/hooks/useTasks";
-import { convertNapadToOtazka, convertNapadToUkol, createTask, deleteTask, updateTask } from "@/lib/tasks";
+import { changeTaskType, convertNapadToOtazka, convertNapadToUkol, createTask, deleteTask, linkTaskToNapad, unlinkTaskFromNapad, updateTask } from "@/lib/tasks";
 import { newId } from "@/lib/id";
 import { TYPE_COLORS } from "@/lib/typeColors";
 import { useUserRole } from "@/hooks/useUserRole";
-import { canEditTask, canViewTask } from "@/lib/permissions";
+import { canChangeTaskType, canEditTask, canLinkTasks, canViewTask } from "@/lib/permissions";
 import { resolveAuthorRole } from "@/lib/authorRole";
 import CategoryPicker from "@/components/CategoryPicker";
 import LocationPickerInline from "@/components/LocationPickerInline";
@@ -36,6 +36,7 @@ const CommentThread = lazy(() => import("@/components/CommentThread"));
 const DocumentUploadModal = lazy(() => import("@/components/DocumentUploadModal"));
 const AuditTimeline = lazy(() => import("@/components/AuditTimeline"));
 const DocumentPickerModal = lazy(() => import("@/components/DocumentPickerModal"));
+const TaskLinkPickerModal = lazy(() => import("@/components/TaskLinkPickerModal"));
 import SwipeReveal from "@/components/SwipeReveal";
 
 // ---------- LinkedList (V14.1) ----------
@@ -49,6 +50,9 @@ function LinkedList({
   forceIcon,
   isPm,
   t,
+  canUnlink,
+  onUnlink,
+  unlinkingId,
 }: {
   items: LinkedItem[];
   headingId: string;
@@ -60,6 +64,11 @@ function LinkedList({
   fallbackIcon?: LucideIcon;
   isPm: boolean;
   t: (k: string, vars?: Record<string, string | number>) => string;
+  /** V18-S40 — per-row gating pro unlink tlačítko. Když není dodáno,
+   *  unlink ikona se nezobrazí (read-only / nedostatečné oprávnění). */
+  canUnlink?: (other: TaskT) => boolean;
+  onUnlink?: (otherId: string) => void;
+  unlinkingId?: string | null;
 }) {
   if (items.length === 0) return null;
   const Icon = forceIcon;
@@ -84,17 +93,22 @@ function LinkedList({
                   : ot.status,
               )
             : null;
+          const showUnlink = !!(ot && onUnlink && canUnlink && canUnlink(ot));
+          const id = lid ?? ot?.id ?? "";
           return (
-            <li key={lid ?? ot?.id}>
+            <li
+              key={id}
+              className="flex items-stretch rounded-md border border-l-4 bg-surface hover:bg-bg-subtle transition-colors"
+              style={{
+                borderLeftColor: c ? c.border : "var(--color-border-default)",
+                borderTopColor: "var(--color-border-default)",
+                borderRightColor: "var(--color-border-default)",
+                borderBottomColor: "var(--color-border-default)",
+              }}
+            >
               <Link
-                to={taskDetail(lid ?? ot?.id ?? "")}
-                className="flex items-center justify-between gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
-                style={{
-                  borderLeftColor: c ? c.border : "var(--color-border-default)",
-                  borderTopColor: "var(--color-border-default)",
-                  borderRightColor: "var(--color-border-default)",
-                  borderBottomColor: "var(--color-border-default)",
-                }}
+                to={taskDetail(id)}
+                className="flex items-center justify-between gap-3 flex-1 px-4 py-3"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <Icon aria-hidden size={18} className="text-accent-visual shrink-0" />
@@ -115,8 +129,21 @@ function LinkedList({
                     )}
                   </div>
                 </div>
-                <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+                {!showUnlink && (
+                  <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
+                )}
               </Link>
+              {showUnlink && (
+                <button
+                  type="button"
+                  onClick={() => onUnlink?.(id)}
+                  disabled={unlinkingId === id}
+                  aria-label={t("detail.unlinkAria")}
+                  className="grid place-items-center px-3 text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
+                >
+                  <XIcon aria-hidden size={16} />
+                </button>
+              )}
             </li>
           );
         })}
@@ -180,6 +207,10 @@ export default function TaskDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [converting, setConverting] = useState(false);
   const [convertingUkol, setConvertingUkol] = useState(false);
+  // V18-S40 — changeType (otazka↔ukol) + link/unlink k tématu
+  const [changingType, setChangingType] = useState(false);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
   // V14.1 — Výstup section is collapsed by default. User explicitly opens it
   // via the toggle or via the "Doplň výstup" banner CTA. Reset on route change.
   const [vystupExpanded, setVystupExpanded] = useState(false);
@@ -390,6 +421,68 @@ export default function TaskDetail() {
     } catch (e) {
       console.error("convert to úkol failed", e);
       setConvertingUkol(false);
+    }
+  }
+
+  /** V18-S40 — In-place převod typu (otazka ↔ ukol). Zachová ID, autora,
+   *  komentáře. Permission check duplicitně před serverside rule (UX). */
+  async function handleChangeType(newType: "otazka" | "ukol") {
+    if (state.status !== "ready") return;
+    if (state.task.type !== "otazka" && state.task.type !== "ukol") return;
+    if (newType === state.task.type) return;
+    const confirmKey =
+      newType === "ukol"
+        ? "detail.changeTypeOtazkaToUkolConfirm"
+        : "detail.changeTypeUkolToOtazkaConfirm";
+    if (!window.confirm(t(confirmKey))) return;
+    setChangingType(true);
+    try {
+      await changeTaskType(state.task.id, newType, state.task.type);
+    } catch (e) {
+      console.error("changeType failed", e);
+    } finally {
+      setChangingType(false);
+    }
+  }
+
+  /** V18-S40 — Připojí stávající otázku/úkol k tématu (když je task=napad)
+   *  nebo téma k otázce/úkolu (když task je otazka/ukol). Permission check
+   *  ve volajícím (gating tlačítka přes canLinkTasks per kandidát). */
+  async function handleLinkTo(otherId: string) {
+    if (state.status !== "ready") return;
+    const me = state.task;
+    setLinkingId(otherId);
+    try {
+      if (me.type === "napad") {
+        await linkTaskToNapad({ taskId: otherId, napadId: me.id });
+      } else if (me.type === "otazka" || me.type === "ukol") {
+        await linkTaskToNapad({ taskId: me.id, napadId: otherId });
+      }
+      setLinkPickerOpen(false);
+    } catch (e) {
+      console.error("link failed", e);
+    } finally {
+      setLinkingId(null);
+    }
+  }
+
+  /** V18-S40 — Odebere link mezi tématem a otázkou/úkolem. Symmetric:
+   *  funguje stejně z obou stran. Confirmuje. */
+  async function handleUnlink(otherId: string) {
+    if (state.status !== "ready") return;
+    if (!window.confirm(t("detail.unlinkConfirm"))) return;
+    const me = state.task;
+    setLinkingId(otherId);
+    try {
+      if (me.type === "napad") {
+        await unlinkTaskFromNapad({ taskId: otherId, napadId: me.id });
+      } else if (me.type === "otazka" || me.type === "ukol") {
+        await unlinkTaskFromNapad({ taskId: me.id, napadId: otherId });
+      }
+    } catch (e) {
+      console.error("unlink failed", e);
+    } finally {
+      setLinkingId(null);
     }
   }
 
@@ -1474,6 +1567,17 @@ export default function TaskDetail() {
           .filter((x) => canViewTask({ task: x.ot!, currentUserUid: user?.uid, currentUserRole }));
         const otazkaLinks = resolved.filter(({ ot }) => ot?.type !== "ukol");
         const ukolLinks = resolved.filter(({ ot }) => ot?.type === "ukol");
+        const canUnlinkRow = (other: TaskT) => {
+          const otherAuthorRole = resolveAuthorRole({ task: other, usersByUid: byUid });
+          return canLinkTasks({
+            task,
+            taskAuthorRole,
+            other,
+            otherAuthorRole,
+            currentUserUid: user?.uid,
+            currentUserRole,
+          });
+        };
         return (
           <>
             <LinkedList
@@ -1484,6 +1588,9 @@ export default function TaskDetail() {
               forceIcon={HelpCircleIcon}
               isPm={isPm}
               t={t}
+              canUnlink={canUnlinkRow}
+              onUnlink={handleUnlink}
+              unlinkingId={linkingId}
             />
             <LinkedList
               items={ukolLinks}
@@ -1493,39 +1600,105 @@ export default function TaskDetail() {
               forceIcon={Target}
               isPm={isPm}
               t={t}
+              canUnlink={canUnlinkRow}
+              onUnlink={handleUnlink}
+              unlinkingId={linkingId}
             />
           </>
         );
       })()}
 
-      {(task.type === "otazka" || task.type === "ukol") && task.linkedTaskId && (() => {
-        const parent = allTasks.find((x) => x.id === task.linkedTaskId);
-        if (parent && !canViewTask({ task: parent, currentUserUid: user?.uid, currentUserRole })) return null;
-        const parentTitle =
-          parent?.title?.trim() ||
-          parent?.body?.split("\n")[0]?.trim().slice(0, 80) ||
-          t("detail.noTitle");
+      {(task.type === "otazka" || task.type === "ukol") && (() => {
+        // V18-S40 — many-to-many: zobrazujeme všechna napojená témata (nápady).
+        // linkedTaskIds zahrnuje i bridgnutý legacy linkedTaskId (viz fromDocSnap).
+        const parentIds = task.linkedTaskIds ?? [];
+        const parents = parentIds
+          .map((pid) => allTasks.find((x) => x.id === pid))
+          .filter((p): p is TaskT => !!p && p.type === "napad")
+          .filter((p) => canViewTask({ task: p, currentUserUid: user?.uid, currentUserRole }));
+        if (parents.length === 0 && isReadOnly) return null;
         return (
-          <Link
-            to={taskDetail(task.linkedTaskId)}
-            className="mt-4 flex items-center justify-between gap-3 rounded-md border border-line bg-surface px-4 py-3 hover:bg-bg-subtle transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <Lightbulb aria-hidden size={18} className="text-ink-subtle shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
-                  {t("detail.linkedNapadTitle")}
-                </p>
-                <p className="text-sm text-ink truncate">{parentTitle}</p>
-              </div>
+          <section className="mt-4" aria-labelledby="linked-temata-heading">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2
+                id="linked-temata-heading"
+                className="text-xs font-semibold uppercase tracking-wide text-ink-subtle"
+              >
+                {t("detail.linkedTemataTitle")}
+              </h2>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => setLinkPickerOpen(true)}
+                  disabled={!!linkingId}
+                  className="inline-flex items-center gap-1 min-h-tap rounded-md border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+                >
+                  <LinkIconLc aria-hidden size={14} className="text-accent-visual" />
+                  {t("detail.addLinkToTema")}
+                </button>
+              )}
             </div>
-            <ArrowRight aria-hidden size={18} className="text-ink-subtle shrink-0" />
-          </Link>
+            {parents.length === 0 ? (
+              <p className="text-sm text-ink-subtle">{t("detail.linkedTemataEmpty")}</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {parents.map((parent) => {
+                  const ptitle =
+                    parent.title?.trim() ||
+                    parent.body?.split("\n")[0]?.trim().slice(0, 80) ||
+                    t("detail.noTitle");
+                  const parentAuthorRole = resolveAuthorRole({ task: parent, usersByUid: byUid });
+                  const canUnlink = canLinkTasks({
+                    task,
+                    taskAuthorRole,
+                    other: parent,
+                    otherAuthorRole: parentAuthorRole,
+                    currentUserUid: user?.uid,
+                    currentUserRole,
+                  });
+                  return (
+                    <li
+                      key={parent.id}
+                      className="flex items-center gap-2 rounded-md border border-line bg-surface px-2 py-1.5 hover:bg-bg-subtle transition-colors"
+                    >
+                      <Link
+                        to={taskDetail(parent.id)}
+                        className="flex flex-1 items-center gap-3 min-w-0"
+                      >
+                        <Lightbulb aria-hidden size={18} className="text-ink-subtle shrink-0" />
+                        <p className="text-sm text-ink truncate">{ptitle}</p>
+                      </Link>
+                      {canUnlink && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnlink(parent.id)}
+                          disabled={linkingId === parent.id}
+                          aria-label={t("detail.unlinkAria")}
+                          className="inline-flex shrink-0 items-center justify-center min-h-tap min-w-tap rounded-md text-ink-subtle hover:bg-bg-muted hover:text-ink disabled:opacity-40 transition-colors"
+                        >
+                          <XIcon aria-hidden size={16} />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         );
       })()}
 
       {task.type === "napad" && !isReadOnly && (
         <div className="mt-6 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setLinkPickerOpen(true)}
+            disabled={converting || convertingUkol || saving || !!linkingId}
+            className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+          >
+            <LinkIconLc aria-hidden size={16} className="text-accent-visual" />
+            {t("detail.linkExistingToTema")}
+          </button>
           <button
             type="button"
             onClick={handleConvert}
@@ -1555,6 +1728,35 @@ export default function TaskDetail() {
                 )
               ? t("detail.convertToUkolAgain")
               : t("detail.convertToUkol")}
+          </button>
+        </div>
+      )}
+
+      {(task.type === "otazka" || task.type === "ukol") && canChangeTaskType({
+        task,
+        taskAuthorRole,
+        currentUserUid: user?.uid,
+        currentUserRole,
+      }) && (
+        <div className="mt-6 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              handleChangeType(task.type === "otazka" ? "ukol" : "otazka")
+            }
+            disabled={changingType || saving}
+            className="inline-flex items-center gap-2 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle disabled:opacity-40 transition-colors"
+          >
+            {task.type === "otazka" ? (
+              <Target aria-hidden size={16} className="text-accent-visual" />
+            ) : (
+              <HelpCircle aria-hidden size={16} className="text-accent-visual" />
+            )}
+            {changingType
+              ? t("detail.changingType")
+              : task.type === "otazka"
+                ? t("detail.changeTypeToUkol")
+                : t("detail.changeTypeToOtazka")}
           </button>
         </div>
       )}
@@ -1676,6 +1878,22 @@ export default function TaskDetail() {
           <dd className="truncate">{byUid.get(task.createdBy)?.email || task.createdBy || "—"}</dd>
         </dl>
       </section>
+
+      {linkPickerOpen && (
+        <Suspense fallback={null}>
+          <TaskLinkPickerModal
+            me={task}
+            meAuthorRole={taskAuthorRole}
+            allTasks={allTasks}
+            usersByUid={byUid}
+            currentUserUid={user?.uid}
+            currentUserRole={currentUserRole}
+            onPick={handleLinkTo}
+            onClose={() => setLinkPickerOpen(false)}
+            busyId={linkingId}
+          />
+        </Suspense>
+      )}
     </article>
   );
 }

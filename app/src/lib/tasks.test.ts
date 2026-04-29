@@ -11,6 +11,9 @@ import {
   getTask,
   convertNapadToOtazka,
   convertNapadToUkol,
+  changeTaskType,
+  linkTaskToNapad,
+  unlinkTaskFromNapad,
 } from "./tasks";
 import type { Task } from "@/types";
 
@@ -411,3 +414,138 @@ describe("fromDocSnap — V17.1 legacy authorRole fallback", () => {
     expect(out?.authorRole).toBeUndefined();
   });
 });
+
+
+describe("changeTaskType (V18-S40)", () => {
+  it("otazka → ukol změní jen type + updatedAt, zachová ostatní pole", async () => {
+    __firestoreState.store.set("tasks/t1", {
+      type: "otazka",
+      title: "Otázka 1",
+      body: "Tělo",
+      status: "OPEN",
+      createdBy: "u1",
+      authorRole: "OWNER",
+      assigneeUid: "u2",
+      priority: "P1",
+      deadline: 1234567890,
+      projektantAnswer: "snad něco",
+      categoryId: "c1",
+      linkedTaskIds: ["napad-1"],
+    });
+    await changeTaskType("t1", "ukol", "otazka");
+    const updated = __firestoreState.store.get("tasks/t1") as Record<string, unknown>;
+    expect(updated.type).toBe("ukol");
+    expect(updated.title).toBe("Otázka 1");
+    expect(updated.assigneeUid).toBe("u2");
+    expect(updated.priority).toBe("P1");
+    expect(updated.linkedTaskIds).toEqual(["napad-1"]);
+    // type-specific pole zůstávají (per CLAUDE.md "Zachovat vše")
+    expect(updated.projektantAnswer).toBe("snad něco");
+    expect(updated.updatedAt).toEqual({ __sentinel: "serverTimestamp" });
+  });
+
+  it("ukol → otazka stejně in-place", async () => {
+    __firestoreState.store.set("tasks/t2", {
+      type: "ukol",
+      title: "Úkol",
+      dependencyText: "po omítkách",
+      createdBy: "u1",
+    });
+    await changeTaskType("t2", "otazka", "ukol");
+    const updated = __firestoreState.store.get("tasks/t2") as Record<string, unknown>;
+    expect(updated.type).toBe("otazka");
+    expect(updated.dependencyText).toBe("po omítkách");
+  });
+
+  it("no-op pokud newType === currentType", async () => {
+    __firestoreState.store.set("tasks/t3", { type: "otazka" });
+    const before = __firestoreState.calls.length;
+    await changeTaskType("t3", "otazka", "otazka");
+    expect(__firestoreState.calls.length).toBe(before);
+  });
+
+  it("throw pro napad/dokumentace zdroj", async () => {
+    await expect(
+      changeTaskType("nx", "ukol", "napad"),
+    ).rejects.toThrow(/not supported/);
+    await expect(
+      changeTaskType("nx", "otazka", "dokumentace"),
+    ).rejects.toThrow(/not supported/);
+  });
+});
+
+describe("linkTaskToNapad / unlinkTaskFromNapad (V18-S40)", () => {
+  it("link přidá ID do obou linkedTaskIds polí (bidirectional)", async () => {
+    __firestoreState.store.set("tasks/n1", {
+      type: "napad",
+      linkedTaskIds: [],
+      createdBy: "u1",
+    });
+    __firestoreState.store.set("tasks/o1", {
+      type: "otazka",
+      linkedTaskIds: [],
+      createdBy: "u1",
+    });
+    await linkTaskToNapad({ taskId: "o1", napadId: "n1" });
+    const napad = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;
+    const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
+    expect(napad.linkedTaskIds).toEqual(["o1"]);
+    expect(otazka.linkedTaskIds).toEqual(["n1"]);
+  });
+
+  it("link je idempotentní — duplicate volání nepřidá podruhé", async () => {
+    __firestoreState.store.set("tasks/n1", {
+      type: "napad",
+      linkedTaskIds: ["o1"],
+      createdBy: "u1",
+    });
+    __firestoreState.store.set("tasks/o1", {
+      type: "otazka",
+      linkedTaskIds: ["n1"],
+      createdBy: "u1",
+    });
+    await linkTaskToNapad({ taskId: "o1", napadId: "n1" });
+    const napad = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;
+    const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
+    expect(napad.linkedTaskIds).toEqual(["o1"]);
+    expect(otazka.linkedTaskIds).toEqual(["n1"]);
+  });
+
+  it("unlink odebere ID z obou polí", async () => {
+    __firestoreState.store.set("tasks/n1", {
+      type: "napad",
+      linkedTaskIds: ["o1", "o2"],
+      createdBy: "u1",
+    });
+    __firestoreState.store.set("tasks/o1", {
+      type: "otazka",
+      linkedTaskIds: ["n1", "n2"],
+      createdBy: "u1",
+    });
+    await unlinkTaskFromNapad({ taskId: "o1", napadId: "n1" });
+    const napad = __firestoreState.store.get("tasks/n1") as Record<string, unknown>;
+    const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
+    expect(napad.linkedTaskIds).toEqual(["o2"]);
+    expect(otazka.linkedTaskIds).toEqual(["n2"]);
+  });
+
+  it("link bridge: legacy linkedTaskId na otázce/úkolu se rovněž započítá", async () => {
+    __firestoreState.store.set("tasks/n1", {
+      type: "napad",
+      linkedTaskIds: [],
+      createdBy: "u1",
+    });
+    __firestoreState.store.set("tasks/o1", {
+      type: "otazka",
+      // legacy single-parent shape
+      linkedTaskId: "n0",
+      linkedTaskIds: undefined,
+      createdBy: "u1",
+    });
+    await linkTaskToNapad({ taskId: "o1", napadId: "n1" });
+    const otazka = __firestoreState.store.get("tasks/o1") as Record<string, unknown>;
+    // legacy "n0" se bridguje + nově přidaný "n1"
+    expect(otazka.linkedTaskIds).toEqual(["n0", "n1"]);
+  });
+});
+

@@ -3,7 +3,7 @@
 > **Auto-generated** z `app/src/lib/permissionsConfig.ts`. **Neměň ručně** —
 > uprav config a spusť `npm run docs:permissions`.
 
-Vygenerováno: 2026-04-25
+Vygenerováno: 2026-04-29
 
 ## Klientská permission matrix
 
@@ -15,14 +15,18 @@ Pro každou akci: které role smí, jestli je gated ownership-em, a kam mrknout 
 | `task.create.napad` | ✅ | ❌ | `anyone` | `tasks/create + UI gate v NewTask (allowedTypes)` | Vytvořit nápad. Jen OWNER (PM nápady neeviduje, jen na ně reaguje). |
 | `task.create.otazka` | ✅ | ✅ | `anyone` | `tasks/create + composer allowedTypes` | Vytvořit otázku. |
 | `task.create.ukol` | ✅ | ✅ | `anyone` | `tasks/create + composer allowedTypes` | Vytvořit úkol. |
+| `task.create.dokumentace` | ✅ | ✅ | `anyone` | `tasks/create + composer allowedTypes` | Vytvořit dokumentaci. OWNER i PM (v budoucnu i další role). |
 | `task.edit` | ✅ | ✅ | `author-or-cross-owner` | `tasks/update — isTaskAuthor() OR isCrossOwnerEditable()` | Editovat task. Autor vždy; OWNER navíc edituje libovolný OWNER-created. |
 | `task.delete` | ✅ | ✅ | `author` | `tasks/delete = isTaskAuthor()` | Smazat task. Pouze autor — i cross-OWNER respektuje ownership pro delete. |
 | `task.comment` | ✅ | ✅ | `anyone` | `comments/create + tasks/update isCommentSideEffect()` | Napsat komentář. Kdokoliv signed-in. Side-effect na parent (commentCount/status/assignee) řeší isCommentSideEffect rule. |
+| `task.changeType` | ✅ | ✅ | `author-or-cross-owner` | `tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (changeType je podmnožina edit)` | Změnit typ tasku (otázka ↔ úkol). Mutace v místě — zachová ID, autora, komentáře. Stejný permission pattern jako task.edit. |
+| `task.link` | ✅ | ✅ | `author-or-cross-owner` | `tasks/update — isTaskAuthor() OR isCrossOwnerEditable() (link je podmnožina edit)` | Přidat / odebrat propojení mezi otázkou/úkolem a tématem (nápadem). Vyžaduje edit právo na obě strany — gating provádí caller per-task přes canActOn('task.link', ...) na obou dokumentech. |
 | `event.read` | ✅ | ✅ | `anyone` | `events/read = isSignedIn()` | Přečíst event. Kdokoliv signed-in; listing filtrujeme klientsky na 'jsem invitee/autor'. |
 | `event.create` | ✅ | ✅ | `anyone` | `events/create` | Vytvořit event s pozvánkou pro >=1 invitee. |
 | `event.edit` | ✅ | ✅ | `author-or-cross-owner` | `events/update — isTaskAuthor() OR isCrossOwnerEditable()` | Editovat event. Stejný pattern jako task — autor + cross-OWNER. |
 | `event.delete` | ✅ | ✅ | `author` | `events/delete = isTaskAuthor()` | Smazat event. Jen autor. |
 | `event.rsvp` | ✅ | ✅ | `anyone` | `events/{id}/rsvps/{userId}/write = self` | Odpovědět na pozvánku (Můžu/Nemůžu). Self-write na rsvps/{userId}. |
+| `documentTypes.manage` | ✅ | ❌ | `anyone` | `documentTypes/write = isOwner()` | Spravovat typy dokumentů (admin seznam pro upload modal). |
 | `categories.manage` | ✅ | ❌ | `anyone` | `categories/write = isOwner()` | Spravovat kategorie (workspace-wide taxonomy). |
 | `locations.manage` | ✅ | ❌ | `anyone` | `locations/write = isOwner()` | Spravovat lokace (workspace-wide taxonomy). |
 | `settings.profile` | ✅ | ✅ | `anyone` | `users/{uid}/update — self + diff hasOnly([whitelist])` | Upravit vlastní přezdívku, contactEmail, notification prefs (diff-gate v rules). |

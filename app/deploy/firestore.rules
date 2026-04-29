@@ -139,6 +139,17 @@ service cloud.firestore {
       //     batch writes z createComment prošly bez ohledu na autora tasku.
       //   - PM-vytvořený task smí editovat jen autor-PM (žádná cross-PM
       //     sharing; PM je jednotlivec, ne sdílený účet).
+      //
+      // V18-S40 — tato rule pokrývá i:
+      //   - Změnu pole `type` (otazka ↔ ukol mutace) — UI gating přes
+      //     canChangeTaskType (lib/permissions.ts), server-side jen edit
+      //     check (žádná schema-level constraint na type).
+      //   - Many-to-many link mezi otázkou/úkolem a tématem (nápadem) přes
+      //     `linkedTaskIds`. Bidirectional batch update zapisuje na oba
+      //     dokumenty; když uživatel nemá edit na jednu stranu, ta část batch
+      //     padne a celý write se odroluje. Tím se vynutí oboustranný edit
+      //     check bez nutnosti složitější rule (která by musela vidět druhý
+      //     dokument).
       allow update: if isTaskAuthor()
                     || isCrossOwnerEditable()
                     || (isSignedIn() && isCommentSideEffect());
