@@ -27,7 +27,8 @@ export type NotificationEventKey =
   | "task_blocked"                 // V25
   | "task_unblocked"               // V25
   | "task_canceled"                // V25
-  | "task_reopened";               // V25
+  | "task_reopened"                // V25
+  | "site_report_created";         // V26
 
 export interface NotificationPrefs {
   enabled: boolean;
@@ -93,6 +94,20 @@ export interface EventDoc {
   reminderSentAt?: string | null;
 }
 
+/** V26 — SiteReport snapshot pro CF trigger (onReportWrite). */
+export interface ReportDoc {
+  message: string;
+  importance: "normal" | "important" | "critical";
+  createdBy: string;
+  authorRole?: "OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER";
+  media?: Array<{
+    id: string;
+    kind: "image" | "video";
+    contentType: string;
+    url: string;
+  }>;
+}
+
 /** A resolved notification ready to send — actor, recipient, event key
  *  plus the task or event context we render into copy.
  *
@@ -115,6 +130,9 @@ export interface NotifyInput {
   event?: EventDoc;
   /** V18-S05 — aktuální RSVP answer (pro event_rsvp_response render). */
   rsvpAnswer?: "yes" | "no";
+  /** V26 — site report scope notifikace. */
+  reportId?: string;
+  report?: ReportDoc;
 }
 
 /**

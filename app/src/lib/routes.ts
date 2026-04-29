@@ -74,6 +74,9 @@ export const ROUTES = {
   /** Events composer (nový event). */
   eventsNew: "/events/new",
 
+  /** V26 — Hlášení ze stavby. */
+  hlaseni: "/hlaseni",
+
   // ---- Legacy redirects (kept for inbound links) ----
   /** Legacy → /zaznamy. */
   legacyNapady: "/napady",

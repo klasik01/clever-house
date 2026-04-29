@@ -11,6 +11,7 @@ import { useRegisterFcm } from "./hooks/useRegisterFcm";
 import { useSwNavigate } from "./hooks/useSwNavigate";
 import { useAppBadge } from "./hooks/useAppBadge";
 import Events from "./routes/Events";
+import Hlaseni from "./routes/Hlaseni";
 import EventComposer from "./routes/EventComposer";
 import EventDetail from "./routes/EventDetail";
 import { useDeviceRegistrationSanity } from "./hooks/useDeviceRegistrationSanity";
@@ -57,6 +58,7 @@ export default function App() {
           <Route path={ROUTES.dokumentace} element={<Dokumentace />} />
           <Route path={ROUTES.ukoly} element={<Ukoly />} />
         <Route path={ROUTES.events} element={<Events />} />
+        <Route path={ROUTES.hlaseni} element={<Hlaseni />} />
         <Route path={ROUTES.eventsNew} element={<EventComposer />} />
         <Route path={ROUTE_PATTERNS.eventDetail} element={<EventDetail />} />
         <Route path={ROUTE_PATTERNS.eventEdit} element={<EventComposer />} />

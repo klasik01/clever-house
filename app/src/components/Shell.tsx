@@ -1,16 +1,19 @@
 import type { ReactNode } from "react";
-import { Calendar, FileText, Notebook, Ellipsis, ListChecks } from "lucide-react";
+import { Calendar, FileText, Megaphone, Notebook, Ellipsis, ListChecks } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useReports } from "@/hooks/useReports";
+import { countUnreadReports } from "@/lib/reports";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import NotificationBell from "./NotificationBell";
 import OnboardingModal from "./OnboardingModal";
+import CriticalReportBanner from "./CriticalReportBanner";
 import { ROUTES } from "@/lib/routes";
 import FabRadial from "./FabRadial";
 
@@ -21,6 +24,7 @@ interface Props {
 export default function Shell({ children }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
+      <CriticalReportBanner />
       <OfflineBanner />
       <NotificationPermissionBanner />
       <OnboardingModal />
@@ -61,6 +65,8 @@ function Header() {
           </p>
         </div>
         <div className="flex items-center gap-1">
+          {/* V26 — Hlášení ikona vedle kalendáře, badge nepřečtených. */}
+          <HlaseniHeaderLink uid={user?.uid} />
           {!isCm && (
             <Link
               to={ROUTES.events}
@@ -206,5 +212,36 @@ function FabRadialCell() {
     <li className="relative -my-2 flex w-14 justify-center">
       <FabRadial />
     </li>
+  );
+}
+
+/** V26 — Hlášení ikona v Header. Badge ukazuje unread count. */
+function HlaseniHeaderLink({ uid }: { uid: string | undefined }) {
+  const t = useT();
+  const { reports } = useReports(Boolean(uid));
+  const unread = countUnreadReports(reports, uid);
+  return (
+    <Link
+      to={ROUTES.hlaseni}
+      aria-label={t("hlaseni.headerLabel")}
+      className="relative grid size-10 place-items-center rounded-md text-ink-muted hover:text-ink hover:bg-bg-subtle transition-colors"
+    >
+      <Megaphone aria-hidden size={20} />
+      {unread > 0 && (
+        <span
+          aria-hidden
+          className="absolute top-1 right-1 inline-flex min-w-[1.125rem] items-center justify-center rounded-pill px-1 text-[10px] font-semibold text-white"
+          style={{
+            background: "var(--color-status-danger-fg)",
+            lineHeight: "1rem",
+          }}
+        >
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+      <span className="sr-only">
+        {unread > 0 ? t("hlaseni.ariaUnreadBadge", { n: unread }) : ""}
+      </span>
+    </Link>
   );
 }

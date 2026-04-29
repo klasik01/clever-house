@@ -95,11 +95,11 @@ export default function TaskLinkPickerModal({
       aria-label={t(isNapad ? "detail.linkPickerTitleFromNapad" : "detail.linkPickerTitleFromTask")}
     >
       <div
-        className="flex w-full max-w-md flex-col rounded-xl bg-bg shadow-xl ring-1 ring-line"
+        className="flex w-full max-w-[min(28rem,calc(100dvw-2rem))] flex-col overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line"
         style={{ maxHeight: "80dvh" }}
       >
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="text-base font-semibold text-ink">
+        <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
+          <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-ink">
             {t(
               isNapad
                 ? "detail.linkPickerTitleFromNapad"
@@ -110,7 +110,7 @@ export default function TaskLinkPickerModal({
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="grid size-9 place-items-center rounded-md text-ink-muted hover:bg-bg-subtle"
+            className="shrink-0 grid size-9 place-items-center rounded-md text-ink-muted hover:bg-bg-subtle"
           >
             <X aria-hidden size={18} />
           </button>
@@ -118,13 +118,13 @@ export default function TaskLinkPickerModal({
 
         <div className="border-b border-line px-4 py-2">
           <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-1.5">
-            <Search aria-hidden size={14} className="text-ink-subtle" />
+            <Search aria-hidden size={14} className="shrink-0 text-ink-subtle" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("detail.linkPickerSearchPlaceholder")}
-              className="flex-1 bg-transparent text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink-subtle focus:outline-none"
             />
           </div>
         </div>

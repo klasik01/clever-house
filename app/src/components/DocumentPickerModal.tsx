@@ -45,7 +45,7 @@ export default function DocumentPickerModal({ documents, alreadyLinked, onConfir
       aria-modal="true"
       aria-label={t("dokumentace.linkPickerTitle")}
     >
-      <div className="flex w-full max-w-md flex-col rounded-xl bg-bg shadow-xl ring-1 ring-line" style={{ maxHeight: "80dvh" }}>
+      <div className="flex w-full max-w-[min(28rem,calc(100dvw-2rem))] flex-col overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line" style={{ maxHeight: "80dvh" }}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-base font-semibold text-ink">{t("dokumentace.linkPickerTitle")}</h2>

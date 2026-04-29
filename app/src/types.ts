@@ -264,6 +264,51 @@ export interface Event {
   reminderSentAt?: string | null;
 }
 
+// ==================== V26 — Hlášení ze stavby ====================
+
+/**
+ * V26 — broadcast hlášení ze stavby. Mimo workflow tasků (žádné komentáře,
+ * žádný status, žádný assignee). Účel: stavbyvedoucí (CM) a další pošlou
+ * krátkou zprávu ("přivezli beton"), případně s fotkou/videem.
+ *
+ * Stored v `/reports/{id}` — samostatná kolekce mimo `/tasks`.
+ *
+ * Doručení per importance:
+ *   - normal:    push + inbox
+ *   - important: push + inbox
+ *   - critical:  push + inbox + transient in-app banner při open app
+ *
+ * Self-filter: autor sebe nedostává (per V16.4 protistrana pattern).
+ */
+export type ReportImportance = "normal" | "important" | "critical";
+
+export interface ReportMedia {
+  /** Stable id for React keys + delete targeting. */
+  id: string;
+  /** Firebase Storage download URL. */
+  url: string;
+  /** Storage path (for deleteObject). */
+  path: string;
+  /** MIME type — e.g. "image/jpeg", "video/mp4". */
+  contentType: string;
+  /** Discriminator pro UI render — image grid vs video player. */
+  kind: "image" | "video";
+}
+
+export interface SiteReport {
+  id: string;
+  message: string;
+  importance: ReportImportance;
+  media?: ReportMedia[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  /** V26 — uidy uživatelů, kteří už hlášení viděli. Autor je default v poli. */
+  readBy?: string[];
+  /** V17.1-style snapshot role autora. */
+  authorRole?: UserRole;
+}
+
 /**
  * V18-S05 — RSVP response na event.
  *
@@ -378,7 +423,8 @@ export type NotificationEventKey =
   | "task_blocked"                 // V25 — "Blokováno" akcí (s důvodem)
   | "task_unblocked"               // V25 — odblokováno (z BLOCKED → OPEN přes Reopen)
   | "task_canceled"                // V25 — "Zrušit" akcí (autor)
-  | "task_reopened";               // V25 — DONE/CANCELED → OPEN
+  | "task_reopened"                // V25 — DONE/CANCELED → OPEN
+  | "site_report_created";         // V26 — Hlášení ze stavby
 
 /** Per-user notification preferences, stored on the user profile doc. */
 export interface NotificationPrefs {

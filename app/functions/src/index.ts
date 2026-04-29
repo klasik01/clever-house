@@ -48,6 +48,7 @@ export { onTaskDeleted } from "./triggers/onTaskDeleted";  // V16.6
 export { onEventCreated, onEventUpdated } from "./triggers/onEventWrite";  // V18-S04 + S07 + S08
 export { onRsvpWrite } from "./triggers/onRsvpWrite";  // V18-S05
 export { onUserUpdated } from "./triggers/onUserWrite";  // V18-S12
+export { onReportCreated } from "./triggers/onReportWrite";  // V26 — Hlášení
 
 // ---- Scheduled (cron) ----
 export { eventLifecycleTick } from "./scheduled/eventLifecycle";  // V18-S09

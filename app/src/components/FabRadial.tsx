@@ -1,20 +1,22 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   FileText,
-  HelpCircle,
+  Megaphone,
   Notebook,
   Plus,
   Target,
 } from "lucide-react";
+
+const HlaseniComposer = lazy(() => import("./HlaseniComposer"));
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { roleHas } from "@/lib/permissionsConfig";
 import { ROUTES } from "@/lib/routes";
 import type { TaskType } from "@/types";
-import { TYPE_COLORS, EVENT_COLOR } from "@/lib/typeColors";
+import { TYPE_COLORS, EVENT_COLOR, REPORT_COLOR } from "@/lib/typeColors";
 
 interface FabItem {
   key: string;
@@ -24,7 +26,8 @@ interface FabItem {
   taskType?: TaskType;
   /** For non-task items (events) — direct route. */
   route?: string;
-
+  /** V26 — special action handlers (e.g. open Hlášení modal). */
+  action?: "openHlaseni";
 }
 
 /**
@@ -42,6 +45,7 @@ export default function FabRadial() {
     roleState.status === "ready" ? roleState.profile.role : null;
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [hlaseniOpen, setHlaseniOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -92,17 +96,17 @@ export default function FabRadial() {
         ]
       : []),
     {
+      key: "hlaseni",
+      icon: <Megaphone size={20} />,
+      label: t("hlaseni.newCta"),
+      // V26 — special: triggers modal, not route. Handled in handlePick via openHlaseni state.
+      action: "openHlaseni" as const,
+    },
+    {
       key: "ukol",
       icon: <Target size={20} />,
       label: t("fab.ukol"),
       taskType: "ukol" as TaskType,
-
-    },
-    {
-      key: "otazka",
-      icon: <HelpCircle size={20} />,
-      label: t("fab.otazka"),
-      taskType: "otazka" as TaskType,
 
     },
     {
@@ -114,8 +118,23 @@ export default function FabRadial() {
     },
   ];
 
+  // V26 — CM-specific reorder: swap hlaseni ↔ ukol (default order má hlaseni
+  //   uprostřed pro OWNER+PM; pro CM uživatel chce Úkol uprostřed).
+  if (role === "CONSTRUCTION_MANAGER") {
+    const iH = items.findIndex((it) => it.key === "hlaseni");
+    const iU = items.findIndex((it) => it.key === "ukol");
+    if (iH >= 0 && iU >= 0) {
+      [items[iH], items[iU]] = [items[iU], items[iH]];
+    }
+  }
+
   function handlePick(item: FabItem) {
     setOpen(false);
+
+    if (item.action === "openHlaseni") {
+      setHlaseniOpen(true);
+      return;
+    }
 
     if (item.route) {
       navigate(item.route);
@@ -139,6 +158,12 @@ export default function FabRadial() {
   const step = count > 1 ? (endAngle - startAngle) / (count - 1) : 0;
 
   return (
+    <>
+      {hlaseniOpen && (
+        <Suspense fallback={null}>
+          <HlaseniComposer onClose={() => setHlaseniOpen(false)} />
+        </Suspense>
+      )}
     <div ref={containerRef} className="relative -my-2 flex w-14 justify-center">
       {/* Backdrop overlay when open */}
       {open && (
@@ -154,7 +179,13 @@ export default function FabRadial() {
         const rad = (angle * Math.PI) / 180;
         const x = Math.cos(rad) * RADIUS;
         const y = Math.sin(rad) * RADIUS;
-        const itemColor = item.taskType ? TYPE_COLORS[item.taskType] : EVENT_COLOR;
+        // V26 — Hlášení má vlastní light-blue barvu (REPORT_COLOR), Event má EVENT_COLOR (deeper blue),
+        //   ostatní typy z TYPE_COLORS.
+        const itemColor = item.taskType
+          ? TYPE_COLORS[item.taskType]
+          : item.action === "openHlaseni"
+            ? REPORT_COLOR
+            : EVENT_COLOR;
         return (
           <button
             key={item.key}
@@ -215,5 +246,6 @@ export default function FabRadial() {
         </span>
       </button>
     </div>
+      </>
   );
 }

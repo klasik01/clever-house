@@ -54,6 +54,7 @@ export const NOTIFICATION_EVENTS: NotificationEventKey[] = [
   "task_unblocked",      // V25
   "task_canceled",       // V25
   "task_reopened",       // V25
+  "site_report_created", // V26
 ];
 
 /** Everything on by default — matches the "gentle opt-out" model. Users
@@ -88,6 +89,7 @@ export const DEFAULT_PREFS: NotificationPrefs = {
     task_unblocked: true,
     task_canceled: true,
     task_reopened: true,
+    site_report_created: true,
   },
 };
 

@@ -93,3 +93,72 @@ export const isSupportedImage = isSupportedFile;
 export function isImageFile(file: File): boolean {
   return file.type.startsWith("image/") && file.type !== "image/svg+xml";
 }
+
+// ---------- V26 — Hlášení media upload ----------
+
+const REPORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+
+/**
+ * V26 — upload foto/video pro hlášení.
+ *
+ *   - image: client-side compress jako uploadTaskImage (cache busting)
+ *   - video: as-is, žádná komprese, max 50 MB (per V26 Mezera G=b)
+ *
+ * Storage path: `reports/{uid}/{reportId}/{filename}` (per storage.rules block).
+ */
+export async function uploadReportMedia(params: {
+  file: File;
+  uid: string;
+  reportId: string;
+}): Promise<{ url: string; path: string; contentType: string; kind: "image" | "video" }> {
+  const { file, uid, reportId } = params;
+
+  const isVideo = file.type.startsWith("video/");
+  const isImage = file.type.startsWith("image/");
+  if (!isVideo && !isImage) {
+    throw new Error(`Unsupported media type: ${file.type}`);
+  }
+
+  if (isVideo && file.size > REPORT_VIDEO_MAX_BYTES) {
+    throw new Error(
+      `Video too large: ${(file.size / 1024 / 1024).toFixed(1)} MB (max 50 MB)`,
+    );
+  }
+
+  let payload: Blob = file;
+  let contentType = file.type;
+  let extension = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+
+  if (isImage) {
+    payload = await imageCompression(file, {
+      maxSizeMB: MAX_SIZE_MB,
+      maxWidthOrHeight: MAX_WIDTH_OR_HEIGHT,
+      useWebWorker: true,
+      fileType: "image/webp",
+      initialQuality: 0.8,
+    });
+    contentType = "image/webp";
+    extension = "webp";
+  }
+
+  const unique =
+    Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  const path = `reports/${uid}/${reportId}/${unique}.${extension}`;
+  const objectRef = ref(storage, path);
+
+  await uploadBytes(objectRef, payload, {
+    contentType,
+    cacheControl: "public, max-age=31536000, immutable",
+  });
+
+  const url = await getDownloadURL(objectRef);
+  return { url, path, contentType, kind: isVideo ? "video" : "image" };
+}
+
+export async function deleteReportMedia(path: string): Promise<void> {
+  try {
+    await deleteObject(ref(storage, path));
+  } catch (e) {
+    console.warn("deleteReportMedia: failed (continuing)", e);
+  }
+}

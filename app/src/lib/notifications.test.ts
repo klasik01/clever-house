@@ -37,9 +37,10 @@ describe("NOTIFICATION_EVENTS + DEFAULT_PREFS — mirror consistency", () => {
     "task_unblocked",           // V25
     "task_canceled",            // V25
     "task_reopened",            // V25
+    "site_report_created",      // V26
   ];
 
-  it("NOTIFICATION_EVENTS obsahuje všech 22 klíčů (V25)", () => {
+  it("NOTIFICATION_EVENTS obsahuje všech 23 klíčů (V26)", () => {
     expect(NOTIFICATION_EVENTS.sort()).toEqual([...EXPECTED_KEYS].sort());
   });
 

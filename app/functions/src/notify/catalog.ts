@@ -39,6 +39,7 @@ import type {
   TaskDoc,
   CommentDoc,
   EventDoc,
+  ReportDoc,
 } from "./types";
 
 // ---------- Typy ----------
@@ -73,6 +74,9 @@ export interface RenderContext {
   commentId?: string;
   /** V18-S05 — aktuální RSVP answer (pro event_rsvp_response render). */
   rsvpAnswer?: "yes" | "no";
+  /** V26 — site report scope. */
+  report?: ReportDoc;
+  reportId?: string;
 }
 
 export interface NotificationSpec {
@@ -647,6 +651,38 @@ export const NOTIFICATION_CATALOG: Record<NotificationEventKey, NotificationSpec
     clientLabelKey: "task_reopened",
     defaultEnabled: true,
   },
+
+  // ---------- V26 — Hlášení ze stavby ----------
+
+  site_report_created: {
+    key: "site_report_created",
+    category: "immediate",
+    // V26 — broadcast hlášení. Priorita 22 (po task_reopened=21). Lifecycle
+    //   nezávislé na ostatních eventech, žádné dedupe konflikty s mention/comment.
+    dedupePriority: 22,
+    trigger:
+      "triggers/onReportWrite.ts — když /reports/{id} doc se vytvoří. Fan-out na všechny workspace useři kromě actora.",
+    recipients:
+      "Všichni workspace users (kromě autora). Self-filter v sendNotification.",
+    renderTitle: (ctx) => {
+      const importance = ctx.report?.importance ?? "normal";
+      const prefix =
+        importance === "critical"
+          ? "🚨 Kritické: "
+          : importance === "important"
+            ? "⚠️ Důležité: "
+            : "📣 ";
+      return `${prefix}${ctx.actorName}: ${truncate(ctx.report?.message ?? "", 50)}`;
+    },
+    renderBody: (ctx) => {
+      const m = ctx.report?.message ?? "";
+      return m.length > 80 ? `${m.slice(0, 80)}…` : m;
+    },
+    renderDeepLink: (ctx) =>
+      ctx.reportId ? `/hlaseni#r-${ctx.reportId}` : "/hlaseni",
+    clientLabelKey: "site_report_created",
+    defaultEnabled: true,
+  },
 };
 
 /**
@@ -685,6 +721,8 @@ export function renderNotification(input: NotifyInput): {
     comment: input.comment,
     commentId: input.commentId,
     rsvpAnswer: input.rsvpAnswer,
+    report: input.report,
+    reportId: input.reportId,
   };
   return {
     title: spec.renderTitle(ctx),

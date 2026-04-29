@@ -18,7 +18,8 @@
     "rozpocet": "Rozpočet",
     "harmonogram": "Harmonogram",
     "dokumentace": "Dokumentace",
-    "events": "Události"
+    "events": "Události",
+    "hlaseni": "Hlášení"
   },
   "composer": {
     "placeholder": "Co tě napadlo? Zapiš si to sem…",
@@ -585,6 +586,40 @@
     "typeNapad": "Témata",
     "typeDokumentace": "Dokumentace"
   },
+  "hlaseni": {
+    "pageTitle": "Hlášení ze stavby",
+    "ariaList": "Seznam hlášení",
+    "emptyTitle": "Zatím žádná hlášení",
+    "emptyBody": "Zatím nikdo nepřidal hlášení. Klikni na + a pošli první.",
+    "loadFailed": "Hlášení se nepodařilo načíst.",
+    "newCta": "Nové hlášení",
+    "composerTitle": "Nové hlášení",
+    "messagePlaceholder": "Co se stalo? Např. „Přivezli beton.“",
+    "send": "Odeslat",
+    "sending": "Odesílám…",
+    "takePhotoVideo": "Foťák / video",
+    "pickFromGallery": "Galerie",
+    "importance": "Důležitost",
+    "importanceNormal": "Běžné",
+    "importanceImportant": "Důležité",
+    "importanceCritical": "Kritické",
+    "errorMessageRequired": "Napiš krátkou zprávu.",
+    "errorUnsupportedMedia": "Podporujeme jen foto a video.",
+    "errorVideoTooBig": "Video je moc velké (max 50 MB).",
+    "errorMaxMedia": "Max {n} souborů na hlášení.",
+    "errorSendFailed": "Hlášení se nepodařilo odeslat.",
+    "toastSent": "Hlášení odesláno.",
+    "detailTitle": "Hlášení",
+    "by": "Od",
+    "at": "Kdy",
+    "ariaUnreadBadge": "{n} nepřečtených hlášení",
+    "headerLabel": "Otevřít hlášení",
+    "criticalBannerDismiss": "Rozumím",
+    "criticalBannerLabel": "Kritické hlášení",
+    "confirmDelete": "Smazat hlášení? Akce je nevratná.",
+    "toastDeleted": "Hlášení smazáno.",
+    "errorDeleteFailed": "Nepodařilo se smazat."
+  },
   "notifikace": {
     "sectionTitle": "Notifikace",
     "sectionHintDefault": "Zapni si upozornění na nové komentáře, přiřazení a zmínky. Přijdou přímo na tvůj telefon.",
@@ -647,7 +682,9 @@
       "task_canceled": "Úkol zrušen",
       "task_canceledHint": "Autor úkol zrušil, už se nebude řešit",
       "task_reopened": "Úkol znovu otevřen",
-      "task_reopenedHint": "Někdo znovu otevřel uzavřený úkol nebo otázku"
+      "task_reopenedHint": "Někdo znovu otevřel uzavřený úkol nebo otázku",
+      "site_report_created": "Hlášení ze stavby",
+      "site_report_createdHint": "Někdo poslal nové hlášení (běžné, důležité nebo kritické)"
     },
     "banner": {
       "title": "Zapni si notifikace",

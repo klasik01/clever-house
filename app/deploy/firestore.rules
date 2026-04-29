@@ -316,6 +316,38 @@ service cloud.firestore {
       }
     }
 
+    // ------ Reports (V26 — Hlášení ze stavby) ------
+    // Broadcast hlášení mimo workflow (není task). Krátká zpráva +
+    // foto/video + importance level. Plně otevřený read pro signed-in
+    // (workspace = small trusted group); create otevřený pro signed-in
+    // s validní shape. Edit zakázáno (V26 — broadcast ne workflow).
+    // Delete pouze autor (a OWNER pro housekeeping; MVP UI mažbu nesí).
+    match /reports/{reportId} {
+      // READ — všichni signed-in (per V15.2 pattern u tasks/events).
+      //   Klient si filtruje per importance / unread badge přes useReports.
+      allow read: if isSignedIn();
+
+      // CREATE — author=self, message povinný string, importance enum,
+      //   authorRole snapshot, media[] volitelný array.
+      allow create: if isSignedIn()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
+                    && request.resource.data.importance in ['normal', 'important', 'critical']
+                    && request.resource.data.authorRole in ['OWNER', 'PROJECT_MANAGER', 'CONSTRUCTION_MANAGER'];
+
+      // UPDATE — V26 mark-read pattern. Jen `readBy` array a `updatedAt`
+      //   field smí kdokoli signed-in updatovat (pro auto-mark on detail
+      //   open). Ostatní fieldy uzamčeny — broadcast je immutable.
+      allow update: if isSignedIn()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['readBy', 'updatedAt']);
+
+      // DELETE — pouze autor. OWNER housekeeping přes Admin SDK (mimo MVP UI).
+      allow delete: if isSignedIn()
+                    && resource.data.createdBy == request.auth.uid;
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;

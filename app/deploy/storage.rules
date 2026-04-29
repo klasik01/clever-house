@@ -17,6 +17,22 @@ service firebase.storage {
                    && request.resource.size < 10 * 1024 * 1024  // 10 MB max
                    && (request.resource.contentType == 'application/pdf');
     }
+    // V26 — Hlášení ze stavby. Foto + video. 50MB limit pro video,
+    //   10MB pro image (per existing image limit).
+    match /reports/{uid}/{reportId}/{filename} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && (
+                     // Image: 10MB max
+                     (request.resource.contentType.matches('image/.*')
+                      && request.resource.size < 10 * 1024 * 1024)
+                     // Video: 50MB max
+                     || (request.resource.contentType.matches('video/.*')
+                         && request.resource.size < 50 * 1024 * 1024)
+                   );
+    }
+
     // Default deny
     match /{allPaths=**} {
       allow read, write: if false;

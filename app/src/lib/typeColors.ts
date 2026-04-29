@@ -14,3 +14,6 @@ export const TYPE_COLORS: Record<TaskType, string> = {
 
 /** Event type color (not a TaskType, used only in FabRadial). */
 export const EVENT_COLOR = "#2563EB"; // blue
+
+/** V26 — Hlášení (site report) color, light blue. Distinct from event's deeper blue. */
+export const REPORT_COLOR = "#38BDF8"; // sky-400 (light blue)

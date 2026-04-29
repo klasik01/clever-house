@@ -250,10 +250,12 @@ export default function TaskDetail() {
   const [docMetaEdit, setDocMetaEdit] = useState<{ docId: string; docType: string; displayName: string } | null>(null);
 
   // V20 — title-first flow. FAB navigates to /t/new with state.createType.
-  // No task exists in Firestore yet — we show only the title input.
-  // After user confirms a title, we create the task and redirect to /t/{realId}.
+  // V26 — Mezera E=a: user může přepnout mezi Úkol/Otázka uvnitř flow.
+  //   Radius menu má jen "Úkol" button; pills nahoře v create karte
+  //   dovolí flipnout na "Otázka" (a zpět). Initial = state.createType.
   const routerLocation = useLocation();
-  const createType = (routerLocation.state as { createType?: TaskType } | null)?.createType;
+  const initialCreateType = (routerLocation.state as { createType?: TaskType } | null)?.createType;
+  const [createType, setCreateType] = useState<TaskType | undefined>(initialCreateType);
   const isCreateMode = id === "new" && !!createType;
 
   useEffect(() => {
@@ -842,6 +844,32 @@ export default function TaskDetail() {
         </div>
 
         <div className="rounded-lg bg-surface shadow-sm ring-1 ring-line p-4">
+          {/* V26 — type pills (Úkol / Otázka) v create flow per Mezera E=a.
+                Zobrazí jen pokud createType je actionable (ukol / otazka). */}
+          {(createType === "ukol" || createType === "otazka") && (
+            <div className="mb-3 inline-flex rounded-md border border-line p-0.5 bg-bg-subtle">
+              {(["ukol", "otazka"] as const).map((tp) => {
+                const active = createType === tp;
+                const Icon = TYPE_META[tp].icon;
+                return (
+                  <button
+                    key={tp}
+                    type="button"
+                    onClick={() => setCreateType(tp)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                      active
+                        ? "bg-surface text-ink shadow-sm"
+                        : "text-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    <Icon aria-hidden size={14} style={{ color: active ? TYPE_COLORS[tp] : undefined }} />
+                    {t(TYPE_META[tp].labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <label htmlFor="title-first-input" className="block text-sm font-medium text-ink-subtle mb-2">
             {t("titleFirst.titleLabel")}
           </label>
