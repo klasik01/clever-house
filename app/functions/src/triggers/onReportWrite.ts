@@ -33,8 +33,11 @@ export const onReportCreated = onDocumentCreated(
     //   empty/undefined → broadcast všem (default). Jinak filtr na role
     //   v poli. Self-filter sendNotification odfiltruje autora.
     const usersSnap = await admin.firestore().collection("users").get();
+    // V26-fix — Set<string> (ne Set<UserRole>), protože dále porovnáváme
+    //   d.data()?.role který je untyped (Firestore raw data). Cast na
+    //   UserRole by tu nic nepřinesl, plus už máme typeof guard níž.
     const targetRoles = Array.isArray(data.targetRoles) && data.targetRoles.length > 0
-      ? new Set(data.targetRoles)
+      ? new Set<string>(data.targetRoles)
       : null;
     const recipients = usersSnap.docs
       .filter((d) => d.id !== actorUid)
