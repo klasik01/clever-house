@@ -85,9 +85,9 @@ export default function Hlaseni() {
       )}
 
       {!loading && !error && reports.length === 0 && (
-        <div className="text-center pt-12">
-          <p className="text-base font-medium text-ink">{t("hlaseni.emptyTitle")}</p>
-          <p className="mt-2 text-sm text-ink-muted">{t("hlaseni.emptyBody")}</p>
+        <div className="mt-12 text-center">
+          <p className="text-sm font-medium text-ink">{t("hlaseni.emptyTitle")}</p>
+          <p className="mt-1 text-xs text-ink-subtle">{t("hlaseni.emptyBody")}</p>
         </div>
       )}
 
