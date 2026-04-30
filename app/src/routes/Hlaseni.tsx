@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Megaphone, AlertTriangle, Bell } from "lucide-react";
+import { Megaphone, AlertTriangle, Bell, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsers } from "@/hooks/useUsers";
 import AvatarCircle from "@/components/AvatarCircle";
 import { useReports } from "@/hooks/useReports";
-import { isReportUnread } from "@/lib/reports";
+import { useUserRole } from "@/hooks/useUserRole";
+import { canViewReport, isReportUnread } from "@/lib/reports";
+import { REPORT_IMPORTANCE_COLORS } from "@/lib/typeColors";
 import { resolveUserName } from "@/lib/names";
 import type { ReportImportance } from "@/types";
 
@@ -23,7 +25,12 @@ export default function Hlaseni() {
   const t = useT();
   const { user } = useAuth();
   const { byUid } = useUsers(Boolean(user));
-  const { reports, loading, error } = useReports(Boolean(user));
+  const roleState = useUserRole(user?.uid);
+  const role = roleState.status === "ready" ? roleState.profile.role : null;
+  const { reports: rawReports, loading, error } = useReports(Boolean(user));
+  // V26-fix — visibility filter per targetRoles. canViewReport returns true
+  //   pro broadcast (no targetRoles) i pro role-targeted matching.
+  const reports = rawReports.filter((r) => canViewReport(r, user?.uid, role));
   const location = useLocation();
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -99,15 +106,17 @@ export default function Hlaseni() {
                 <button
                   type="button"
                   onClick={() => setSelectedId(r.id)}
+                  style={{
+                    borderLeftColor: REPORT_IMPORTANCE_COLORS[r.importance].solid,
+                  }}
                   className={[
-                    "flex w-full items-start gap-3 rounded-md border border-l-4 bg-surface px-4 py-3 text-left transition-colors hover:bg-bg-subtle",
-                    importanceBorderClass(r.importance),
-                    isUnread ? "ring-1 ring-accent/30" : "",
+                    "flex w-full items-start gap-3 rounded-md border-l-4 bg-surface shadow-sm ring-1 ring-line px-4 py-3 text-left transition-colors hover:ring-line-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-line-focus",
+                    isUnread ? "ring-2 ring-accent/40" : "",
                   ].join(" ")}
                 >
                   <ReportIcon importance={r.importance} />
                   <div className="min-w-0 flex-1">
-                    {/* V26 — header s autorem (AvatarCircle + jméno) + čas. */}
+                    {/* V26 — header s autorem (AvatarCircle + jméno) + čas + media ikony. */}
                     <div className="flex items-center gap-2">
                       <AvatarCircle
                         uid={r.createdBy}
@@ -121,13 +130,20 @@ export default function Hlaseni() {
                           · {formatRelative(t, new Date(r.createdAt))}
                         </span>
                       </span>
+                      {/* V26-fix — media indicator: small icons (foto / video) místo thumbnailů,
+                          stejně jako NapadCard má ImageIcon u úkolu. */}
+                      {hasImage(r) && (
+                        <span title={t("aria.hasImage")} className="shrink-0">
+                          <ImageIcon aria-hidden size={14} className="text-ink-subtle" />
+                        </span>
+                      )}
+                      {hasVideo(r) && (
+                        <span title={t("hlaseni.hasVideo")} className="shrink-0">
+                          <VideoIcon aria-hidden size={14} className="text-ink-subtle" />
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1.5 text-sm font-medium text-ink line-clamp-2">{r.message}</p>
-                    {(r.media?.length ?? 0) > 0 && (
-                      <p className="mt-1 text-xs text-ink-subtle">
-                        {r.media!.length} {r.media!.length === 1 ? "soubor" : "souborů"}
-                      </p>
-                    )}
                   </div>
                   {isUnread && (
                     <span
@@ -151,18 +167,19 @@ export default function Hlaseni() {
   );
 }
 
-function importanceBorderClass(importance: ReportImportance): string {
+function ReportIcon({ importance }: { importance: ReportImportance }) {
+  const c = REPORT_IMPORTANCE_COLORS[importance].solid;
   if (importance === "critical")
-    return "border-l-[color:var(--color-status-danger-fg)]";
+    return <AlertTriangle aria-hidden size={20} className="shrink-0 mt-0.5" style={{ color: c }} />;
   if (importance === "important")
-    return "border-l-[color:var(--color-status-otazka-fg)]";
-  return "border-l-line";
+    return <Bell aria-hidden size={20} className="shrink-0 mt-0.5" style={{ color: c }} />;
+  return <Megaphone aria-hidden size={20} className="shrink-0 mt-0.5" style={{ color: c }} />;
 }
 
-function ReportIcon({ importance }: { importance: ReportImportance }) {
-  if (importance === "critical")
-    return <AlertTriangle aria-hidden size={20} className="shrink-0 mt-0.5 text-[color:var(--color-status-danger-fg)]" />;
-  if (importance === "important")
-    return <Bell aria-hidden size={20} className="shrink-0 mt-0.5 text-[color:var(--color-status-otazka-fg)]" />;
-  return <Megaphone aria-hidden size={20} className="shrink-0 mt-0.5 text-ink-muted" />;
+function hasImage(r: { media?: { kind: "image" | "video" }[] }): boolean {
+  return (r.media ?? []).some((m) => m.kind === "image");
+}
+
+function hasVideo(r: { media?: { kind: "image" | "video" }[] }): boolean {
+  return (r.media ?? []).some((m) => m.kind === "video");
 }

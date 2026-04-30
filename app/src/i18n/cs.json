@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "Chytrý dům na vsi",
-    "subtitle": "Clever house",
+    "subtitle": "Kasikovi",
     "loading": "Načítám…"
   },
   "tabs": {
@@ -618,7 +618,15 @@
     "criticalBannerLabel": "Kritické hlášení",
     "confirmDelete": "Smazat hlášení? Akce je nevratná.",
     "toastDeleted": "Hlášení smazáno.",
-    "errorDeleteFailed": "Nepodařilo se smazat."
+    "errorDeleteFailed": "Nepodařilo se smazat.",
+    "targetRolesLabel": "Komu (volitelné)",
+    "targetRolesAll": "Hlášení uvidí všichni v týmu.",
+    "targetRolesPicked": "Hlášení uvidí jen vybraní ({n}).",
+    "hasVideo": "Obsahuje video"
+  },
+  "lightbox": {
+    "share": "Sdílet",
+    "shareFailed": "Sdílení selhalo"
   },
   "notifikace": {
     "sectionTitle": "Notifikace",

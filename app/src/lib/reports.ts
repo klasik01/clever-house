@@ -66,11 +66,13 @@ export async function createReport(
     message: string;
     importance: ReportImportance;
     media?: ReportMedia[];
+    /** V26-fix — recipient targeting. Empty/undefined = broadcast všem. */
+    targetRoles?: UserRole[];
   },
   uid: string,
   authorRole: UserRole,
 ): Promise<string> {
-  const ref = await addDoc(collection(db, REPORTS), {
+  const payload: Record<string, unknown> = {
     message: data.message.trim(),
     importance: data.importance,
     media: data.media ?? [],
@@ -79,7 +81,12 @@ export async function createReport(
     readBy: [uid], // V26 — autor je default přečtený
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  // V26-fix — uložíme targetRoles jen pokud je explicitně zadán (= ne default broadcast).
+  if (data.targetRoles && data.targetRoles.length > 0) {
+    payload.targetRoles = data.targetRoles;
+  }
+  const ref = await addDoc(collection(db, REPORTS), payload);
   return ref.id;
 }
 
@@ -133,6 +140,12 @@ function fromDocSnap(d: DocumentSnapshot): SiteReport {
     readBy: Array.isArray(data.readBy)
       ? data.readBy.filter((x): x is string => typeof x === "string")
       : [],
+    targetRoles: Array.isArray(data.targetRoles)
+      ? (data.targetRoles as unknown[]).filter(
+          (x): x is UserRole =>
+            x === "OWNER" || x === "PROJECT_MANAGER" || x === "CONSTRUCTION_MANAGER",
+        )
+      : undefined,
     createdAt: toIso(data.createdAt),
     updatedAt: toIso(data.updatedAt),
   };
@@ -166,6 +179,27 @@ export function countUnreadReports(
 /**
  * V26 — je hlášení nepřečtené pro daného uživatele?
  */
+/**
+ * V26-fix — visibility gate per role targeting.
+ *
+ * Pravidla:
+ *   - autor vždy vidí svůj report
+ *   - pokud `targetRoles` je empty/undefined → broadcast (každý vidí)
+ *   - jinak vidí jen role v `targetRoles`
+ */
+export function canViewReport(
+  report: SiteReport,
+  uid: string | undefined,
+  role: UserRole | null | undefined,
+): boolean {
+  if (!uid) return false;
+  if (report.createdBy === uid) return true;
+  const roles = report.targetRoles;
+  if (!roles || roles.length === 0) return true; // broadcast default
+  if (!role) return false;
+  return roles.includes(role);
+}
+
 export function isReportUnread(
   report: SiteReport,
   uid: string | undefined,

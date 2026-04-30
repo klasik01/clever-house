@@ -138,25 +138,27 @@ function NotificationRow({
   const isUnread = !item.readAt;
   const created = new Date(item.createdAt);
   // V18-S26 — preferuj pre-rendered deepLink z katalogu. Fallback path:
-  //   1. event-scope event types (`event_*`) → /event/{eventId} pokud je
-  //      eventId přítomný — i kdyby item měl i taskId (linkedTaskId
-  //      reference), prioritou je vždy event detail.
-  //   2. comment-scope → /t/{taskId}#comment-{commentId}
-  //   3. task-scope → /t/{taskId}
-  //   4. event-scope bez deepLink → /event/{eventId}
-  //   5. nic → /
+  //   1. site_report_created (V26) → /hlaseni#r-{reportId} nebo /hlaseni
+  //   2. event-scope event types (`event_*`) → /event/{eventId}
+  //   3. comment-scope → /t/{taskId}#comment-{commentId}
+  //   4. task-scope → /t/{taskId}
+  //   5. event-scope bez deepLink → /event/{eventId}
+  //   6. nic → /
   const isEventScope = item.eventType.startsWith("event_");
+  const isReportScope = item.eventType === "site_report_created";
   const url =
     item.deepLink ??
-    (isEventScope && item.eventId
-      ? `/event/${item.eventId}`
-      : item.commentId
-        ? `/t/${item.taskId ?? ""}#comment-${item.commentId}`
-        : item.taskId
-          ? `/t/${item.taskId}`
-          : item.eventId
-            ? `/event/${item.eventId}`
-            : "/");
+    (isReportScope
+      ? (item.reportId ? `/hlaseni#r-${item.reportId}` : "/hlaseni")
+      : isEventScope && item.eventId
+        ? `/event/${item.eventId}`
+        : item.commentId
+          ? `/t/${item.taskId ?? ""}#comment-${item.commentId}`
+          : item.taskId
+            ? `/t/${item.taskId}`
+            : item.eventId
+              ? `/event/${item.eventId}`
+              : "/");
 
   return (
     <Link

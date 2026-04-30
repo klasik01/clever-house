@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { markRead } from "@/lib/inbox";
-import { shouldAutoReadOnPath } from "@/lib/presence";
+import { isHlaseniListPath, shouldAutoReadOnPath } from "@/lib/presence";
 import type { NotificationItem } from "@/types";
 
 /**
@@ -44,15 +44,20 @@ export function useInboxAutoRead(
       return;
     }
     const seen = seenRef.current;
+    const onHlaseniList = isHlaseniListPath(pathname);
     for (const item of items) {
       if (item.readAt) continue;
       if (seen.has(item.id)) continue;
-      if (!item.taskId) continue;
-      if (!shouldAutoReadOnPath(pathname, item.taskId)) continue;
+      // V16.9 — task-scope auto-read na /t/{id}.
+      const matchTask =
+        item.taskId && shouldAutoReadOnPath(pathname, item.taskId);
+      // V26 — site-report auto-read na /hlaseni list (any reportId-tagged item).
+      const matchReport =
+        onHlaseniList && item.eventType === "site_report_created";
+      if (!matchTask && !matchReport) continue;
       seen.add(item.id);
       markRead(uid, item.id).catch((e) => {
         console.error("auto-read failed", e);
-        // Vrátit item mimo seen, ať se příště pokusí znovu.
         seen.delete(item.id);
       });
     }

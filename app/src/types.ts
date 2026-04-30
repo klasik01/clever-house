@@ -305,6 +305,12 @@ export interface SiteReport {
   updatedAt: string;
   /** V26 — uidy uživatelů, kteří už hlášení viděli. Autor je default v poli. */
   readBy?: string[];
+  /** V26-fix — recipient targeting. Pokud prázdné/undefined = broadcast
+   *  všem (default). Pokud nastaveno, hlášení uvidí jen role v poli +
+   *  autor (autor vždy vidí svůj report).
+   *  Pole je read-only — nelze měnit po vytvoření (broadcast immutability).
+   */
+  targetRoles?: UserRole[];
   /** V17.1-style snapshot role autora. */
   authorRole?: UserRole;
 }
@@ -470,6 +476,8 @@ export interface NotificationItem {
   taskId?: string | null;
   /** V18 — event-scope notifikace. */
   eventId?: string | null;
+  /** V26 — site report scope notifikace. */
+  reportId?: string | null;
   commentId?: string | null;
   actorUid: string;
   /** Cached at write time so the feed renders without user-collection reads. */

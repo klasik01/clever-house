@@ -163,3 +163,102 @@ describe("splitBodyByMentions", () => {
     ]);
   });
 });
+
+// ---------- V25-fix — splitBodyByMentions s `@Name` formátem ----------
+
+import type { UserProfile } from "@/types";
+
+function mkUser(uid: string, displayName?: string): UserProfile {
+  return {
+    uid,
+    email: `${uid}@x.com`,
+    role: "OWNER",
+    displayName: displayName ?? null,
+  } as UserProfile;
+}
+
+describe("splitBodyByMentions — V25-fix `@Name` format (mentionedUids + byUid lookup)", () => {
+  it("plain `@Name` se rozparsuje když uid je v mentionedUids a byUid mapě", () => {
+    const byUid = new Map([["u-stana", mkUser("u-stana", "Stáňa")]]);
+    const parts = splitBodyByMentions("hi @Stáňa, jak se máš?", ["u-stana"], byUid);
+    expect(parts).toEqual([
+      { kind: "text", text: "hi " },
+      { kind: "mention", uid: "u-stana", displayName: "Stáňa" },
+      { kind: "text", text: ", jak se máš?" },
+    ]);
+  });
+
+  it("legacy `@[Name](uid)` token se rozparsuje i bez mentionedUids+byUid (backward compat)", () => {
+    const parts = splitBodyByMentions("hi @[Klasik](abc) there");
+    expect(parts).toEqual([
+      { kind: "text", text: "hi " },
+      { kind: "mention", uid: "abc", displayName: "Klasik" },
+      { kind: "text", text: " there" },
+    ]);
+  });
+
+  it("smíšený legacy + V25 — oba formáty v jednom těle", () => {
+    const byUid = new Map([["u-pm", mkUser("u-pm", "PM")]]);
+    const parts = splitBodyByMentions(
+      "ahoj @[Stáňa](u-stana) a @PM, vidíme se",
+      ["u-stana", "u-pm"],
+      byUid,
+    );
+    // Legacy `@[Stáňa](u-stana)` je pevný; V25 `@PM` najde PM přes byUid+mentionedUids
+    expect(parts).toEqual([
+      { kind: "text", text: "ahoj " },
+      { kind: "mention", uid: "u-stana", displayName: "Stáňa" },
+      { kind: "text", text: " a " },
+      { kind: "mention", uid: "u-pm", displayName: "PM" },
+      { kind: "text", text: ", vidíme se" },
+    ]);
+  });
+
+  it("`@Name` text bez uid v mentionedUids → text (žádná chip)", () => {
+    const byUid = new Map([["u-stana", mkUser("u-stana", "Stáňa")]]);
+    // mentionedUids je empty → V25 parser nic nematchne
+    const parts = splitBodyByMentions("hi @Stáňa", [], byUid);
+    expect(parts).toEqual([{ kind: "text", text: "hi @Stáňa" }]);
+  });
+
+  it("`@Name` ale uid neexistuje v byUid → fallback text", () => {
+    const byUid = new Map<string, UserProfile>();
+    const parts = splitBodyByMentions("hi @Stáňa", ["u-stana"], byUid);
+    expect(parts).toEqual([{ kind: "text", text: "hi @Stáňa" }]);
+  });
+
+  it("multiple mentions stejného uživatele se všechny stylují", () => {
+    const byUid = new Map([["u-1", mkUser("u-1", "Anna")]]);
+    const parts = splitBodyByMentions(
+      "@Anna a @Anna jsou tady",
+      ["u-1"],
+      byUid,
+    );
+    expect(parts).toEqual([
+      { kind: "mention", uid: "u-1", displayName: "Anna" },
+      { kind: "text", text: " a " },
+      { kind: "mention", uid: "u-1", displayName: "Anna" },
+      { kind: "text", text: " jsou tady" },
+    ]);
+  });
+
+  it("legacy match má přednost nad V25 substring kolizí", () => {
+    // Legacy `@[Anna Lopez](u-2)` zachytí celý token; V25 `@Anna` by mohl
+    //   se snažit matchnout substring uvnitř — ale legacy range vyhrává.
+    const byUid = new Map([
+      ["u-1", mkUser("u-1", "Anna")],
+      ["u-2", mkUser("u-2", "Anna Lopez")],
+    ]);
+    const parts = splitBodyByMentions("@[Anna Lopez](u-2)", ["u-1"], byUid);
+    expect(parts).toEqual([
+      { kind: "mention", uid: "u-2", displayName: "Anna Lopez" },
+    ]);
+  });
+
+  it("bez mentionedUids ani byUid args — chová se jako legacy parser", () => {
+    expect(splitBodyByMentions("plain @[A](a)")).toEqual([
+      { kind: "text", text: "plain " },
+      { kind: "mention", uid: "a", displayName: "A" },
+    ]);
+  });
+});

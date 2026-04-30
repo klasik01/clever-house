@@ -29,12 +29,21 @@ export const onReportCreated = onDocumentCreated(
     const actorUid = data.createdBy;
     const actorName = await resolveActorName(actorUid);
 
-    // Load all workspace users (5 max). Per V26 brief — broadcast all,
-    // self-filter v sendNotification.
+    // V26-fix — recipient filtering per targetRoles. Pokud targetRoles je
+    //   empty/undefined → broadcast všem (default). Jinak filtr na role
+    //   v poli. Self-filter sendNotification odfiltruje autora.
     const usersSnap = await admin.firestore().collection("users").get();
+    const targetRoles = Array.isArray(data.targetRoles) && data.targetRoles.length > 0
+      ? new Set(data.targetRoles)
+      : null;
     const recipients = usersSnap.docs
-      .map((d) => d.id)
-      .filter((uid) => uid !== actorUid);
+      .filter((d) => d.id !== actorUid)
+      .filter((d) => {
+        if (!targetRoles) return true; // broadcast
+        const role = d.data()?.role;
+        return typeof role === "string" && targetRoles.has(role);
+      })
+      .map((d) => d.id);
 
     if (recipients.length === 0) {
       logger.debug("site_report skip — no recipients", { reportId });

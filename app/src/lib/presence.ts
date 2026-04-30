@@ -36,3 +36,15 @@ export function shouldAutoReadOnPath(
 ): boolean {
   return taskIdFromPath(pathname) === itemTaskId;
 }
+
+/**
+ * V26 — vrátí true, pokud current pathname je list hlášení (`/hlaseni`).
+ * Hash variant `#r-{id}` taky matchuje (deep-link na detail popup).
+ *
+ * Auto-read pattern: jakmile user dorazí na /hlaseni, server inbox položky
+ * s eventType=site_report_created se mark-readnou (user je "viděl" v listu).
+ */
+export function isHlaseniListPath(pathname: string): boolean {
+  // Také akceptuj prefixovaný base path (GitHub Pages): /clever-house/hlaseni
+  return /\/hlaseni(\/|$)/.test(pathname);
+}

@@ -134,6 +134,7 @@ export async function sendNotification(input: NotifyInput): Promise<number> {
       eventType: input.eventType,
       taskId: input.taskId ?? null,
       eventId: input.eventId ?? null,
+      reportId: input.reportId ?? null,
       commentId: input.commentId ?? null,
       actorUid: input.actorUid,
       actorName: input.actorName,

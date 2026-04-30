@@ -100,6 +100,8 @@ export interface ReportDoc {
   importance: "normal" | "important" | "critical";
   createdBy: string;
   authorRole?: "OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER";
+  /** V26-fix — recipient targeting (empty/undefined = broadcast all). */
+  targetRoles?: ("OWNER" | "PROJECT_MANAGER" | "CONSTRUCTION_MANAGER")[];
   media?: Array<{
     id: string;
     kind: "image" | "video";
@@ -147,6 +149,8 @@ export interface NotificationItemWrite {
   eventType: NotificationEventKey;
   taskId?: string | null;
   eventId?: string | null;
+  /** V26 — site report scope. */
+  reportId?: string | null;
   commentId?: string | null;
   actorUid: string;
   actorName: string;

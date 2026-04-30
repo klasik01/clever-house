@@ -192,7 +192,7 @@ export default function FabRadial() {
             type="button"
             onClick={() => handlePick(item)}
             aria-label={item.label}
-            className="group absolute z-30 grid size-12 place-items-center rounded-full text-white shadow-lg transition-all duration-300 ease-out hover:scale-125 active:scale-95 disabled:opacity-40"
+            className="group absolute z-30 grid size-12 place-items-center rounded-full text-white shadow-lg transition-all duration-300 ease-out hover:z-50 focus-visible:z-50 hover:scale-125 active:scale-95 disabled:opacity-40"
             style={{
               backgroundColor: itemColor,
               boxShadow: `0 4px 14px ${itemColor}50`,
@@ -216,7 +216,7 @@ export default function FabRadial() {
             }}
           >
             {item.icon}
-            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-medium text-surface opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100">
+            <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs font-medium text-surface opacity-0 shadow-md transition-opacity duration-200 group-hover:opacity-100">
               {item.label}
             </span>
           </button>

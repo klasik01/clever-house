@@ -42,3 +42,32 @@ describe("shouldAutoReadOnPath", () => {
     expect(shouldAutoReadOnPath("/t/abc#comment-42", "abc")).toBe(true);
   });
 });
+
+// ---------- V26 — isHlaseniListPath ----------
+
+import { isHlaseniListPath } from "./presence";
+
+describe("isHlaseniListPath — V26 site report list path", () => {
+  it("matchuje /hlaseni", () => {
+    expect(isHlaseniListPath("/hlaseni")).toBe(true);
+  });
+
+  it("matchuje /hlaseni/", () => {
+    expect(isHlaseniListPath("/hlaseni/")).toBe(true);
+  });
+
+  it("matchuje s base path prefix (GitHub Pages)", () => {
+    expect(isHlaseniListPath("/clever-house/hlaseni")).toBe(true);
+    expect(isHlaseniListPath("/clever-house/hlaseni/")).toBe(true);
+  });
+
+  it("nematchuje /hlaseni-other", () => {
+    expect(isHlaseniListPath("/hlaseni-other")).toBe(false);
+  });
+
+  it("nematchuje /ukoly nebo jiné", () => {
+    expect(isHlaseniListPath("/ukoly")).toBe(false);
+    expect(isHlaseniListPath("/")).toBe(false);
+    expect(isHlaseniListPath("/zaznamy")).toBe(false);
+  });
+});

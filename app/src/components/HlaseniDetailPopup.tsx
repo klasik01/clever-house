@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Megaphone, AlertTriangle, Bell, Trash2 } from "lucide-react";
 import { useT, formatRelative } from "@/i18n/useT";
@@ -7,9 +7,10 @@ import { useUsers } from "@/hooks/useUsers";
 import AvatarCircle from "./AvatarCircle";
 import { resolveUserName } from "@/lib/names";
 import { deleteReport, markReportRead } from "@/lib/reports";
+import { REPORT_IMPORTANCE_COLORS } from "@/lib/typeColors";
 import { deleteReportMedia } from "@/lib/attachments";
 import { useToast } from "@/components/Toast";
-import type { ReportImportance, SiteReport } from "@/types";
+import type { ReportImportance, ReportMedia, SiteReport } from "@/types";
 
 interface Props {
   report: SiteReport;
@@ -22,12 +23,16 @@ interface Props {
  *   - jen "Zavřít" (per V26 brief)
  *   - auto-mark readBy on open (Mezera H=a)
  */
+const Lightbox = lazy(() => import("./Lightbox"));
+
 export default function HlaseniDetailPopup({ report, onClose }: Props) {
   const t = useT();
   const { user } = useAuth();
   const { byUid } = useUsers(Boolean(user));
   const { show: showToast } = useToast();
   const [deleting, setDeleting] = useState(false);
+  // V26-fix — lightbox state pro klik na média (image / video).
+  const [lightbox, setLightbox] = useState<ReportMedia | null>(null);
   const isAuthor = Boolean(user && user.uid === report.createdBy);
 
   async function handleDelete() {
@@ -79,11 +84,10 @@ export default function HlaseniDetailPopup({ report, onClose }: Props) {
   const created = new Date(report.createdAt);
 
   return createPortal(
-        <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 pt-safe pb-safe"
+    <div
+      // V26-fix — backdrop click NEZAVŘE detail (per user request).
+      //   Closure jen explicitně přes X v headeru nebo ESC keypress.
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 pt-safe pb-safe"
       role="dialog"
       aria-modal="true"
       aria-label={t("hlaseni.detailTitle")}
@@ -127,34 +131,35 @@ export default function HlaseniDetailPopup({ report, onClose }: Props) {
             {report.message}
           </p>
 
-          {/* Media */}
+          {/* Media — klik otevře Lightbox (V26-fix). */}
           {(report.media?.length ?? 0) > 0 && (
             <ul className="grid grid-cols-2 gap-2">
               {report.media!.map((m) => (
                 <li key={m.id}>
-                  {m.kind === "image" ? (
-                    <a
-                      href={m.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(m)}
+                    aria-label={m.kind === "video" ? t("hlaseni.hasVideo") : t("aria.hasImage")}
+                    className="block w-full overflow-hidden rounded-md ring-1 ring-line focus:outline-none focus-visible:ring-2 focus-visible:ring-line-focus"
+                    style={{ aspectRatio: "1 / 1" }}
+                  >
+                    {m.kind === "image" ? (
                       <img
                         src={m.url}
                         alt=""
-                        className="w-full rounded-md object-cover ring-1 ring-line"
-                        style={{ aspectRatio: "1 / 1" }}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
                       />
-                    </a>
-                  ) : (
-                    <video
-                      src={m.url}
-                      controls
-                      playsInline
-                      className="w-full rounded-md ring-1 ring-line bg-black"
-                      style={{ aspectRatio: "1 / 1" }}
-                    />
-                  )}
+                    ) : (
+                      <video
+                        src={m.url}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover bg-black"
+                      />
+                    )}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -177,35 +182,38 @@ export default function HlaseniDetailPopup({ report, onClose }: Props) {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end border-t border-line px-4 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover transition-colors"
-          >
-            {t("common.close")}
-          </button>
-        </div>
       </div>
+      {lightbox && (
+        <Suspense fallback={null}>
+          <Lightbox
+            src={lightbox.url}
+            kind={lightbox.kind}
+            shareable
+            shareTitle={report.message.slice(0, 80)}
+            onClose={() => setLightbox(null)}
+          />
+        </Suspense>
+      )}
     </div>
   , document.body);
 }
 
 function ImportanceIcon({ importance }: { importance: ReportImportance }) {
+  const c = REPORT_IMPORTANCE_COLORS[importance].solid;
   if (importance === "critical")
-    return <AlertTriangle aria-hidden size={16} className="text-[color:var(--color-status-danger-fg)]" />;
+    return <AlertTriangle aria-hidden size={16} style={{ color: c }} />;
   if (importance === "important")
-    return <Bell aria-hidden size={16} className="text-[color:var(--color-status-otazka-fg)]" />;
-  return <Megaphone aria-hidden size={16} className="text-ink-muted" />;
+    return <Bell aria-hidden size={16} style={{ color: c }} />;
+  return <Megaphone aria-hidden size={16} style={{ color: c }} />;
 }
 
 function ImportanceLabel({ importance }: { importance: ReportImportance }) {
   const t = useT();
   const className = "text-sm font-semibold truncate";
+  const c = REPORT_IMPORTANCE_COLORS[importance].solid;
   if (importance === "critical")
-    return <h2 className={`${className} text-[color:var(--color-status-danger-fg)]`}>{t("hlaseni.importanceCritical")}</h2>;
+    return <h2 className={className} style={{ color: c }}>{t("hlaseni.importanceCritical")}</h2>;
   if (importance === "important")
-    return <h2 className={`${className} text-[color:var(--color-status-otazka-fg)]`}>{t("hlaseni.importanceImportant")}</h2>;
-  return <h2 className={`${className} text-ink`}>{t("hlaseni.detailTitle")}</h2>;
+    return <h2 className={className} style={{ color: c }}>{t("hlaseni.importanceImportant")}</h2>;
+  return <h2 className={className} style={{ color: c }}>{t("hlaseni.importanceNormal")}</h2>;
 }

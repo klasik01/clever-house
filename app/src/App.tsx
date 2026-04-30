@@ -34,6 +34,7 @@ import Export from "./routes/Export";
 import TaskDetail from "./routes/TaskDetail";
 import Login from "./routes/Auth/Login";
 import UpdateBanner from "./components/UpdateBanner";
+import CriticalReportBanner from "./components/CriticalReportBanner";
 import { BusyProvider } from "./components/BusyOverlay";
 import { signOut } from "./lib/auth";
 import { useT } from "./i18n/useT";
@@ -47,6 +48,10 @@ export default function App() {
     >
       <BusyProvider>
         <UpdateBanner />
+        {/* V26 — global report banner. Sedí nad Routes, aby renderoval
+              napříč všemi protected i public routami. Sám gate-checne
+              !user → null bez crashe. */}
+        <CriticalReportBanner />
         <Routes>
         <Route path={ROUTES.login} element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
 

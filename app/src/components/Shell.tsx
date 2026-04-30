@@ -7,13 +7,12 @@ import { useEventsActionCount } from "@/hooks/useEventsActionCount";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useReports } from "@/hooks/useReports";
-import { countUnreadReports } from "@/lib/reports";
+import { canViewReport, countUnreadReports } from "@/lib/reports";
 import { isBallOnMe as isBallOnMeV10 } from "@/lib/status";
 import OfflineBanner from "./OfflineBanner";
 import NotificationPermissionBanner from "./NotificationPermissionBanner";
 import NotificationBell from "./NotificationBell";
 import OnboardingModal from "./OnboardingModal";
-import CriticalReportBanner from "./CriticalReportBanner";
 import { ROUTES } from "@/lib/routes";
 import FabRadial from "./FabRadial";
 
@@ -24,7 +23,6 @@ interface Props {
 export default function Shell({ children }: Props) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-ink">
-      <CriticalReportBanner />
       <OfflineBanner />
       <NotificationPermissionBanner />
       <OnboardingModal />
@@ -219,7 +217,11 @@ function FabRadialCell() {
 function HlaseniHeaderLink({ uid }: { uid: string | undefined }) {
   const t = useT();
   const { reports } = useReports(Boolean(uid));
-  const unread = countUnreadReports(reports, uid);
+  const roleState = useUserRole(uid);
+  const role = roleState.status === "ready" ? roleState.profile.role : null;
+  // V26-fix — visibility filter per targetRoles before counting unread.
+  const visibleReports = reports.filter((r) => canViewReport(r, uid, role));
+  const unread = countUnreadReports(visibleReports, uid);
   return (
     <Link
       to={ROUTES.hlaseni}

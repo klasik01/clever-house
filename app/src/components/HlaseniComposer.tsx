@@ -8,7 +8,8 @@ import { createReport } from "@/lib/reports";
 import { uploadReportMedia } from "@/lib/attachments";
 import { newId } from "@/lib/id";
 import { useToast } from "@/components/Toast";
-import type { ReportImportance, ReportMedia } from "@/types";
+import type { ReportImportance, ReportMedia, UserRole } from "@/types";
+import { REPORT_IMPORTANCE_COLORS } from "@/lib/typeColors";
 
 interface Props {
   onClose: () => void;
@@ -45,6 +46,9 @@ export default function HlaseniComposer({ onClose }: Props) {
   const [message, setMessage] = useState("");
   const [importance, setImportance] = useState<ReportImportance>("normal");
   const [staged, setStaged] = useState<StagedMedia[]>([]);
+  // V26-fix — targetRoles selection. Empty Set = broadcast (default).
+  //   Pokud user zaškrtne nějaké role, jen ty dostanou hlášení.
+  const [targetRoles, setTargetRoles] = useState<Set<UserRole>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +150,7 @@ export default function HlaseniComposer({ onClose }: Props) {
           message: trimmed,
           importance,
           media: uploaded,
+          targetRoles: targetRoles.size > 0 ? Array.from(targetRoles) : undefined,
         },
         user.uid,
         role,
@@ -166,11 +171,10 @@ export default function HlaseniComposer({ onClose }: Props) {
   const importanceOptions: Array<{
     key: ReportImportance;
     label: string;
-    badgeClass: string;
   }> = [
-    { key: "normal", label: t("hlaseni.importanceNormal"), badgeClass: "bg-bg-subtle text-ink" },
-    { key: "important", label: t("hlaseni.importanceImportant"), badgeClass: "bg-status-otazka-bg text-status-otazka-fg" },
-    { key: "critical", label: t("hlaseni.importanceCritical"), badgeClass: "bg-status-danger-bg text-status-danger-fg" },
+    { key: "normal", label: t("hlaseni.importanceNormal") },
+    { key: "important", label: t("hlaseni.importanceImportant") },
+    { key: "critical", label: t("hlaseni.importanceCritical") },
   ];
 
   return createPortal(
@@ -178,7 +182,7 @@ export default function HlaseniComposer({ onClose }: Props) {
       onClick={(e) => {
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 px-4 pt-safe pb-safe"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 pt-safe pb-safe"
       role="dialog"
       aria-modal="true"
       aria-label={t("hlaseni.composerTitle")}
@@ -219,6 +223,7 @@ export default function HlaseniComposer({ onClose }: Props) {
           <div className="flex flex-wrap gap-1.5">
             {importanceOptions.map((opt) => {
               const active = importance === opt.key;
+              const c = REPORT_IMPORTANCE_COLORS[opt.key];
               return (
                 <button
                   key={opt.key}
@@ -226,10 +231,13 @@ export default function HlaseniComposer({ onClose }: Props) {
                   onClick={() => setImportance(opt.key)}
                   disabled={submitting}
                   aria-pressed={active}
-                  className={`inline-flex min-h-tap items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                  style={
                     active
-                      ? opt.badgeClass + " ring-2 ring-line-focus"
-                      : "bg-bg-subtle text-ink-muted hover:text-ink"
+                      ? { background: c.bg, color: c.fg }
+                      : { borderColor: c.solid, color: c.solid }
+                  }
+                  className={`inline-flex min-h-tap items-center gap-1.5 rounded-pill border-2 px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                    active ? "" : "bg-transparent"
                   }`}
                 >
                   {opt.label}
@@ -270,6 +278,46 @@ export default function HlaseniComposer({ onClose }: Props) {
               ))}
             </ul>
           )}
+
+          {/* V26-fix — recipient targeting (default = broadcast all) */}
+          <div>
+            <p className="text-xs font-medium text-ink-subtle mb-1.5">
+              {t("hlaseni.targetRolesLabel")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"] as UserRole[]).map((r) => {
+                const active = targetRoles.has(r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      setTargetRoles((prev) => {
+                        const next = new Set(prev);
+                        if (active) next.delete(r);
+                        else next.add(r);
+                        return next;
+                      });
+                    }}
+                    disabled={submitting}
+                    aria-pressed={active}
+                    className={`inline-flex min-h-tap items-center rounded-pill px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 ${
+                      active
+                        ? "bg-accent text-accent-on ring-2 ring-line-focus"
+                        : "bg-bg-subtle text-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    {t(`role.${r}`)}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[11px] text-ink-subtle">
+              {targetRoles.size === 0
+                ? t("hlaseni.targetRolesAll")
+                : t("hlaseni.targetRolesPicked", { n: targetRoles.size })}
+            </p>
+          </div>
 
           {/* Hidden file inputs — image/video, with camera capture preference */}
           <input

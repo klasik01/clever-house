@@ -53,6 +53,7 @@ export { onReportCreated } from "./triggers/onReportWrite";  // V26 — Hlášen
 // ---- Scheduled (cron) ----
 export { eventLifecycleTick } from "./scheduled/eventLifecycle";  // V18-S09
 export { rsvpReminderTick } from "./scheduled/rsvpReminder";  // V18-S13
+export { reportCleanupTick } from "./scheduled/reportCleanup";  // V26 — auto-delete reports >24h
 
 // ---- HTTP endpoints ----
 export { calendarSubscription } from "./cal/calendarSubscription";  // V18-S11
