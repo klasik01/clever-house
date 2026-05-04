@@ -994,7 +994,10 @@
       "kpiOpenSub": "z toho {overdue} po splatnosti",
       "kpiBankaLabel": "Banka uvolnila",
       "kpiBankaSub": "z {limit}",
-      "kpiBankaSubNoLimit": "Nastav limit hypotéky"
+      "kpiBankaSubNoLimit": "Nastav limit hypotéky",
+      "kpiVarianceLabel": "Rozdíl proti plánu",
+      "kpiVarianceSubNoPlan": "Žádná sekce nemá plán",
+      "kpiVarianceSub": "{n} z {total} sekcí má plán"
     },
     "sekce": {
       "title": "Sekce",
@@ -1018,7 +1021,10 @@
       "filterOpen": "Otevřené",
       "filterOverdue": "Po splatnosti",
       "filterPaid": "Zaplaceno",
-      "filterEmpty": "Pro tento filtr nejsou žádné faktury."
+      "filterEmpty": "Pro tento filtr nejsou žádné faktury.",
+      "planLabel": "Plán",
+      "editPlanCta": "Upravit plán",
+      "setPlanCta": "Nastavit plán"
     },
     "section": {
       "newTitle": "Nová sekce",
@@ -1114,6 +1120,67 @@
       "deleteAria": "Smazat čerpání {amount}",
       "deleteConfirmTitle": "Smazat čerpání?",
       "deleteConfirmBody": "Opravdu smazat čerpání {amount}? Tato akce je nevratná."
+    },
+    "expected": {
+      "title": "Plán sekce",
+      "intro": "Plánovaná částka pro tuto sekci. Změna se uloží do historie společně s poznámkou.",
+      "amountLabel": "Plánovaná částka (Kč)",
+      "noteLabel": "Poznámka ke změně",
+      "notePlaceholder": "např. odhad od oka, po cenové nabídce, po objednávce…",
+      "noteHint": "Min. 3 znaky. Pomáhá pochopit důvod změny při pohledu zpět.",
+      "errorAmount": "Plánovaná částka musí být nezáporné číslo.",
+      "errorNote": "Poznámka musí mít alespoň 3 znaky.",
+      "historyToggle": "Historie ({n})"
+    },
+    "variance": {
+      "noPlan": "Bez plánu",
+      "underLabel": "Pod plánem",
+      "atLabel": "V plánu",
+      "overLabel": "Nad plánem"
+    },
+    "quote": {
+      "newTitle": "Nová cenová nabídka",
+      "editTitle": "Upravit cenovou nabídku",
+      "addCta": "Nabídka",
+      "intro": "Cenová nabídka je orientační odhad — nesčítá se do „zaplaceno\".",
+      "amountLabel": "Částka (Kč)",
+      "supplierLabel": "Dodavatel",
+      "supplierPlaceholder": "např. Heluz, Kasper, …",
+      "noteLabel": "Poznámka (volitelná)",
+      "notePlaceholder": "např. nabídka platná do 30. 6.",
+      "errorAmount": "Částka musí být kladné číslo.",
+      "errorDelete": "Nepovedlo se smazat nabídku.",
+      "add": "Přidat",
+      "deleteAria": "Smazat nabídku {amount}",
+      "deleteConfirmTitle": "Smazat nabídku?",
+      "deleteConfirmBody": "Opravdu smazat nabídku {amount}? Akce je nevratná.",
+      "listTitle": "Cenové nabídky",
+      "loading": "Načítám…",
+      "errorLoad": "Nepovedlo se načíst nabídky.",
+      "emptyDesc": "Žádné nabídky. Přidej tu, kterou jsi obdržel od dodavatele."
+    },
+    "payment": {
+      "newTitle": "Nová mimo-fakturní platba",
+      "editTitle": "Upravit platbu",
+      "addCta": "Platba",
+      "intro": "Mimo-fakturní výdaj — typicky hotovost, Hornbach, drobné nákupy. Sčítá se do „zaplaceno\".",
+      "amountLabel": "Částka (Kč)",
+      "datumLabel": "Datum platby",
+      "supplierLabel": "Dodavatel / místo",
+      "supplierPlaceholder": "např. Hornbach, instalatér Novák, …",
+      "noteLabel": "Poznámka (volitelná)",
+      "notePlaceholder": "např. šrouby a kotvy, hotově",
+      "errorAmount": "Částka musí být kladné číslo.",
+      "errorDatum": "Vyplň datum platby.",
+      "errorDelete": "Nepovedlo se smazat platbu.",
+      "add": "Přidat",
+      "deleteAria": "Smazat platbu {amount}",
+      "deleteConfirmTitle": "Smazat platbu?",
+      "deleteConfirmBody": "Opravdu smazat platbu {amount}? Akce je nevratná.",
+      "listTitle": "Mimo-fakturní výdaje",
+      "loading": "Načítám…",
+      "errorLoad": "Nepovedlo se načíst platby.",
+      "emptyDesc": "Žádné mimo-fakturní výdaje."
     }
   }
 }

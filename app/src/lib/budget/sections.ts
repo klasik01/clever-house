@@ -4,6 +4,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -28,6 +29,21 @@ function fromDocSnap(id: string, data: Record<string, unknown>): BudgetSection {
       typeof data.description === "string" && data.description.length > 0
         ? data.description
         : undefined,
+    expectedAmountCzk:
+      typeof data.expectedAmountCzk === "number"
+        ? Math.round(data.expectedAmountCzk)
+        : null,
+    expectedHistory: Array.isArray(data.expectedHistory)
+      ? (data.expectedHistory as Array<Record<string, unknown>>).map((entry) => ({
+          amountCzk:
+            typeof entry.amountCzk === "number" ? Math.round(entry.amountCzk) : 0,
+          changedAt:
+            typeof entry.changedAt === "string" ? entry.changedAt : "",
+          changedBy:
+            typeof entry.changedBy === "string" ? entry.changedBy : "",
+          note: typeof entry.note === "string" ? entry.note : undefined,
+        }))
+      : [],
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
@@ -81,6 +97,41 @@ export async function updateSection(
 
 export async function deleteSection(id: string): Promise<void> {
   await deleteDoc(doc(db, COLL, id));
+}
+
+export async function setExpectedAmount(
+  id: string,
+  amountCzk: number,
+  note: string,
+  changedBy: string,
+  previousAmount: number | null,
+): Promise<void> {
+  if (!Number.isFinite(amountCzk) || amountCzk < 0) {
+    throw new Error("Plánovaná částka musí být nezáporné číslo.");
+  }
+  if (!note || note.trim().length < 3) {
+    throw new Error("U změny plánu doplň krátkou poznámku (alespoň 3 znaky).");
+  }
+  const now = new Date().toISOString();
+  const newEntry = {
+    amountCzk: Math.round(amountCzk),
+    changedAt: now,
+    changedBy,
+    note: note.trim(),
+    previousAmountCzk: previousAmount,
+  };
+  // Push do history přes arrayUnion není ideální (nemáme nedeterministické
+  // klíče). Použijeme client-side merge: read → append → write.
+  const ref = doc(db, COLL, id);
+  const snap = await getDoc(ref);
+  const prevHistory: unknown[] = snap.exists() && Array.isArray(snap.data().expectedHistory)
+    ? (snap.data().expectedHistory as unknown[])
+    : [];
+  await updateDoc(ref, {
+    expectedAmountCzk: Math.round(amountCzk),
+    expectedHistory: [...prevHistory, newEntry],
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export function subscribeSections(

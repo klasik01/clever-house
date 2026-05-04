@@ -580,3 +580,32 @@ export interface BankDrawdown {
   createdAt: number;
   updatedAt: number;
 }
+
+// ---- V27 S11 — Quotes (cenové nabídky) ----
+
+export interface BudgetQuote {
+  id: string;
+  sectionId: string;
+  castka: number;
+  supplier?: string;
+  note?: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ---- V27 S12 — Payments (mimo-fakturní výdaje, hotovost / Hornbach) ----
+
+export interface BudgetPayment {
+  id: string;
+  sectionId: string;
+  castka: number;
+  datum: string; // ISO date "YYYY-MM-DD"
+  supplier?: string;
+  note?: string;
+  /** Volitelný účet pro budoucnost (S13 OWNER-managed seznam). */
+  ucetId?: string | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}

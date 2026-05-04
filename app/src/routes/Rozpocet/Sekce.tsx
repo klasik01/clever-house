@@ -4,9 +4,11 @@ import { Plus } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
-import { computeSectionPaidTotal } from "@/lib/budget/totals";
+import { useAllPayments } from "@/hooks/useAllPayments";
+import { computeSectionPaidTotal, computeSectionVariance } from "@/lib/budget/totals";
 import { formatCzk } from "@/lib/budget/format";
 import SectionModal from "@/components/budget/SectionModal";
+import VarianceChip from "@/components/budget/VarianceChip";
 import { rozpocetSekceDetail } from "@/lib/routes";
 import type { BudgetSection } from "@/types";
 
@@ -15,15 +17,19 @@ export default function RozpocetSekce() {
   const navigate = useNavigate();
   const sectionsState = useBudgetSections();
   const invoicesState = useAllInvoices();
+  const paymentsState = useAllPayments();
   const [modalOpen, setModalOpen] = useState(false);
 
   const grandTotal = useMemo(() => {
     if (sectionsState.status !== "ready" || invoicesState.status !== "ready") return 0;
+    const paymentsBy =
+      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
     return sectionsState.sections.reduce((sum, s) => {
       const invs = invoicesState.invoicesBySectionId[s.id] ?? [];
-      return sum + computeSectionPaidTotal(invs);
+      const pays = paymentsBy[s.id] ?? [];
+      return sum + computeSectionPaidTotal(invs, pays);
     }, 0);
-  }, [sectionsState, invoicesState]);
+  }, [sectionsState, invoicesState, paymentsState]);
 
   return (
     <section
@@ -67,11 +73,17 @@ export default function RozpocetSekce() {
               invoicesState.status === "ready"
                 ? invoicesState.invoicesBySectionId[s.id] ?? []
                 : [];
+            const pays =
+              paymentsState.status === "ready"
+                ? paymentsState.paymentsBySectionId[s.id] ?? []
+                : [];
+            const v = computeSectionVariance(s, invs, pays);
             return (
               <SectionRow
                 key={s.id}
                 section={s}
-                paidTotal={computeSectionPaidTotal(invs)}
+                paidTotal={computeSectionPaidTotal(invs, pays)}
+                variance={v}
                 onClick={() => navigate(rozpocetSekceDetail(s.id))}
               />
             );
@@ -105,10 +117,12 @@ export default function RozpocetSekce() {
 function SectionRow({
   section,
   paidTotal,
+  variance,
   onClick,
 }: {
   section: BudgetSection;
   paidTotal: number;
+  variance: ReturnType<typeof computeSectionVariance>;
   onClick: () => void;
 }) {
   const t = useT();
@@ -119,15 +133,22 @@ function SectionRow({
         onClick={onClick}
         className="w-full min-h-tap rounded-md border border-line bg-surface px-4 py-3 text-left hover:bg-bg-subtle transition-colors flex items-center justify-between gap-3"
       >
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <span className="block truncate text-base font-semibold text-ink">
             {section.title}
           </span>
-          {section.description ? (
-            <span className="block truncate text-xs text-ink-muted mt-0.5">
-              {section.description}
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2 flex-wrap">
+            {variance.plannedCzk !== null ? (
+              <span className="text-xs text-ink-muted tabular-nums">
+                {t("budget.sekce.planLabel")}: {formatCzk(variance.plannedCzk)}
+              </span>
+            ) : null}
+            <VarianceChip
+              state={variance.state}
+              variance={variance.variance}
+              variancePercent={variance.variancePercent}
+            />
+          </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
           <span className="text-base font-semibold text-ink tabular-nums">

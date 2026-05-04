@@ -4,9 +4,12 @@ import { ArrowLeft, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSection } from "@/hooks/useBudgetSections";
 import { useSectionInvoices } from "@/hooks/useSectionInvoices";
+import { useSectionQuotes } from "@/hooks/useSectionQuotes";
+import { useSectionPayments } from "@/hooks/useSectionPayments";
 import {
   computeSectionOpenTotal,
   computeSectionPaidTotal,
+  computeSectionVariance,
 } from "@/lib/budget/totals";
 import {
   daysOverdue,
@@ -19,13 +22,20 @@ import {
   deleteAllInvoicesForSection,
   deleteInvoice as deleteInvoiceFn,
 } from "@/lib/budget/invoices";
+import { deleteQuote } from "@/lib/budget/quotes";
+import { deletePayment } from "@/lib/budget/payments";
 import { getInvoicePdfUrl } from "@/lib/budget/storage";
 import SectionModal from "@/components/budget/SectionModal";
+import ExpectedAmountModal from "@/components/budget/ExpectedAmountModal";
+import VarianceChip from "@/components/budget/VarianceChip";
 import InvoiceModal from "@/components/budget/InvoiceModal";
+import QuoteModal from "@/components/budget/QuoteModal";
+import PaymentModal from "@/components/budget/PaymentModal";
 import StatusChip from "@/components/budget/StatusChip";
 import ConfirmDialog from "@/components/budget/ConfirmDialog";
 import { rozpocetSekce } from "@/lib/routes";
-import type { BudgetInvoice } from "@/types";
+import type { BudgetInvoice, BudgetPayment, BudgetQuote } from "@/types";
+import { ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
 
 type FilterKey = "all" | "OPEN" | "OVERDUE" | "PAID";
 
@@ -40,6 +50,7 @@ export default function RozpocetSekceDetail() {
   const [filter, setFilter] = useState<FilterKey>("all");
 
   const [editSectionOpen, setEditSectionOpen] = useState(false);
+  const [expectedModalOpen, setExpectedModalOpen] = useState(false);
   const [deleteSectionOpen, setDeleteSectionOpen] = useState(false);
   const [busyDelete, setBusyDelete] = useState(false);
   const [invoiceModal, setInvoiceModal] = useState<
@@ -50,13 +61,44 @@ export default function RozpocetSekceDetail() {
   const [deleteInvoiceTarget, setDeleteInvoiceTarget] =
     useState<BudgetInvoice | null>(null);
 
+  const quotesState = useSectionQuotes(id);
+  const paymentsState = useSectionPayments(id);
+  const [quoteModal, setQuoteModal] = useState<
+    | { mode: "create" }
+    | { mode: "edit"; quote: BudgetQuote }
+    | null
+  >(null);
+  const [paymentModal, setPaymentModal] = useState<
+    | { mode: "create" }
+    | { mode: "edit"; payment: BudgetPayment }
+    | null
+  >(null);
+  const [deleteQuoteTarget, setDeleteQuoteTarget] =
+    useState<BudgetQuote | null>(null);
+  const [deletePaymentTarget, setDeletePaymentTarget] =
+    useState<BudgetPayment | null>(null);
+  const [showQuotes, setShowQuotes] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
+
   const totals = useMemo(() => {
-    if (invoicesState.status !== "ready") return { paid: 0, open: 0 };
+    const invs = invoicesState.status === "ready" ? invoicesState.invoices : [];
+    const pays = paymentsState.status === "ready" ? paymentsState.payments : [];
     return {
-      paid: computeSectionPaidTotal(invoicesState.invoices),
-      open: computeSectionOpenTotal(invoicesState.invoices),
+      paid: computeSectionPaidTotal(invs, pays),
+      open: computeSectionOpenTotal(invs),
     };
-  }, [invoicesState]);
+  }, [invoicesState, paymentsState]);
+
+  const variance = useMemo(() => {
+    const sectionPart =
+      sectionState.status === "ready"
+        ? sectionState.section
+        : { expectedAmountCzk: null };
+    const invoices =
+      invoicesState.status === "ready" ? invoicesState.invoices : [];
+    const pays = paymentsState.status === "ready" ? paymentsState.payments : [];
+    return computeSectionVariance(sectionPart, invoices, pays);
+  }, [sectionState, invoicesState, paymentsState]);
 
   const filteredInvoices = useMemo(() => {
     if (invoicesState.status !== "ready") return [];
@@ -197,6 +239,37 @@ export default function RozpocetSekceDetail() {
       {section.description ? (
         <p className="text-sm text-ink-muted leading-relaxed">{section.description}</p>
       ) : null}
+
+      {/* Plán + variance */}
+      <div className="rounded-md border border-line bg-surface-raised p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-xs uppercase tracking-wide text-ink-muted">
+              {t("budget.sekce.planLabel")}
+            </span>
+            <span className="text-lg font-semibold text-ink tabular-nums">
+              {variance.plannedCzk !== null ? formatCzk(variance.plannedCzk) : "—"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpectedModalOpen(true)}
+            className="min-h-tap rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:bg-bg-subtle"
+          >
+            {variance.plannedCzk !== null
+              ? t("budget.sekce.editPlanCta")
+              : t("budget.sekce.setPlanCta")}
+          </button>
+        </div>
+        {variance.plannedCzk !== null ? (
+          <VarianceChip
+            state={variance.state}
+            variance={variance.variance}
+            variancePercent={variance.variancePercent}
+            size="md"
+          />
+        ) : null}
+      </div>
 
       {/* Sumy */}
       <div className="grid grid-cols-2 gap-2 rounded-md border border-line bg-surface-raised p-4">
@@ -346,11 +419,125 @@ export default function RozpocetSekceDetail() {
         </ul>
       )}
 
+      {/* Cenové nabídky */}
+      <CollapsibleHeader
+        title={t("budget.quote.listTitle")}
+        count={quotesState.status === "ready" ? quotesState.quotes.length : 0}
+        open={showQuotes}
+        onToggle={() => setShowQuotes((s) => !s)}
+        onAdd={() => setQuoteModal({ mode: "create" })}
+        addLabel={t("budget.quote.addCta")}
+      />
+      {showQuotes ? (
+        <QuotesList
+          state={quotesState}
+          onEdit={(q) => setQuoteModal({ mode: "edit", quote: q })}
+          onDelete={(q) => setDeleteQuoteTarget(q)}
+        />
+      ) : null}
+
+      {/* Mimo-fakturní výdaje */}
+      <CollapsibleHeader
+        title={t("budget.payment.listTitle")}
+        count={paymentsState.status === "ready" ? paymentsState.payments.length : 0}
+        open={showPayments}
+        onToggle={() => setShowPayments((s) => !s)}
+        onAdd={() => setPaymentModal({ mode: "create" })}
+        addLabel={t("budget.payment.addCta")}
+      />
+      {showPayments ? (
+        <PaymentsList
+          state={paymentsState}
+          onEdit={(p) => setPaymentModal({ mode: "edit", payment: p })}
+          onDelete={(p) => setDeletePaymentTarget(p)}
+        />
+      ) : null}
+
       <SectionModal
         open={editSectionOpen}
         mode="edit"
         section={section}
         onClose={() => setEditSectionOpen(false)}
+      />
+
+      <ExpectedAmountModal
+        open={expectedModalOpen}
+        section={section}
+        onClose={() => setExpectedModalOpen(false)}
+      />
+
+      {quoteModal ? (
+        <QuoteModal
+          open
+          mode={quoteModal.mode}
+          sectionId={id}
+          quote={quoteModal.mode === "edit" ? quoteModal.quote : null}
+          onClose={() => setQuoteModal(null)}
+        />
+      ) : null}
+
+      {paymentModal ? (
+        <PaymentModal
+          open
+          mode={paymentModal.mode}
+          sectionId={id}
+          payment={paymentModal.mode === "edit" ? paymentModal.payment : null}
+          onClose={() => setPaymentModal(null)}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={!!deleteQuoteTarget}
+        title={t("budget.quote.deleteConfirmTitle")}
+        message={
+          deleteQuoteTarget
+            ? t("budget.quote.deleteConfirmBody", {
+                amount: formatCzk(deleteQuoteTarget.castka),
+              })
+            : ""
+        }
+        confirmLabel={t("common.delete")}
+        destructive
+        onConfirm={async () => {
+          if (deleteQuoteTarget && id) {
+            try {
+              await deleteQuote(id, deleteQuoteTarget.id);
+            } catch (err) {
+              console.error("delete quote failed", err);
+              alert(t("budget.quote.errorDelete"));
+            } finally {
+              setDeleteQuoteTarget(null);
+            }
+          }
+        }}
+        onClose={() => setDeleteQuoteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!deletePaymentTarget}
+        title={t("budget.payment.deleteConfirmTitle")}
+        message={
+          deletePaymentTarget
+            ? t("budget.payment.deleteConfirmBody", {
+                amount: formatCzk(deletePaymentTarget.castka),
+              })
+            : ""
+        }
+        confirmLabel={t("common.delete")}
+        destructive
+        onConfirm={async () => {
+          if (deletePaymentTarget && id) {
+            try {
+              await deletePayment(id, deletePaymentTarget.id);
+            } catch (err) {
+              console.error("delete payment failed", err);
+              alert(t("budget.payment.errorDelete"));
+            } finally {
+              setDeletePaymentTarget(null);
+            }
+          }
+        }}
+        onClose={() => setDeletePaymentTarget(null)}
       />
 
       {invoiceModal ? (
@@ -403,3 +590,200 @@ function formatDateCs(iso: string): string {
     return iso;
   }
 }
+
+
+function CollapsibleHeader({
+  title,
+  count,
+  open,
+  onToggle,
+  onAdd,
+  addLabel,
+}: {
+  title: string;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  onAdd: () => void;
+  addLabel: string;
+}) {
+  return (
+    <header className="flex items-center justify-between gap-3 mt-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex items-center gap-1 -ml-1 px-1 py-1 text-base font-semibold text-ink hover:text-ink-link"
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown aria-hidden size={18} />
+        ) : (
+          <ChevronRightIcon aria-hidden size={18} />
+        )}
+        <span>
+          {title}
+          {count > 0 ? (
+            <span className="ml-2 inline-flex min-w-[1.5rem] items-center justify-center rounded-pill border border-line bg-bg-subtle px-1.5 py-0.5 text-xs text-ink-muted tabular-nums">
+              {count}
+            </span>
+          ) : null}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="inline-flex items-center gap-1.5 min-h-tap rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-accent-on hover:bg-accent-hover"
+      >
+        + {addLabel}
+      </button>
+    </header>
+  );
+}
+
+function QuotesList({
+  state,
+  onEdit,
+  onDelete,
+}: {
+  state: ReturnType<typeof useSectionQuotes>;
+  onEdit: (q: BudgetQuote) => void;
+  onDelete: (q: BudgetQuote) => void;
+}) {
+  const t = useT();
+  if (state.status === "loading") {
+    return <p aria-busy className="text-sm text-ink-muted">{t("budget.quote.loading")}</p>;
+  }
+  if (state.status === "error") {
+    return (
+      <p
+        role="alert"
+        className="rounded-md border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg"
+      >
+        {t("budget.quote.errorLoad")}
+      </p>
+    );
+  }
+  if (state.quotes.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-line bg-surface px-3 py-3 text-center text-xs text-ink-muted">
+        {t("budget.quote.emptyDesc")}
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-2">
+      {state.quotes.map((q) => (
+        <li key={q.id}>
+          <div className="flex items-stretch rounded-md border border-line bg-surface">
+            <button
+              type="button"
+              onClick={() => onEdit(q)}
+              className="flex flex-1 min-h-tap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-bg-subtle"
+            >
+              <div className="flex flex-col gap-1 min-w-0">
+                {q.supplier ? (
+                  <span className="text-sm font-medium text-ink truncate">
+                    {q.supplier}
+                  </span>
+                ) : null}
+                {q.note ? (
+                  <span className="text-xs text-ink-muted truncate">{q.note}</span>
+                ) : null}
+              </div>
+              <span className="text-base font-semibold text-ink tabular-nums shrink-0">
+                {formatCzk(q.castka)}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(q)}
+              aria-label={t("budget.quote.deleteAria", { amount: formatCzk(q.castka) })}
+              title={t("common.delete")}
+              className="grid size-tap place-items-center border-l border-line text-ink-muted hover:bg-bg-subtle"
+            >
+              <Trash2 aria-hidden size={16} />
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PaymentsList({
+  state,
+  onEdit,
+  onDelete,
+}: {
+  state: ReturnType<typeof useSectionPayments>;
+  onEdit: (p: BudgetPayment) => void;
+  onDelete: (p: BudgetPayment) => void;
+}) {
+  const t = useT();
+  if (state.status === "loading") {
+    return <p aria-busy className="text-sm text-ink-muted">{t("budget.payment.loading")}</p>;
+  }
+  if (state.status === "error") {
+    return (
+      <p
+        role="alert"
+        className="rounded-md border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg"
+      >
+        {t("budget.payment.errorLoad")}
+      </p>
+    );
+  }
+  if (state.payments.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-line bg-surface px-3 py-3 text-center text-xs text-ink-muted">
+        {t("budget.payment.emptyDesc")}
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-2">
+      {state.payments.map((p) => (
+        <li key={p.id}>
+          <div className="flex items-stretch rounded-md border border-line bg-surface">
+            <button
+              type="button"
+              onClick={() => onEdit(p)}
+              className="flex flex-1 min-h-tap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-bg-subtle"
+            >
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-ink whitespace-nowrap">
+                    {formatDateCs(p.datum)}
+                  </span>
+                  {p.supplier ? (
+                    <span className="text-xs text-ink-muted truncate">
+                      {p.supplier}
+                    </span>
+                  ) : null}
+                </div>
+                {p.note ? (
+                  <span className="text-xs text-ink-muted truncate" title={p.note}>
+                    {p.note}
+                  </span>
+                ) : null}
+              </div>
+              <span className="text-base font-semibold text-ink tabular-nums shrink-0">
+                {formatCzk(p.castka)}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(p)}
+              aria-label={t("budget.payment.deleteAria", { amount: formatCzk(p.castka) })}
+              title={t("common.delete")}
+              className="grid size-tap place-items-center border-l border-line text-ink-muted hover:bg-bg-subtle"
+            >
+              <Trash2 aria-hidden size={16} />
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+

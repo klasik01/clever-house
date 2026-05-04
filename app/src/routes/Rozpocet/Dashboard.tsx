@@ -4,9 +4,10 @@ import { AlertTriangle, CalendarClock, ChevronRight } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
+import { useAllPayments } from "@/hooks/useAllPayments";
 import { useBankDrawdowns } from "@/hooks/useBankDrawdowns";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
-import { computeDashboardKpis } from "@/lib/budget/totals";
+import { computeDashboardKpis, computeOverallVariance } from "@/lib/budget/totals";
 import {
   daysOverdue,
   getOverdueInvoices,
@@ -25,6 +26,7 @@ export default function RozpocetDashboard() {
   const invoicesState = useAllInvoices();
   const drawdownsState = useBankDrawdowns();
   const settingsState = useBudgetSettings();
+  const paymentsState = useAllPayments();
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -36,6 +38,8 @@ export default function RozpocetDashboard() {
   const kpis = useMemo(() => {
     const dd = drawdownsState.status === "ready" ? drawdownsState.drawdowns : [];
     const settings = settingsState.status === "ready" ? settingsState.settings : null;
+    const paymentsBy =
+      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
     if (invoicesState.status !== "ready") {
       return {
         paidTotalCzk: 0,
@@ -48,13 +52,26 @@ export default function RozpocetDashboard() {
       invoicesState.invoicesBySectionId,
       dd,
       settings,
+      paymentsBy,
     );
-  }, [invoicesState, drawdownsState, settingsState]);
+  }, [invoicesState, drawdownsState, settingsState, paymentsState]);
 
   const overdue = useMemo(
     () => getOverdueInvoices(allInvoicesFlat, today),
     [allInvoicesFlat, today],
   );
+  const overallVariance = useMemo(() => {
+    if (sectionsState.status !== "ready" || invoicesState.status !== "ready") {
+      return null;
+    }
+    const paymentsBy =
+      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
+    return computeOverallVariance(
+      sectionsState.sections,
+      invoicesState.invoicesBySectionId,
+      paymentsBy,
+    );
+  }, [sectionsState, invoicesState, paymentsState]);
   const thisWeek = useMemo(
     () => getThisWeekInvoices(allInvoicesFlat, today),
     [allInvoicesFlat, today],
@@ -132,6 +149,10 @@ export default function RozpocetDashboard() {
                   : t("budget.dashboard.kpiBankaSubNoLimit")
               }
               onClick={() => navigate(ROUTES.rozpocetHypoteka)}
+            />
+            <VarianceKpiTile
+              variance={overallVariance}
+              onClick={() => navigate(rozpocetSekce())}
             />
           </div>
 
@@ -277,6 +298,49 @@ function DashboardInvoiceRow({
         <ChevronRight aria-hidden size={16} className="text-ink-subtle shrink-0" />
       </button>
     </li>
+  );
+}
+
+function VarianceKpiTile({
+  variance,
+  onClick,
+}: {
+  variance: ReturnType<typeof computeOverallVariance> | null;
+  onClick?: () => void;
+}) {
+  const t = useT();
+  if (!variance || variance.state === "no-plan") {
+    return (
+      <KPITile
+        label={t("budget.dashboard.kpiVarianceLabel")}
+        value="—"
+        subText={t("budget.dashboard.kpiVarianceSubNoPlan")}
+        onClick={onClick}
+      />
+    );
+  }
+
+  const sign = variance.variance > 0 ? "+ " : variance.variance < 0 ? "− " : "";
+  const value = `${sign}${formatCzk(Math.abs(variance.variance))}`;
+  const tone = variance.state === "over" ? "text-status-warning-fg" : variance.state === "under" ? "text-status-success-fg" : undefined;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-1 rounded-lg border border-line bg-surface p-4 text-left min-h-[6rem] md:min-h-[7.5rem] hover:bg-bg-subtle transition-colors"
+    >
+      <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+        {t("budget.dashboard.kpiVarianceLabel")}
+      </span>
+      <span className={`kpi-number ${tone ?? ""}`}>{value}</span>
+      <span className="text-xs text-ink-subtle">
+        {t("budget.dashboard.kpiVarianceSub", {
+          n: variance.plannedSectionsCount,
+          total: variance.totalSectionsCount,
+        })}
+      </span>
+    </button>
   );
 }
 

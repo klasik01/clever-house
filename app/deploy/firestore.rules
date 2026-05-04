@@ -374,6 +374,11 @@ service cloud.firestore {
       allow read: if isOwner();
     }
 
+    // V27 S12 — collectionGroup query pro payments (Dashboard, totals).
+    match /{path=**}/payments/{paymentId} {
+      allow read: if isOwner();
+    }
+
     // V27 S08 — BudgetSettings singleton (limit hypotéky, banka, datum)
     match /budget_settings/{settingsId} {
       allow read, create, update, delete: if isOwner();
