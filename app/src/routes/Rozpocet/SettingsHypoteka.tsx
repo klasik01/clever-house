@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, Landmark } from "lucide-react";
+import { ArrowLeft, Landmark, Lock, Pencil } from "lucide-react";
+import ConfirmDialog from "@/components/budget/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +24,8 @@ export default function SettingsHypoteka() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
 
   // Hydrate form from current settings
   useEffect(() => {
@@ -40,6 +43,9 @@ export default function SettingsHypoteka() {
     settingsState.status === "ready" ? settingsState.settings : null,
     drawdownsState.status === "ready" ? drawdownsState.drawdowns : [],
   );
+
+  const isInitialized = status.limit !== null && status.limit > 0;
+  const editable = !isInitialized || unlocked;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -146,9 +152,9 @@ export default function SettingsHypoteka() {
             required
             value={castkaInput}
             onChange={(e) => setCastkaInput(e.target.value)}
-            disabled={submitting || settingsState.status !== "ready"}
+            disabled={!editable || submitting || settingsState.status !== "ready"}
             placeholder="4 000 000"
-            className="money-input mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            className="money-input mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none disabled:bg-bg-subtle disabled:text-ink-muted"
           />
           <span className="mt-1 block text-xs text-ink-subtle">
             {t("budget.settings.amountHint")}
@@ -161,9 +167,9 @@ export default function SettingsHypoteka() {
             type="text"
             value={banka}
             onChange={(e) => setBanka(e.target.value)}
-            disabled={submitting || settingsState.status !== "ready"}
+            disabled={!editable || submitting || settingsState.status !== "ready"}
             placeholder={t("budget.settings.bankaPlaceholder")}
-            className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none disabled:bg-bg-subtle disabled:text-ink-muted"
           />
         </label>
 
@@ -173,8 +179,8 @@ export default function SettingsHypoteka() {
             type="date"
             value={datum}
             onChange={(e) => setDatum(e.target.value)}
-            disabled={submitting || settingsState.status !== "ready"}
-            className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            disabled={!editable || submitting || settingsState.status !== "ready"}
+            className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none disabled:bg-bg-subtle disabled:text-ink-muted"
           />
         </label>
 
@@ -194,15 +200,45 @@ export default function SettingsHypoteka() {
         ) : null}
 
         <div className="flex justify-end pt-2">
-          <button
-            type="submit"
-            disabled={submitting || settingsState.status !== "ready"}
-            className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60"
-          >
-            {submitting ? t("common.saving") : t("common.save")}
-          </button>
+          {!editable ? (
+            <div className="flex flex-col items-end gap-2">
+              <p className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
+                <Lock aria-hidden size={12} />
+                {t("budget.settings.lockedHint")}
+              </p>
+              <button
+                type="button"
+                onClick={() => setConfirmEditOpen(true)}
+                className="inline-flex items-center gap-1.5 min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle"
+              >
+                <Pencil aria-hidden size={14} />
+                {t("budget.settings.editCta")}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={submitting || settingsState.status !== "ready"}
+              className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60"
+            >
+              {submitting ? t("common.saving") : t("common.save")}
+            </button>
+          )}
         </div>
       </form>
+
+      <ConfirmDialog
+        open={confirmEditOpen}
+        title={t("budget.settings.confirmEditTitle")}
+        message={t("budget.settings.confirmEditBody")}
+        confirmLabel={t("budget.settings.confirmEditBtn")}
+        destructive
+        onConfirm={() => {
+          setUnlocked(true);
+          setConfirmEditOpen(false);
+        }}
+        onClose={() => setConfirmEditOpen(false)}
+      />
     </section>
   );
 }

@@ -374,11 +374,6 @@ service cloud.firestore {
       allow read: if isOwner();
     }
 
-    // V27 S12 — collectionGroup query pro payments (Dashboard, totals).
-    match /{path=**}/payments/{paymentId} {
-      allow read: if isOwner();
-    }
-
     // V27 S08 — BudgetSettings singleton (limit hypotéky, banka, datum)
     match /budget_settings/{settingsId} {
       allow read, create, update, delete: if isOwner();
@@ -386,11 +381,6 @@ service cloud.firestore {
 
     // V27 S08 — BankDrawdowns (čerpání hypotéky, top-level kolekce)
     match /budget_drawdowns/{drawdownId} {
-      allow read, create, update, delete: if isOwner();
-    }
-
-    // V27 S13 — BudgetAccounts (OWNER-managed seznam účtů)
-    match /budget_accounts/{accountId} {
       allow read, create, update, delete: if isOwner();
     }
 

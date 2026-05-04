@@ -30,8 +30,6 @@ import RozpocetSekce from "./routes/Rozpocet/Sekce";
 import RozpocetSekceDetail from "./routes/Rozpocet/SekceDetail";
 import RozpocetHypoteka from "./routes/Rozpocet/Hypoteka";
 import SettingsHypoteka from "./routes/Rozpocet/SettingsHypoteka";
-import AccountsManage from "./routes/Rozpocet/AccountsManage";
-import SettingsZustatek from "./routes/Rozpocet/SettingsZustatek";
 import CategoriesManage from "./routes/Rozpocet/CategoriesManage";
 import Ukoly from "./routes/Ukoly";
 import Zaznamy from "./routes/Zaznamy";
@@ -81,8 +79,6 @@ export default function App() {
           <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
           <Route path={ROUTES.nastaveniFaze} element={<PhasesForOwner />} />
           <Route path={ROUTES.nastaveniRozpocetHypoteka} element={<RozpocetForOwner><SettingsHypoteka /></RozpocetForOwner>} />
-          <Route path={ROUTES.nastaveniRozpocetUctu} element={<RozpocetForOwner><AccountsManage /></RozpocetForOwner>} />
-          <Route path={ROUTES.nastaveniRozpocetZustatek} element={<RozpocetForOwner><SettingsZustatek /></RozpocetForOwner>} />
           <Route path={ROUTES.nastaveniRozpocetKategorie} element={<RozpocetForOwner><CategoriesManage /></RozpocetForOwner>} />
           <Route path={ROUTES.rozpocet} element={<RozpocetForOwner><RozpocetDashboard /></RozpocetForOwner>} />
           <Route path={ROUTES.rozpocetSekce} element={<RozpocetForOwner><RozpocetSekce /></RozpocetForOwner>} />

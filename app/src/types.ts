@@ -510,6 +510,12 @@ export interface BudgetSection {
   expectedAmountCzk?: number | null;
   /** Historie změn `expectedAmountCzk` (S10+). */
   expectedHistory?: ExpectedHistoryEntry[];
+  /** R4 — referenční cenová nabídka. null = nezadáno. */
+  quotedAmountCzk?: number | null;
+  /** R4 — historie změn `quotedAmountCzk`. */
+  quotedHistory?: ExpectedHistoryEntry[];
+  /** R4 — volitelné jméno dodavatele cenové nabídky. */
+  quotedSupplier?: string | null;
   /** Optional propojení na clever-house etapu (Slice S18+). */
   phaseId?: string | null;
   /** Optional kategorie (S19+). */
@@ -540,16 +546,21 @@ export interface BudgetInvoice {
   datumPlatby?: string;
   /** Splatnost (přijde v S05). */
   splatnost?: string;
-  /** Účet ze kterého se hradí (S13 OWNER-managed list). */
-  ucetId?: string | null;
   /** Volitelné — dodavatel free-text. */
   supplier?: string;
+  /** R2 — způsob platby. Nahrazuje původní ucetId (BudgetAccount system odebrán). */
+  paymentMethod?: PaymentMethod | null;
+  /** R3 — povinný popisek "co se platilo" (faktura nebo Hornbach drobnost). */
+  nazev?: string;
   /** Cesta k PDF v Firebase Storage (S07+). */
   pdfPath?: string | null;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
 }
+
+/** R2 — způsob platby. Online (BU / hypoteční účet) nebo Hotovost. */
+export type PaymentMethod = "ONLINE" | "HOTOVOST";
 
 // ---- V27 S08 — Hypotéka: Settings singleton + drawdown history ----
 
@@ -562,24 +573,10 @@ export interface BudgetSettings {
   /** Datum schválení (ISO date YYYY-MM-DD). */
   mortgageApprovedAt?: string | null;
 
-  // ---- S14 — currentAccountBalance ----
-  /** Aktuální zůstatek na BÚ — manuálně updatovaný OWNERem v neděli. null = nenastaveno. */
-  currentAccountBalanceCzk?: number | null;
-  /** ISO timestamp poslední aktualizace zůstatku. */
-  currentAccountBalanceUpdatedAt?: string | null;
-  /** Historie aktualizací zůstatku — pomáhá tracking trends. */
-  balanceUpdateHistory?: BalanceUpdateEntry[];
-
   updatedAt: number;
   updatedBy?: string;
 }
 
-export interface BalanceUpdateEntry {
-  amountCzk: number;
-  updatedAt: string;
-  updatedBy: string;
-  note?: string;
-}
 
 /** Čerpání tranše hypotéky. Top-level kolekce `/budget_drawdowns/{id}`. */
 export interface BankDrawdown {
@@ -597,51 +594,8 @@ export interface BankDrawdown {
   updatedAt: number;
 }
 
-// ---- V27 S11 — Quotes (cenové nabídky) ----
 
-export interface BudgetQuote {
-  id: string;
-  sectionId: string;
-  castka: number;
-  supplier?: string;
-  note?: string;
-  createdBy: string;
-  createdAt: number;
-  updatedAt: number;
-}
 
-// ---- V27 S12 — Payments (mimo-fakturní výdaje, hotovost / Hornbach) ----
-
-export interface BudgetPayment {
-  id: string;
-  sectionId: string;
-  castka: number;
-  datum: string; // ISO date "YYYY-MM-DD"
-  supplier?: string;
-  note?: string;
-  /** Volitelný účet pro budoucnost (S13 OWNER-managed seznam). */
-  ucetId?: string | null;
-  createdBy: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
-// ---- V27 S13 — Účty (OWNER-managed seznam pro Rozpočet) ----
-
-/** Druh účtu pro UI rozlišení a default seznam. */
-export type BudgetAccountKind = "BEZNY" | "HYPOTECNI" | "HOTOVOST" | "CUSTOM";
-
-/** Účet v top-level kolekci `/budget_accounts/{id}`. */
-export interface BudgetAccount {
-  id: string;
-  /** Lidské jméno: "Stáňa BU mBank", "Manželčin BU", "Hypoteční", "Hotovost". */
-  label: string;
-  /** Kind určuje barvu chipu + použití v defaultech. */
-  kind: BudgetAccountKind;
-  createdBy: string;
-  createdAt: number;
-  updatedAt: number;
-}
 
 // ---- V27 S19 — Budget kategorie (separátní od clever-house /categories) ----
 

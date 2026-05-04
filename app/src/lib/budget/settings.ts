@@ -1,6 +1,5 @@
 import {
   doc,
-  getDoc,
   onSnapshot,
   setDoc,
   serverTimestamp,
@@ -35,25 +34,6 @@ function fromDocSnap(data: Record<string, unknown> | undefined): BudgetSettings 
       typeof data.mortgageApprovedAt === "string" && data.mortgageApprovedAt.length > 0
         ? data.mortgageApprovedAt
         : null,
-    currentAccountBalanceCzk:
-      typeof data.currentAccountBalanceCzk === "number"
-        ? Math.round(data.currentAccountBalanceCzk)
-        : null,
-    currentAccountBalanceUpdatedAt:
-      typeof data.currentAccountBalanceUpdatedAt === "string"
-        ? data.currentAccountBalanceUpdatedAt
-        : null,
-    balanceUpdateHistory: Array.isArray(data.balanceUpdateHistory)
-      ? (data.balanceUpdateHistory as Array<Record<string, unknown>>).map((entry) => ({
-          amountCzk:
-            typeof entry.amountCzk === "number" ? Math.round(entry.amountCzk) : 0,
-          updatedAt:
-            typeof entry.updatedAt === "string" ? entry.updatedAt : "",
-          updatedBy:
-            typeof entry.updatedBy === "string" ? entry.updatedBy : "",
-          note: typeof entry.note === "string" ? entry.note : undefined,
-        }))
-      : [],
     updatedAt: toMillis(data.updatedAt),
     updatedBy:
       typeof data.updatedBy === "string" ? data.updatedBy : undefined,
@@ -89,40 +69,6 @@ export async function updateMortgageSettings(
       mortgageApprovedAmountCzk: Math.round(input.mortgageApprovedAmountCzk),
       mortgageBank: input.mortgageBank?.trim() || null,
       mortgageApprovedAt: input.mortgageApprovedAt?.trim() || null,
-      updatedAt: serverTimestamp(),
-      updatedBy,
-    },
-    { merge: true },
-  );
-}
-
-export async function updateCurrentBalance(
-  amountCzk: number,
-  note: string | undefined,
-  updatedBy: string,
-): Promise<void> {
-  if (!Number.isFinite(amountCzk) || amountCzk < 0) {
-    throw new Error("Zůstatek musí být nezáporné číslo.");
-  }
-  const ref = doc(db, COLL, DOC_ID);
-  const snap = await getDoc(ref);
-  const prevHistory: unknown[] =
-    snap.exists() && Array.isArray(snap.data().balanceUpdateHistory)
-      ? (snap.data().balanceUpdateHistory as unknown[])
-      : [];
-  const now = new Date().toISOString();
-  const entry = {
-    amountCzk: Math.round(amountCzk),
-    updatedAt: now,
-    updatedBy,
-    note: note?.trim() || null,
-  };
-  await setDoc(
-    ref,
-    {
-      currentAccountBalanceCzk: Math.round(amountCzk),
-      currentAccountBalanceUpdatedAt: now,
-      balanceUpdateHistory: [...prevHistory, entry],
       updatedAt: serverTimestamp(),
       updatedBy,
     },

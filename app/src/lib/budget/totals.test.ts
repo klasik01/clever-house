@@ -10,7 +10,6 @@ import {
 import type {
   BankDrawdown,
   BudgetInvoice,
-  BudgetPayment,
   BudgetSection,
   BudgetSettings,
 } from "@/types";
@@ -23,20 +22,6 @@ function inv(partial: Partial<BudgetInvoice>): BudgetInvoice {
     status: partial.status ?? "OPEN",
     splatnost: partial.splatnost,
     datumPlatby: partial.datumPlatby,
-    createdBy: "u1",
-    createdAt: 0,
-    updatedAt: 0,
-  };
-}
-
-function pay(partial: Partial<BudgetPayment>): BudgetPayment {
-  return {
-    id: partial.id ?? "p1",
-    sectionId: partial.sectionId ?? "s1",
-    castka: partial.castka ?? 0,
-    datum: partial.datum ?? "2026-05-04",
-    supplier: partial.supplier,
-    note: partial.note,
     createdBy: "u1",
     createdAt: 0,
     updatedAt: 0,
@@ -74,33 +59,29 @@ describe("computeSectionPaidTotal", () => {
     expect(computeSectionPaidTotal([])).toBe(0);
   });
 
-  it("jen PAID faktury se sčítá", () => {
+  it("jen PAID se sčítá", () => {
     const list = [
-      inv({ castka: 50_000, status: "PAID" }),
+      inv({ castka: 50_000, status: "PAID", datumPlatby: "2026-05-01" }),
       inv({ castka: 80_000, status: "OPEN", splatnost: "2026-06-01" }),
-      inv({ castka: 20_000, status: "PAID" }),
+      inv({ castka: 20_000, status: "PAID", datumPlatby: "2026-05-02" }),
     ];
     expect(computeSectionPaidTotal(list)).toBe(70_000);
   });
 
-  it("S12 — payments se přičtou", () => {
-    const invoices = [inv({ castka: 50_000, status: "PAID" })];
-    const payments = [
-      pay({ castka: 320 }),
-      pay({ castka: 1_500 }),
+  it("všechny OPEN → 0", () => {
+    const list = [
+      inv({ castka: 100, status: "OPEN", splatnost: "2026-06-01" }),
+      inv({ castka: 200, status: "OPEN", splatnost: "2026-06-01" }),
     ];
-    expect(computeSectionPaidTotal(invoices, payments)).toBe(51_820);
+    expect(computeSectionPaidTotal(list)).toBe(0);
   });
 
-  it("payments samotné", () => {
-    expect(computeSectionPaidTotal([], [pay({ castka: 100 }), pay({ castka: 200 })])).toBe(300);
-  });
-
-  it("ignoruje invalid castka", () => {
-    expect(computeSectionPaidTotal(
-      [inv({ castka: 100, status: "PAID" }), inv({ castka: NaN, status: "PAID" })],
-      [pay({ castka: NaN }), pay({ castka: 50 })],
-    )).toBe(150);
+  it("ignoruje invalid castka (NaN, undefined)", () => {
+    const list = [
+      inv({ castka: 100, status: "PAID" }),
+      inv({ castka: NaN, status: "PAID" }),
+    ];
+    expect(computeSectionPaidTotal(list)).toBe(100);
   });
 });
 
@@ -116,7 +97,7 @@ describe("computeSectionOpenTotal", () => {
 });
 
 describe("computeDashboardKpis", () => {
-  it("agreguje napříč sekcemi + drawdowns + settings + payments", () => {
+  it("agreguje napříč sekcemi + drawdowns + settings", () => {
     const data = {
       s1: [
         inv({ castka: 50_000, status: "PAID" }),
@@ -129,21 +110,15 @@ describe("computeDashboardKpis", () => {
       mortgageApprovedAmountCzk: 4_000_000,
       updatedAt: 0,
     };
-    const paymentsBySection = {
-      s1: [pay({ castka: 5_000 })],
-      s2: [pay({ castka: 320 })],
-    };
-    expect(
-      computeDashboardKpis(data, drawdowns, settings, paymentsBySection),
-    ).toEqual({
-      paidTotalCzk: 50_000 + 30_000 + 5_000 + 320,
+    expect(computeDashboardKpis(data, drawdowns, settings)).toEqual({
+      paidTotalCzk: 80_000,
       openTotalCzk: 80_000,
       drawnTotalCzk: 1_500_000,
       mortgageLimitCzk: 4_000_000,
     });
   });
 
-  it("default args bez payments", () => {
+  it("default args → 0/0/0/null", () => {
     expect(computeDashboardKpis({})).toEqual({
       paidTotalCzk: 0,
       openTotalCzk: 0,
@@ -223,13 +198,6 @@ describe("computeSectionVariance", () => {
     expect(computeSectionVariance(s, invs).state).toBe("over");
   });
 
-  it("započítá payments do actual", () => {
-    const s = sec({ expectedAmountCzk: 100_000 });
-    const v = computeSectionVariance(s, [], [pay({ castka: 50_000 }), pay({ castka: 30_000 })]);
-    expect(v.actualCzk).toBe(80_000);
-    expect(v.state).toBe("under");
-  });
-
   it("plan 0 → variancePercent null (no division by zero)", () => {
     const s = sec({ expectedAmountCzk: 0 });
     const v = computeSectionVariance(s, [inv({ castka: 100, status: "PAID" })]);
@@ -245,7 +213,7 @@ describe("computeOverallVariance", () => {
     const sections = [
       sec({ id: "s1", expectedAmountCzk: 100_000 }),
       sec({ id: "s2", expectedAmountCzk: 200_000 }),
-      sec({ id: "s3", expectedAmountCzk: null }), // bez plánu
+      sec({ id: "s3", expectedAmountCzk: null }),
     ];
     const invoicesBy = {
       s1: [inv({ castka: 90_000, status: "PAID" })],
@@ -255,7 +223,6 @@ describe("computeOverallVariance", () => {
     const v = computeOverallVariance(sections, invoicesBy);
     expect(v.totalPlannedCzk).toBe(300_000);
     expect(v.totalActualCzk).toBe(390_000);
-    // Variance ze sekci s plánem: s1 (-10k) + s2 (+50k) = +40k
     expect(v.variance).toBe(40_000);
     expect(v.plannedSectionsCount).toBe(2);
     expect(v.totalSectionsCount).toBe(3);
@@ -265,17 +232,5 @@ describe("computeOverallVariance", () => {
   it("žádné sekce → state = no-plan", () => {
     const v = computeOverallVariance([], {});
     expect(v.state).toBe("no-plan");
-    expect(v.totalActualCzk).toBe(0);
-    expect(v.totalPlannedCzk).toBe(0);
-  });
-
-  it("všechny sekce bez plánu → no-plan", () => {
-    const v = computeOverallVariance(
-      [sec({ id: "s1", expectedAmountCzk: null })],
-      { s1: [inv({ castka: 100, status: "PAID" })] },
-    );
-    expect(v.state).toBe("no-plan");
-    expect(v.totalActualCzk).toBe(100);
-    expect(v.totalPlannedCzk).toBe(0);
   });
 });

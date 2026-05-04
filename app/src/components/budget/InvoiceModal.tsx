@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Paperclip, X } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,8 +13,7 @@ import {
   uploadInvoicePdf,
 } from "@/lib/budget/storage";
 import { parseCzk } from "@/lib/budget/format";
-import type { BudgetInvoice, InvoiceStatus } from "@/types";
-import AccountPicker from "@/components/budget/AccountPicker";
+import type { BudgetInvoice, InvoiceStatus, PaymentMethod } from "@/types";
 
 interface Props {
   open: boolean;
@@ -57,7 +56,9 @@ export default function InvoiceModal({
   // při uložení smažeme starý PDF i bez nahrazení.
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [removeExistingPdf, setRemoveExistingPdf] = useState(false);
-  const [ucetId, setUcetId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [nazev, setNazev] = useState("");
+  const [supplier, setSupplier] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,11 +74,49 @@ export default function InvoiceModal({
       );
       setPickedFile(null);
       setRemoveExistingPdf(false);
-      setUcetId(invoice?.ucetId ?? null);
+      setPaymentMethod(invoice?.paymentMethod ?? null);
+      setNazev(invoice?.nazev ?? "");
+      setSupplier(invoice?.supplier ?? "");
       setError(null);
       setSubmitting(false);
     }
   }, [open, invoice, mode]);
+
+  // R8 — dirty check: edit modal skryje Save dokud user něco nezmění.
+  // V create modu je vždy "dirty" (Save vidět od začátku).
+  const isDirty = useMemo(() => {
+    if (mode === "create") return true;
+    if (!invoice) return false;
+    const currentCastka = parseCzk(castkaInput);
+    if (
+      Number.isFinite(currentCastka)
+        ? currentCastka !== invoice.castka
+        : castkaInput !== String(invoice.castka)
+    ) {
+      return true;
+    }
+    if (status !== invoice.status) return true;
+    if (datumPlatby !== (invoice.datumPlatby ?? "")) return true;
+    if (splatnost !== (invoice.splatnost ?? "")) return true;
+    if (paymentMethod !== (invoice.paymentMethod ?? null)) return true;
+    if (nazev !== (invoice.nazev ?? "")) return true;
+    if (supplier !== (invoice.supplier ?? "")) return true;
+    if (pickedFile !== null) return true;
+    if (removeExistingPdf) return true;
+    return false;
+  }, [
+    mode,
+    invoice,
+    castkaInput,
+    status,
+    datumPlatby,
+    splatnost,
+    paymentMethod,
+    nazev,
+    supplier,
+    pickedFile,
+    removeExistingPdf,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +190,9 @@ export default function InvoiceModal({
         status,
         datumPlatby: status === "PAID" ? datumPlatby : null,
         splatnost: splatnost || null,
-        ucetId,
+        paymentMethod,
+        nazev,
+        supplier,
       };
 
       let invoiceId: string;
@@ -192,7 +233,10 @@ export default function InvoiceModal({
       onSaved?.(invoiceId);
       onClose();
     } catch (err) {
-      setError((err as Error).message);
+      console.error("InvoiceModal save failed", err);
+      const message =
+        (err as Error)?.message ?? `${(err as { code?: string })?.code ?? "Neznámá chyba"}`;
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -234,18 +278,44 @@ export default function InvoiceModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
           <label className="block text-sm font-medium text-ink">
+            {t("budget.invoice.nazevLabel")}
+            <input
+              type="text"
+              autoFocus
+              maxLength={120}
+              value={nazev}
+              onChange={(e) => setNazev(e.target.value)}
+              disabled={submitting}
+              placeholder={t("budget.invoice.nazevPlaceholder")}
+              className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-ink">
             {t("budget.invoice.amountLabel")}
             <span className="text-status-danger-fg" aria-hidden> *</span>
             <input
               type="text"
               inputMode="decimal"
               required
-              autoFocus
               value={castkaInput}
               onChange={(e) => setCastkaInput(e.target.value)}
               disabled={submitting}
               placeholder="50 000"
               className="money-input mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-ink">
+            {t("budget.invoice.supplierLabel")}
+            <input
+              type="text"
+              maxLength={120}
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+              disabled={submitting}
+              placeholder={t("budget.invoice.supplierPlaceholder")}
+              className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
             />
           </label>
 
@@ -307,14 +377,34 @@ export default function InvoiceModal({
             </label>
           )}
 
-          <label className="block text-sm font-medium text-ink">
-            {t("budget.account.pickerLabel")}
-            <AccountPicker
-              value={ucetId}
-              onChange={setUcetId}
-              disabled={submitting}
-            />
-          </label>
+          <fieldset
+            className="rounded-md border border-line px-4 py-3"
+            disabled={submitting}
+          >
+            <legend className="px-2 text-sm font-medium text-ink">
+              {t("budget.paymentMethod.label")}
+            </legend>
+            <label className="flex min-h-tap items-center gap-2 text-sm text-ink cursor-pointer">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="ONLINE"
+                checked={paymentMethod === "ONLINE"}
+                onChange={() => setPaymentMethod("ONLINE")}
+              />
+              <span>{t("budget.paymentMethod.ONLINE")}</span>
+            </label>
+            <label className="flex min-h-tap items-center gap-2 text-sm text-ink cursor-pointer">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="HOTOVOST"
+                checked={paymentMethod === "HOTOVOST"}
+                onChange={() => setPaymentMethod("HOTOVOST")}
+              />
+              <span>{t("budget.paymentMethod.HOTOVOST")}</span>
+            </label>
+          </fieldset>
 
           {/* PDF příloha */}
           <div className="space-y-2">
@@ -393,21 +483,23 @@ export default function InvoiceModal({
               disabled={submitting}
               className="min-h-tap rounded-md border border-line bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-bg-subtle"
             >
-              {t("common.cancel")}
+              {isDirty ? t("common.cancel") : t("common.close")}
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60"
-            >
-              {submitting
-                ? pickedFile
-                  ? t("budget.invoice.uploading")
-                  : t("common.saving")
-                : mode === "create"
-                ? t("budget.invoice.add")
-                : t("common.save")}
-            </button>
+            {isDirty ? (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="min-h-tap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover disabled:opacity-60"
+              >
+                {submitting
+                  ? pickedFile
+                    ? t("budget.invoice.uploading")
+                    : t("common.saving")
+                  : mode === "create"
+                  ? t("budget.invoice.add")
+                  : t("common.save")}
+              </button>
+            ) : null}
           </div>
         </form>
       </div>

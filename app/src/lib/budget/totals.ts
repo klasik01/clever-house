@@ -1,32 +1,24 @@
 import type {
   BankDrawdown,
   BudgetInvoice,
-  BudgetPayment,
   BudgetSection,
   BudgetSettings,
 } from "@/types";
 
 /**
- * Sum castka přes PAID faktury v sekci + (volitelné) non-invoice payments.
- * S12 — payments parameter umožňuje sčítat hotovostní/Hornbach výdaje
- * dohromady s fakturami pod společným pojmem "zaplaceno".
+ * Sum castka přes PAID faktury v sekci. Po R3 jsou všechny výdaje (vč.
+ * hotovostních / Hornbach drobností) už faktury — nepotřebujeme druhý parametr.
+ * Druhý volitelný parametr ponechán pro back-compat tests, ale ignorován.
  */
 export function computeSectionPaidTotal(
   invoices: BudgetInvoice[],
-  payments: BudgetPayment[] = [],
+  _payments?: unknown,
 ): number {
-  let sum = 0;
-  if (invoices?.length) {
-    for (const i of invoices) {
-      if (i.status === "PAID" && Number.isFinite(i.castka)) sum += i.castka;
-    }
-  }
-  if (payments?.length) {
-    for (const p of payments) {
-      if (Number.isFinite(p.castka)) sum += p.castka;
-    }
-  }
-  return sum;
+  void _payments;
+  if (!invoices?.length) return 0;
+  return invoices
+    .filter((i) => i.status === "PAID")
+    .reduce((sum, i) => sum + (Number.isFinite(i.castka) ? i.castka : 0), 0);
 }
 
 /** Sum castka přes všechny OPEN faktury (= aktuálně sjednané k doplacení). */
@@ -44,13 +36,14 @@ export interface DashboardKpis {
   mortgageLimitCzk: number | null;
 }
 
-/** Sum napříč všemi sekcemi + drawdowns + settings + (S12) payments. */
+/** Sum napříč všemi sekcemi + drawdowns + settings. R3 odstranil payments. */
 export function computeDashboardKpis(
   invoicesBySection: Record<string, BudgetInvoice[]>,
   drawdowns: BankDrawdown[] = [],
   settings?: BudgetSettings | null,
-  paymentsBySection: Record<string, BudgetPayment[]> = {},
+  _paymentsBySection?: unknown,
 ): DashboardKpis {
+  void _paymentsBySection;
   let paid = 0;
   let open = 0;
   for (const invs of Object.values(invoicesBySection)) {
@@ -58,11 +51,6 @@ export function computeDashboardKpis(
       if (!Number.isFinite(inv.castka)) continue;
       if (inv.status === "PAID") paid += inv.castka;
       else if (inv.status === "OPEN") open += inv.castka;
-    }
-  }
-  for (const pays of Object.values(paymentsBySection)) {
-    for (const p of pays) {
-      if (Number.isFinite(p.castka)) paid += p.castka;
     }
   }
   const drawn = drawdowns.reduce(
@@ -143,13 +131,14 @@ const AT_PLAN_THRESHOLD_PERCENT = 5;
 export function computeSectionVariance(
   section: Pick<BudgetSection, "expectedAmountCzk">,
   invoices: BudgetInvoice[],
-  payments: BudgetPayment[] = [],
+  _payments?: unknown,
 ): SectionVariance {
+  void _payments;
   const planned =
     Number.isFinite(section.expectedAmountCzk as number)
       ? Math.round(section.expectedAmountCzk as number)
       : null;
-  const actual = computeSectionPaidTotal(invoices, payments);
+  const actual = computeSectionPaidTotal(invoices);
 
   if (planned === null) {
     return {
@@ -202,16 +191,16 @@ export interface OverallVariance {
 export function computeOverallVariance(
   sections: BudgetSection[],
   invoicesBySection: Record<string, BudgetInvoice[]>,
-  paymentsBySection: Record<string, BudgetPayment[]> = {},
+  _paymentsBySection?: unknown,
 ): OverallVariance {
+  void _paymentsBySection;
   let totalPlanned = 0;
   let totalActual = 0;
   let variance = 0;
   let plannedCount = 0;
   for (const s of sections) {
     const invs = invoicesBySection[s.id] ?? [];
-    const pays = paymentsBySection[s.id] ?? [];
-    const v = computeSectionVariance(s, invs, pays);
+    const v = computeSectionVariance(s, invs);
     totalActual += v.actualCzk;
     if (v.plannedCzk !== null) {
       totalPlanned += v.plannedCzk;

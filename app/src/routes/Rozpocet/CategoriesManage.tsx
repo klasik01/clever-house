@@ -100,7 +100,7 @@ export default function CategoriesManage() {
         <ul className="space-y-2">
           {state.categories.map((c) => (
             <li key={c.id}>
-              <div className="flex items-stretch rounded-md border border-line bg-surface">
+              <div className="flex items-stretch rounded-md border border-line bg-surface pr-1">
                 <div className="flex flex-1 items-center gap-3 px-4 py-3">
                   <Tag aria-hidden size={14} className="text-ink-muted shrink-0" />
                   <span className="text-sm text-ink truncate flex-1">{c.label}</span>
@@ -109,7 +109,7 @@ export default function CategoriesManage() {
                   type="button"
                   onClick={() => setModal({ mode: "edit", category: c })}
                   aria-label={t("budget.category.editAria", { label: c.label })}
-                  className="grid size-tap place-items-center border-l border-line text-ink-muted hover:bg-bg-subtle"
+                  className="grid h-tap w-9 place-items-center text-ink-muted hover:bg-bg-subtle rounded-md self-stretch my-auto"
                 >
                   <Pencil aria-hidden size={16} />
                 </button>
@@ -117,7 +117,7 @@ export default function CategoriesManage() {
                   type="button"
                   onClick={() => setDeleteTarget(c)}
                   aria-label={t("budget.category.deleteAria", { label: c.label })}
-                  className="grid size-tap place-items-center border-l border-line text-ink-muted hover:bg-bg-subtle"
+                  className="grid h-tap w-9 place-items-center text-ink-muted hover:bg-bg-subtle rounded-md self-stretch my-auto"
                 >
                   <Trash2 aria-hidden size={16} />
                 </button>

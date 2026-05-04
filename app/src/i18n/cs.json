@@ -131,8 +131,6 @@
     "phases": "Fáze stavby",
     "budgetSection": "Rozpočet",
     "budgetHypoteka": "Hypotéka",
-    "budgetAccounts": "Účty",
-    "budgetBalance": "Zůstatek BÚ",
     "budgetCategories": "Kategorie rozpočtu"
   },
   "otazky": {
@@ -1029,7 +1027,13 @@
       "editPlanCta": "Upravit plán",
       "setPlanCta": "Nastavit plán",
       "filterPhaseLabel": "Etapa",
-      "filterCategoryLabel": "Kategorie"
+      "filterCategoryLabel": "Kategorie",
+      "quotedLabel": "Cen. nabídka",
+      "editQuotedCta": "Upravit nabídku",
+      "setQuotedCta": "Zadat nabídku",
+      "searchPlaceholder": "Hledat sekci podle názvu…",
+      "searchAriaLabel": "Vyhledat sekci",
+      "searchClear": "Vymazat hledaný text"
     },
     "section": {
       "newTitle": "Nová sekce",
@@ -1074,7 +1078,12 @@
       "pdfErrorOpen": "Nepovedlo se otevřít PDF.",
       "uploading": "Nahrávám…",
       "errorPdfType": "Příloha musí být PDF.",
-      "errorPdfSize": "PDF je moc velké ({mb} MB). Limit je 10 MB."
+      "errorPdfSize": "PDF je moc velké ({mb} MB). Limit je 10 MB.",
+      "nazevLabel": "Název / co se platilo (volitelné)",
+      "nazevPlaceholder": "např. Záloha okna, Šrouby Hornbach, Doplatek elektro…",
+      "supplierLabel": "Dodavatel (volitelný)",
+      "supplierPlaceholder": "např. Heluz, Hornbach, instalatér Novák…",
+      "untitled": "(bez názvu)"
     },
     "status": {
       "open": "Otevřená",
@@ -1107,7 +1116,12 @@
       "saved": "Uloženo.",
       "statusLimit": "Limit",
       "statusDrawn": "Vyčerpáno",
-      "statusRemaining": "Zbývá"
+      "statusRemaining": "Zbývá",
+      "lockedHint": "Hypotéka je nastavena. Změna vyžaduje potvrzení.",
+      "editCta": "Upravit hypotéku",
+      "confirmEditTitle": "Opravdu změnit hypotéku?",
+      "confirmEditBody": "Změna schválené částky, banky nebo data ovlivní výpočty (zbývající limit, cashflow). Zvaž, jestli to opravdu chceš.",
+      "confirmEditBtn": "Ano, chci upravit"
     },
     "drawdown": {
       "newTitle": "Nové čerpání",
@@ -1143,99 +1157,6 @@
       "underLabel": "Pod plánem",
       "atLabel": "V plánu",
       "overLabel": "Nad plánem"
-    },
-    "quote": {
-      "newTitle": "Nová cenová nabídka",
-      "editTitle": "Upravit cenovou nabídku",
-      "addCta": "Nabídka",
-      "intro": "Cenová nabídka je orientační odhad — nesčítá se do „zaplaceno\".",
-      "amountLabel": "Částka (Kč)",
-      "supplierLabel": "Dodavatel",
-      "supplierPlaceholder": "např. Heluz, Kasper, …",
-      "noteLabel": "Poznámka (volitelná)",
-      "notePlaceholder": "např. nabídka platná do 30. 6.",
-      "errorAmount": "Částka musí být kladné číslo.",
-      "errorDelete": "Nepovedlo se smazat nabídku.",
-      "add": "Přidat",
-      "deleteAria": "Smazat nabídku {amount}",
-      "deleteConfirmTitle": "Smazat nabídku?",
-      "deleteConfirmBody": "Opravdu smazat nabídku {amount}? Akce je nevratná.",
-      "listTitle": "Cenové nabídky",
-      "loading": "Načítám…",
-      "errorLoad": "Nepovedlo se načíst nabídky.",
-      "emptyDesc": "Žádné nabídky. Přidej tu, kterou jsi obdržel od dodavatele."
-    },
-    "payment": {
-      "newTitle": "Nová mimo-fakturní platba",
-      "editTitle": "Upravit platbu",
-      "addCta": "Platba",
-      "intro": "Mimo-fakturní výdaj — typicky hotovost, Hornbach, drobné nákupy. Sčítá se do „zaplaceno\".",
-      "amountLabel": "Částka (Kč)",
-      "datumLabel": "Datum platby",
-      "supplierLabel": "Dodavatel / místo",
-      "supplierPlaceholder": "např. Hornbach, instalatér Novák, …",
-      "noteLabel": "Poznámka (volitelná)",
-      "notePlaceholder": "např. šrouby a kotvy, hotově",
-      "errorAmount": "Částka musí být kladné číslo.",
-      "errorDatum": "Vyplň datum platby.",
-      "errorDelete": "Nepovedlo se smazat platbu.",
-      "add": "Přidat",
-      "deleteAria": "Smazat platbu {amount}",
-      "deleteConfirmTitle": "Smazat platbu?",
-      "deleteConfirmBody": "Opravdu smazat platbu {amount}? Akce je nevratná.",
-      "listTitle": "Mimo-fakturní výdaje",
-      "loading": "Načítám…",
-      "errorLoad": "Nepovedlo se načíst platby.",
-      "emptyDesc": "Žádné mimo-fakturní výdaje."
-    },
-    "account": {
-      "manageTitle": "Účty",
-      "newTitle": "Nový účet",
-      "editTitle": "Upravit účet",
-      "addCta": "Nový účet",
-      "intro": "Spravuj účty, ze kterých platíš stavbu. První 3 (běžný, hypoteční, hotovost) přidáme automaticky — můžeš je upravit nebo přidat další (např. manželčin BU).",
-      "labelLabel": "Název účtu",
-      "labelPlaceholder": "např. Stáňa BU mBank",
-      "kindLabel": "Druh účtu",
-      "kind": {
-        "BEZNY": "Běžný účet",
-        "HYPOTECNI": "Hypoteční účet",
-        "HOTOVOST": "Hotovost",
-        "CUSTOM": "Jiný"
-      },
-      "loading": "Načítám účty…",
-      "errorLoad": "Nepovedlo se načíst účty.",
-      "errorDelete": "Nepovedlo se smazat účet.",
-      "bootstrapping": "Připravuju výchozí 3 účty…",
-      "editAria": "Upravit účet {label}",
-      "deleteAria": "Smazat účet {label}",
-      "deleteConfirmTitle": "Smazat účet?",
-      "deleteConfirmBody": "Smazat účet „{label}\"? Faktury, platby a čerpání s ním spojené zůstanou, ale ztratí přiřazení.",
-      "pickerLabel": "Účet",
-      "pickerPlaceholder": "— vyber účet —"
-    },
-    "balance": {
-      "title": "Aktuální zůstatek BÚ",
-      "intro": "Manuálně doplň aktuální zůstatek na běžném účtu(ech). Slouží pro výpočet, jak dlouho ti peníze vydrží proti otevřeným fakturám.",
-      "currentLabel": "Aktuální zůstatek",
-      "lastUpdate": "Naposledy {when}",
-      "amountLabel": "Zůstatek (Kč)",
-      "amountHint": "Sečti zůstatky všech BÚ, hypotéčního účtu jen pokud na něm nejsou peníze čekající k vyčerpání.",
-      "noteLabel": "Poznámka (volitelná)",
-      "notePlaceholder": "např. po výplatě, po čerpání tranše, k dnešku…",
-      "errorAmount": "Zůstatek musí být nezáporné číslo.",
-      "saved": "Zůstatek aktualizován.",
-      "historyTitle": "Historie aktualizací (posledních 10)"
-    },
-    "runway": {
-      "title": "Cash runway",
-      "until": "Peníze vystačí do {monthName} ({months} měsíců)",
-      "lots": "Peníze vystačí na {months}+ měsíců",
-      "setupCta": "Nastav aktuální zůstatek BÚ",
-      "setupBody": "Bez zůstatku nelze počítat, jak dlouho ti peníze vydrží proti běžnému utrácení.",
-      "notEnoughData": "Nedostatek dat pro runway",
-      "notEnoughDataBody": "Potřebuju aspoň jednu zaplacenou fakturu nebo platbu v posledních 90 dnech.",
-      "staleNudge": "Zůstatek BÚ naposledy aktualizován před {n} dny — runway nemusí sedět"
     },
     "charts": {
       "planVsActualTitle": "Plán vs. skutečnost",
@@ -1280,6 +1201,23 @@
       "deleteConfirmBody": "Smazat kategorii „{label}\"? Sekce s ní spojené ji ztratí.",
       "pickerLabel": "Kategorie (volitelné)",
       "pickerEmpty": "— žádná kategorie —"
+    },
+    "paymentMethod": {
+      "label": "Způsob platby",
+      "ONLINE": "Online (převodem)",
+      "HOTOVOST": "Hotovost",
+      "errorRequired": "Vyber, jak bylo placeno."
+    },
+    "quoted": {
+      "title": "Cenová nabídka",
+      "intro": "Referenční cena z nabídky dodavatele. Slouží k porovnání s plánem a skutečností.",
+      "amountLabel": "Cenová nabídka (Kč)",
+      "supplierLabel": "Dodavatel (volitelné)",
+      "supplierPlaceholder": "např. Heluz, …",
+      "noteLabel": "Poznámka ke změně",
+      "notePlaceholder": "např. nová nabídka po jednání, sleva 5%, …",
+      "errorAmount": "Cenová nabídka musí být nezáporné číslo.",
+      "errorNote": "Poznámka musí mít alespoň 3 znaky."
     }
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown, ChevronRight, Copy, CreditCard, FileDown, FileText, Landmark, LogOut, MapPin, Milestone, RefreshCw, Tag, Wallet } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, Landmark, LogOut, MapPin, Milestone, RefreshCw, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -93,16 +93,6 @@ export default function Settings() {
             to={ROUTES.nastaveniRozpocetHypoteka}
             icon={<Landmark size={18} aria-hidden />}
             label={t("settings.budgetHypoteka")}
-          />
-          <LinkRow
-            to={ROUTES.nastaveniRozpocetUctu}
-            icon={<CreditCard size={18} aria-hidden />}
-            label={t("settings.budgetAccounts")}
-          />
-          <LinkRow
-            to={ROUTES.nastaveniRozpocetZustatek}
-            icon={<Wallet size={18} aria-hidden />}
-            label={t("settings.budgetBalance")}
           />
           <LinkRow
             to={ROUTES.nastaveniRozpocetKategorie}

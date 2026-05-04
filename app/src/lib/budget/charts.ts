@@ -1,7 +1,6 @@
 import type {
   BankDrawdown,
   BudgetInvoice,
-  BudgetPayment,
   BudgetSection,
 } from "@/types";
 import { computeSectionPaidTotal, computeSectionVariance } from "./totals";
@@ -27,13 +26,13 @@ export interface ChartSectionDatum {
 export function selectChartSections(
   sections: BudgetSection[],
   invoicesBySection: Record<string, BudgetInvoice[]>,
-  paymentsBySection: Record<string, BudgetPayment[]> = {},
+  _paymentsBySection?: unknown,
   topN = 5,
 ): ChartSectionDatum[] {
+  void _paymentsBySection;
   const items: ChartSectionDatum[] = sections.map((s) => {
     const invs = invoicesBySection[s.id] ?? [];
-    const pays = paymentsBySection[s.id] ?? [];
-    const v = computeSectionVariance(s, invs, pays);
+    const v = computeSectionVariance(s, invs);
     return {
       sectionId: s.id,
       title: s.title,
@@ -99,10 +98,11 @@ const CS_MONTH_SHORT: Record<string, string> = {
 export function bucketByMonth(
   drawdowns: BankDrawdown[],
   invoices: BudgetInvoice[],
-  payments: BudgetPayment[],
+  _payments: unknown[] | undefined,
   todayIso: string,
   monthsBack = 6,
 ): CumulativeBucket[] {
+  void _payments;
   const buckets = new Map<string, MonthBucket>();
   // Pre-create N month buckets ending at today's month.
   const todayDate = new Date(todayIso + "T00:00:00Z");
@@ -147,10 +147,6 @@ export function bucketByMonth(
       bumpBucket(i.datumPlatby, "paidCzk", i.castka);
     }
   }
-  for (const p of payments || []) {
-    bumpBucket(p.datum, "paidCzk", p.castka);
-  }
-
   // Order chronologically + cumulative.
   const ordered = Array.from(buckets.values()).sort((a, b) =>
     a.startIso < b.startIso ? -1 : 1,
@@ -193,21 +189,20 @@ const OTHER_ID = "__other__";
 export function groupSectionsForDonut(
   sections: BudgetSection[],
   invoicesBySection: Record<string, BudgetInvoice[]>,
-  paymentsBySection: Record<string, BudgetPayment[]> = {},
+  _paymentsBySection?: unknown,
   topN = 5,
 ): {
   slices: DonutSlice[];
   totalCzk: number;
 } {
-  // Compute paid per section.
+  void _paymentsBySection;
   const sectionsWithTotal = sections
     .map((s) => {
       const invs = invoicesBySection[s.id] ?? [];
-      const pays = paymentsBySection[s.id] ?? [];
       return {
         id: s.id,
         title: s.title,
-        amountCzk: computeSectionPaidTotal(invs, pays),
+        amountCzk: computeSectionPaidTotal(invs),
       };
     })
     .filter((s) => s.amountCzk > 0)

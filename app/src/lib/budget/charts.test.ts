@@ -8,7 +8,6 @@ import {
 import type {
   BankDrawdown,
   BudgetInvoice,
-  BudgetPayment,
   BudgetSection,
 } from "@/types";
 
@@ -31,18 +30,6 @@ function inv(p: Partial<BudgetInvoice>): BudgetInvoice {
     status: p.status ?? "OPEN",
     splatnost: p.splatnost,
     datumPlatby: p.datumPlatby,
-    createdBy: "u1",
-    createdAt: 0,
-    updatedAt: 0,
-  };
-}
-
-function pay(p: Partial<BudgetPayment>): BudgetPayment {
-  return {
-    id: p.id ?? "p1",
-    sectionId: p.sectionId ?? "s1",
-    castka: p.castka ?? 0,
-    datum: p.datum ?? "2026-05-04",
     createdBy: "u1",
     createdAt: 0,
     updatedAt: 0,
@@ -97,15 +84,6 @@ describe("selectChartSections", () => {
     expect(selectChartSections([], {})).toEqual([]);
   });
 
-  it("započítá payments do actualu", () => {
-    const sections = [sec({ id: "s1", expectedAmountCzk: 100_000 })];
-    const result = selectChartSections(
-      sections,
-      { s1: [inv({ status: "PAID", castka: 50_000 })] },
-      { s1: [pay({ castka: 30_000 })] },
-    );
-    expect(result[0]?.actualCzk).toBe(80_000);
-  });
 });
 
 describe("bucketByMonth", () => {
@@ -130,12 +108,12 @@ describe("bucketByMonth", () => {
     expect(buckets[buckets.length - 1]?.cumulativeDrawnCzk).toBe(1_500_000);
   });
 
-  it("paid invoices + payments se sčítají do paidCzk", () => {
+  it("paid invoices se sčítají do paidCzk", () => {
     const invoices = [
       inv({ status: "PAID", castka: 50_000, datumPlatby: "2026-04-15" }),
+      inv({ status: "PAID", castka: 30_000, datumPlatby: "2026-04-20" }),
     ];
-    const payments = [pay({ castka: 30_000, datum: "2026-04-15" })];
-    const buckets = bucketByMonth([], invoices, payments, today, 6);
+    const buckets = bucketByMonth([], invoices, [], today, 6);
     expect(buckets.find((b) => b.key === "2026-04")?.paidCzk).toBe(80_000);
   });
 
@@ -232,14 +210,5 @@ describe("groupSectionsForDonut", () => {
     expect(Math.round(total)).toBe(100);
   });
 
-  it("payments se započtou", () => {
-    const sections = [sec({ id: "s1" })];
-    const result = groupSectionsForDonut(
-      sections,
-      { s1: [inv({ status: "PAID", castka: 100 })] },
-      { s1: [pay({ castka: 50 })] },
-    );
-    expect(result.totalCzk).toBe(150);
-    expect(result.slices[0]?.amountCzk).toBe(150);
-  });
+
 });

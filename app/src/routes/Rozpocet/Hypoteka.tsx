@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Landmark, Plus, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { Landmark, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { useBankDrawdowns } from "@/hooks/useBankDrawdowns";
@@ -66,14 +66,6 @@ export default function RozpocetHypoteka() {
         >
           {t("budget.hypoteka.title")}
         </h2>
-        <Link
-          to={ROUTES.nastaveniRozpocetHypoteka}
-          className="grid size-10 place-items-center rounded-md border border-line text-ink-muted hover:bg-bg-subtle"
-          aria-label={t("budget.hypoteka.settingsAria")}
-          title={t("common.settings")}
-        >
-          <SettingsIcon aria-hidden size={16} />
-        </Link>
       </header>
 
       {/* Status panel */}
@@ -123,11 +115,11 @@ export default function RozpocetHypoteka() {
         <ul className="space-y-2">
           {drawdowns.map((d) => (
             <li key={d.id}>
-              <div className="flex items-stretch rounded-md border border-line bg-surface">
+              <div className="flex items-stretch rounded-md border border-line bg-surface pr-1">
                 <button
                   type="button"
                   onClick={() => setModal({ mode: "edit", drawdown: d })}
-                  className="flex flex-1 min-h-tap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-bg-subtle"
+                  className="flex flex-1 min-h-tap items-center justify-between gap-3 px-4 py-3 text-left hover:bg-bg-subtle rounded-l-md min-w-0"
                 >
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -157,7 +149,7 @@ export default function RozpocetHypoteka() {
                     amount: formatCzk(d.castka),
                   })}
                   title={t("common.delete")}
-                  className="grid size-tap place-items-center border-l border-line text-ink-muted hover:bg-bg-subtle"
+                  className="grid h-tap w-9 place-items-center text-ink-muted hover:bg-bg-subtle rounded-md self-stretch my-auto"
                 >
                   <Trash2 aria-hidden size={16} />
                 </button>

@@ -14,7 +14,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { BudgetInvoice, InvoiceStatus } from "@/types";
+import type { BudgetInvoice, InvoiceStatus, PaymentMethod } from "@/types";
 import { deleteInvoicePdf } from "./storage";
 
 const SECTION_COLL = "budget_sections";
@@ -25,7 +25,9 @@ interface InvoiceInput {
   status: InvoiceStatus;
   datumPlatby?: string | null;
   splatnost?: string | null;
-  ucetId?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  nazev?: string;
+  supplier?: string;
 }
 
 function fromDocSnap(
@@ -50,10 +52,18 @@ function fromDocSnap(
       typeof data.pdfPath === "string" && data.pdfPath.length > 0
         ? data.pdfPath
         : null,
-    ucetId:
-      typeof data.ucetId === "string" && data.ucetId.length > 0
-        ? data.ucetId
+    paymentMethod:
+      data.paymentMethod === "ONLINE" || data.paymentMethod === "HOTOVOST"
+        ? data.paymentMethod
         : null,
+    nazev:
+      typeof data.nazev === "string" && data.nazev.length > 0
+        ? data.nazev
+        : undefined,
+    supplier:
+      typeof data.supplier === "string" && data.supplier.length > 0
+        ? data.supplier
+        : undefined,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
@@ -73,6 +83,11 @@ function toMillis(value: unknown): number {
 }
 
 function validateInvoiceInput(input: InvoiceInput): void {
+  // Lib-level validation: jen castka (povinná) + datum/splatnost podle statusu.
+  // Pole nazev a paymentMethod jsou OPTIONAL na lib úrovni — modal je
+  // doporučuje vyplnit přes UI, ale legacy faktury bez těchto polí lze
+  // uložit (nepadá save existujících záznamů, které byly vytvořené před
+  // R2/R3 introdukující tyto sloupce).
   if (!Number.isFinite(input.castka) || input.castka <= 0) {
     throw new Error("Částka musí být kladné číslo.");
   }
@@ -97,7 +112,9 @@ export async function createInvoice(
       status: input.status,
       datumPlatby: input.status === "PAID" ? input.datumPlatby ?? null : null,
       splatnost: input.splatnost ?? null,
-      ucetId: input.ucetId ?? null,
+      paymentMethod: input.paymentMethod ?? null,
+      nazev: input.nazev?.trim() || null,
+      supplier: input.supplier?.trim() || null,
       createdBy,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -117,6 +134,9 @@ export async function updateInvoice(
     status: input.status,
     datumPlatby: input.status === "PAID" ? input.datumPlatby ?? null : null,
     splatnost: input.splatnost ?? null,
+    paymentMethod: input.paymentMethod ?? null,
+    nazev: input.nazev?.trim() || null,
+    supplier: input.supplier?.trim() || null,
     updatedAt: serverTimestamp(),
   });
 }

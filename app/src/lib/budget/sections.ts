@@ -55,6 +55,25 @@ function fromDocSnap(id: string, data: Record<string, unknown>): BudgetSection {
           note: typeof entry.note === "string" ? entry.note : undefined,
         }))
       : [],
+    quotedAmountCzk:
+      typeof data.quotedAmountCzk === "number"
+        ? Math.round(data.quotedAmountCzk)
+        : null,
+    quotedHistory: Array.isArray(data.quotedHistory)
+      ? (data.quotedHistory as Array<Record<string, unknown>>).map((entry) => ({
+          amountCzk:
+            typeof entry.amountCzk === "number" ? Math.round(entry.amountCzk) : 0,
+          changedAt:
+            typeof entry.changedAt === "string" ? entry.changedAt : "",
+          changedBy:
+            typeof entry.changedBy === "string" ? entry.changedBy : "",
+          note: typeof entry.note === "string" ? entry.note : undefined,
+        }))
+      : [],
+    quotedSupplier:
+      typeof data.quotedSupplier === "string" && data.quotedSupplier.length > 0
+        ? data.quotedSupplier
+        : null,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
@@ -145,6 +164,39 @@ export async function setExpectedAmount(
   await updateDoc(ref, {
     expectedAmountCzk: Math.round(amountCzk),
     expectedHistory: [...prevHistory, newEntry],
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function setQuotedAmount(
+  id: string,
+  amountCzk: number,
+  supplier: string | undefined,
+  note: string,
+  changedBy: string,
+): Promise<void> {
+  if (!Number.isFinite(amountCzk) || amountCzk < 0) {
+    throw new Error("Cenová nabídka musí být nezáporné číslo.");
+  }
+  if (!note || note.trim().length < 3) {
+    throw new Error("U změny cenové nabídky doplň krátkou poznámku (alespoň 3 znaky).");
+  }
+  const ref = doc(db, COLL, id);
+  const snap = await getDoc(ref);
+  const prevHistory: unknown[] = snap.exists() && Array.isArray(snap.data().quotedHistory)
+    ? (snap.data().quotedHistory as unknown[])
+    : [];
+  const now = new Date().toISOString();
+  const entry = {
+    amountCzk: Math.round(amountCzk),
+    changedAt: now,
+    changedBy,
+    note: note.trim(),
+  };
+  await updateDoc(ref, {
+    quotedAmountCzk: Math.round(amountCzk),
+    quotedSupplier: supplier?.trim() || null,
+    quotedHistory: [...prevHistory, entry],
     updatedAt: serverTimestamp(),
   });
 }

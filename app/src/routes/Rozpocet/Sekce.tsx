@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Milestone, Plus, Tag } from "lucide-react";
+import { Milestone, Plus, Search, Tag, X } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
-import { useAllPayments } from "@/hooks/useAllPayments";
 import { usePhases } from "@/hooks/usePhases";
 import { useBudgetCategories } from "@/hooks/useBudgetCategories";
 import { computeSectionPaidTotal, computeSectionVariance } from "@/lib/budget/totals";
@@ -19,23 +18,20 @@ export default function RozpocetSekce() {
   const navigate = useNavigate();
   const sectionsState = useBudgetSections();
   const invoicesState = useAllInvoices();
-  const paymentsState = useAllPayments();
   const { phases } = usePhases(true);
   const categoriesState = useBudgetCategories();
   const [modalOpen, setModalOpen] = useState(false);
   const [phaseFilter, setPhaseFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const grandTotal = useMemo(() => {
     if (sectionsState.status !== "ready" || invoicesState.status !== "ready") return 0;
-    const paymentsBy =
-      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
     return sectionsState.sections.reduce((sum, s) => {
       const invs = invoicesState.invoicesBySectionId[s.id] ?? [];
-      const pays = paymentsBy[s.id] ?? [];
-      return sum + computeSectionPaidTotal(invs, pays);
+      return sum + computeSectionPaidTotal(invs);
     }, 0);
-  }, [sectionsState, invoicesState, paymentsState]);
+  }, [sectionsState, invoicesState]);
 
   return (
     <section
@@ -74,6 +70,7 @@ export default function RozpocetSekce() {
         <EmptyState onCreate={() => setModalOpen(true)} />
       ) : (
         <>
+          <SearchInput value={searchQuery} onChange={setSearchQuery} />
           <FilterChips
             phases={phases}
             categories={categoriesState.status === "ready" ? categoriesState.categories : []}
@@ -93,6 +90,12 @@ export default function RozpocetSekce() {
               ) {
                 return false;
               }
+              if (
+                searchQuery.trim() &&
+                !s.title.toLowerCase().includes(searchQuery.trim().toLowerCase())
+              ) {
+                return false;
+              }
               return true;
             })
             .map((s) => {
@@ -100,11 +103,7 @@ export default function RozpocetSekce() {
               invoicesState.status === "ready"
                 ? invoicesState.invoicesBySectionId[s.id] ?? []
                 : [];
-            const pays =
-              paymentsState.status === "ready"
-                ? paymentsState.paymentsBySectionId[s.id] ?? []
-                : [];
-            const v = computeSectionVariance(s, invs, pays);
+            const v = computeSectionVariance(s, invs);
             const phase = s.phaseId ? phases.find((p) => p.id === s.phaseId) : undefined;
             const cats =
               categoriesState.status === "ready"
@@ -116,7 +115,7 @@ export default function RozpocetSekce() {
               <SectionRow
                 key={s.id}
                 section={s}
-                paidTotal={computeSectionPaidTotal(invs, pays)}
+                paidTotal={computeSectionPaidTotal(invs)}
                 variance={v}
                 phase={phase}
                 categories={cats}
@@ -214,6 +213,43 @@ function SectionRow({
         </div>
       </button>
     </li>
+  );
+}
+
+function SearchInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="relative">
+      <Search
+        aria-hidden
+        size={16}
+        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle"
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t("budget.sekce.searchPlaceholder")}
+        aria-label={t("budget.sekce.searchAriaLabel")}
+        className="w-full rounded-md border border-line bg-surface pl-9 pr-9 py-2 text-sm text-ink min-h-tap focus:border-accent focus:outline-none"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label={t("budget.sekce.searchClear")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 grid size-7 place-items-center rounded-md text-ink-muted hover:bg-bg-subtle"
+        >
+          <X aria-hidden size={14} />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
