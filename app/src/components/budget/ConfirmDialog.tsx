@@ -62,8 +62,8 @@ export default function ConfirmDialog({
             <X aria-hidden size={18} />
           </button>
         </div>
-        <div className="px-4 py-4 text-sm text-ink leading-relaxed">{message}</div>
-        <div className="flex justify-end gap-3 border-t border-line px-4 py-3">
+        <div className="flex-1 overflow-y-auto px-4 py-4 text-sm text-ink leading-relaxed">{message}</div>
+        <div className="shrink-0 flex justify-end gap-3 border-t border-line bg-bg px-4 py-3">
           <button
             type="button"
             onClick={onClose}

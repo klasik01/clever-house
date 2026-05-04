@@ -77,7 +77,7 @@ export default function BudgetCategoryModal({
       onClick={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4 pt-safe pb-safe"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 pt-safe pb-safe"
       role="dialog"
       aria-modal="true"
       aria-label={
@@ -86,8 +86,8 @@ export default function BudgetCategoryModal({
           : t("budget.category.editTitle")
       }
     >
-      <div className="w-full max-w-md overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+      <div className="w-full max-w-md max-h-full flex flex-col overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line">
+        <div className="shrink-0 flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-base font-semibold text-ink">
             {mode === "create"
               ? t("budget.category.newTitle")
@@ -103,7 +103,8 @@ export default function BudgetCategoryModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <label className="block text-sm font-medium text-ink">
             {t("budget.category.labelLabel")}
             <span className="text-status-danger-fg" aria-hidden> *</span>
@@ -129,7 +130,8 @@ export default function BudgetCategoryModal({
             </p>
           ) : null}
 
-          <div className="flex justify-end gap-3 pt-2">
+          </div>
+          <div className="shrink-0 border-t border-line bg-bg px-4 py-3 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
