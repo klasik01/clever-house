@@ -60,8 +60,10 @@ export const ROUTES = {
   /** Export ZIP (OWNER-only). */
   export: "/export",
 
-  /** PM-only views. */
+  /** Rozpočet — V27 OWNER-only finance tracker (in-app mode "Rozpočet"). */
   rozpocet: "/rozpocet",
+  rozpocetSekce: "/rozpocet/sekce",
+  rozpocetHypoteka: "/rozpocet/hypoteka",
   /** @deprecated V23 — replaced by /dokumentace. Kept for legacy redirect. */
   harmonogram: "/harmonogram",
 
@@ -113,6 +115,26 @@ export function lokaceDetail(locationId: string): string {
   return `/lokace/${locationId}`;
 }
 
+/** Rozpočet — list sekcí. */
+export function rozpocetSekce(): string {
+  return ROUTES.rozpocetSekce;
+}
+
+/** Rozpočet — detail sekce. */
+export function rozpocetSekceDetail(sectionId: string): string {
+  return `/rozpocet/sekce/${sectionId}`;
+}
+
+/** Rozpočet — hypotéka. */
+export function rozpocetHypoteka(): string {
+  return ROUTES.rozpocetHypoteka;
+}
+
+/** Rozpočet — dashboard (= /rozpocet). */
+export function rozpocetDashboard(): string {
+  return ROUTES.rozpocet;
+}
+
 // ---------- Pattern templates (pro <Route path={...}>) ----------
 
 /**
@@ -126,5 +148,6 @@ export const ROUTE_PATTERNS = {
   eventEdit: "/event/:id/edit",
   kategorieDetail: "/kategorie/:id",
   lokaceDetail: "/lokace/:id",
+  rozpocetSekceDetail: "/rozpocet/sekce/:id",
   catchAll: "*",
 } as const;

@@ -49,7 +49,13 @@ export type ActionKey =
   | "documentTypes.manage"
   // ---------- Settings ----------
   | "settings.profile"
-  | "settings.calendarToken";
+  | "settings.calendarToken"
+  // ---------- Budget (V27 OWNER-only) ----------
+  | "budget.read"
+  | "budget.section.create"
+  | "budget.section.edit"
+  | "budget.section.delete"
+  | "budget.invoice.write";
 
 /**
  * Vlastnictví záznamu — určuje, jestli akce vyžaduje autorství navíc
@@ -219,6 +225,33 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
     roles: ["OWNER", "PROJECT_MANAGER", "CONSTRUCTION_MANAGER"],
     description: "Generovat / rotovat osobní token pro webcal subscription. Všechny role.",
     rulesAt: "users/{uid}/update — self + diff hasOnly([calendarToken,…])",
+  },
+
+  // ---------- Budget (V27 OWNER-only) ----------
+  "budget.read": {
+    roles: ["OWNER"],
+    description: "Číst rozpočet (sekce, faktury, KPI). Visible jen OWNER.",
+    rulesAt: "firestore.rules → match /budget_sections/{sid} allow read",
+  },
+  "budget.section.create": {
+    roles: ["OWNER"],
+    description: "Vytvořit novou sekci rozpočtu.",
+    rulesAt: "firestore.rules → match /budget_sections/{sid} allow create",
+  },
+  "budget.section.edit": {
+    roles: ["OWNER"],
+    description: "Upravit sekci rozpočtu (title, description, expected).",
+    rulesAt: "firestore.rules → match /budget_sections/{sid} allow update",
+  },
+  "budget.section.delete": {
+    roles: ["OWNER"],
+    description: "Smazat sekci včetně všech jejích faktur (cascade v UI).",
+    rulesAt: "firestore.rules → match /budget_sections/{sid} allow delete",
+  },
+  "budget.invoice.write": {
+    roles: ["OWNER"],
+    description: "CRUD faktur pod sekcí (subcollection /invoices).",
+    rulesAt: "firestore.rules → match /budget_sections/{sid}/invoices/{iid}",
   },
 };
 

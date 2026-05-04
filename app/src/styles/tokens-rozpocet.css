@@ -1,0 +1,180 @@
+/* ============================================================
+   Rozpočet — Design Tokens (additions)
+   Generated 2026-05-04. Extends tokens.css + tokens-v3.css.
+   Importováno přes globals.css.
+   ============================================================ */
+
+:root {
+  /* ---- Money typography ---- */
+  --font-feature-money: "tnum" 1, "lnum" 1;
+
+  --font-size-kpi-sm: 1.5rem;
+  --font-size-kpi-md: 2.25rem;
+  --font-size-kpi-lg: 3rem;
+
+  /* ---- Money sémantické (light) ---- */
+  --color-money-positive: var(--success-700);
+  --color-money-negative: var(--danger-700);
+  --color-money-neutral:  var(--color-text-default);
+
+  /* ---- Variance — light ---- */
+  --color-variance-under-bg:     var(--success-50);
+  --color-variance-under-fg:     var(--success-700);
+  --color-variance-under-border: var(--success-300);
+
+  --color-variance-at-bg:     var(--stone-100);
+  --color-variance-at-fg:     var(--stone-700);
+  --color-variance-at-border: var(--stone-300);
+
+  --color-variance-over-bg:     var(--warning-50);
+  --color-variance-over-fg:     var(--warning-700);
+  --color-variance-over-border: var(--warning-300);
+
+  /* ---- Cash runway — light ---- */
+  --color-runway-safe-bg:     var(--success-50);
+  --color-runway-safe-fg:     var(--success-700);
+  --color-runway-safe-border: var(--success-300);
+
+  --color-runway-caution-bg:     var(--warning-50);
+  --color-runway-caution-fg:     var(--warning-700);
+  --color-runway-caution-border: var(--warning-300);
+
+  --color-runway-critical-bg:     var(--danger-50);
+  --color-runway-critical-fg:     var(--danger-700);
+  --color-runway-critical-border: var(--danger-300);
+
+  /* ---- Faktura overdue — light ---- */
+  --color-overdue-bg:     var(--danger-50);
+  --color-overdue-fg:     var(--danger-700);
+  --color-overdue-border: var(--danger-500);
+
+  /* ---- Account badges — light ---- */
+  --color-account-bezny-bg:     var(--info-50);
+  --color-account-bezny-fg:     var(--info-700);
+  --color-account-bezny-border: var(--info-300);
+
+  --color-account-hypotecni-bg:     var(--olive-100);
+  --color-account-hypotecni-fg:     var(--olive-800);
+  --color-account-hypotecni-border: var(--olive-300);
+
+  --color-account-hotovost-bg:     var(--oak-100);
+  --color-account-hotovost-fg:     var(--oak-800);
+  --color-account-hotovost-border: var(--oak-300);
+
+  --color-account-custom-bg:     var(--stone-200);
+  --color-account-custom-fg:     var(--stone-800);
+  --color-account-custom-border: var(--stone-400);
+
+  /* ---- Chart palette — light ---- */
+  --chart-c1: var(--olive-700);
+  --chart-c2: var(--oak-600);
+  --chart-c3: var(--info-700);
+  --chart-c4: var(--success-700);
+  --chart-c5: var(--warning-700);
+  --chart-c6: var(--danger-700);
+  --chart-c7: var(--stone-600);
+
+  /* ---- KPI tile sizing ---- */
+  --kpi-tile-padding:    var(--space-4);
+  --kpi-tile-gap:        var(--space-2);
+  --kpi-tile-radius:     var(--radius-lg);
+  --kpi-tile-min-height: 96px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --kpi-tile-min-height: 120px;
+  }
+}
+
+/* ---- Dark theme overrides ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-money-positive: var(--success-300);
+    --color-money-negative: var(--danger-300);
+
+    --color-variance-under-bg:     var(--success-900);
+    --color-variance-under-fg:     var(--success-300);
+    --color-variance-under-border: var(--success-700);
+
+    --color-variance-at-bg:     var(--stone-800);
+    --color-variance-at-fg:     var(--stone-200);
+    --color-variance-at-border: var(--stone-700);
+
+    --color-variance-over-bg:     var(--warning-900);
+    --color-variance-over-fg:     var(--warning-300);
+    --color-variance-over-border: var(--warning-700);
+
+    --color-runway-safe-bg:     var(--success-900);
+    --color-runway-safe-fg:     var(--success-300);
+    --color-runway-safe-border: var(--success-700);
+
+    --color-runway-caution-bg:     var(--warning-900);
+    --color-runway-caution-fg:     var(--warning-300);
+    --color-runway-caution-border: var(--warning-700);
+
+    --color-runway-critical-bg:     var(--danger-900);
+    --color-runway-critical-fg:     var(--danger-300);
+    --color-runway-critical-border: var(--danger-700);
+
+    --color-overdue-bg:     var(--danger-900);
+    --color-overdue-fg:     var(--danger-300);
+    --color-overdue-border: var(--danger-500);
+
+    --color-account-bezny-bg:     var(--info-900);
+    --color-account-bezny-fg:     var(--info-300);
+    --color-account-bezny-border: var(--info-700);
+
+    --color-account-hypotecni-bg:     var(--olive-900);
+    --color-account-hypotecni-fg:     var(--olive-200);
+    --color-account-hypotecni-border: var(--olive-700);
+
+    --color-account-hotovost-bg:     var(--oak-900);
+    --color-account-hotovost-fg:     var(--oak-200);
+    --color-account-hotovost-border: var(--oak-700);
+
+    --color-account-custom-bg:     var(--stone-800);
+    --color-account-custom-fg:     var(--stone-200);
+    --color-account-custom-border: var(--stone-600);
+
+    --chart-c1: var(--olive-300);
+    --chart-c2: var(--oak-300);
+    --chart-c3: var(--info-300);
+    --chart-c4: var(--success-300);
+    --chart-c5: var(--warning-300);
+    --chart-c6: var(--danger-300);
+    --chart-c7: var(--stone-400);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-money-positive: var(--success-300);
+  --color-money-negative: var(--danger-300);
+}
+
+/* ---- Helper utility classes ---- */
+.kpi-number {
+  font-size: var(--font-size-kpi-md);
+  font-weight: var(--font-weight-semibold);
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--color-text-default);
+  line-height: var(--line-height-tight);
+}
+
+@media (min-width: 768px) {
+  .kpi-number {
+    font-size: var(--font-size-kpi-lg);
+  }
+}
+
+.money-input {
+  text-align: right;
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.tabular-nums {
+  font-feature-settings: var(--font-feature-money);
+  font-variant-numeric: tabular-nums lining-nums;
+}

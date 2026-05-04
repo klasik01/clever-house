@@ -490,3 +490,63 @@ export interface NotificationItem {
   createdAt: string;
   readAt: string | null;
 }
+
+// ============================================================
+//  Rozpočet domu (V27) — budget tracking entities.
+//
+//  Žije v kořenových kolekcích Firestore /budget_sections/{id} +
+//  subcollection /budget_sections/{sid}/invoices/{id}. Sdílí stejnou
+//  Firestore project s clever-house. Visible jen pro role OWNER.
+//
+//  Viz DESIGN_BRIEF-rozpocet.md, INFORMATION_ARCHITECTURE-rozpocet.md.
+// ============================================================
+
+/** Sekce rozpočtu — rodičovský záznam (OKNA, Hrubá stavba, Elektro …). */
+export interface BudgetSection {
+  id: string;
+  title: string;
+  description?: string;
+  /** Manuálně zadaný plán (Slice S10+). null = nezadáno. */
+  expectedAmountCzk?: number | null;
+  /** Historie změn `expectedAmountCzk` (S10+). */
+  expectedHistory?: ExpectedHistoryEntry[];
+  /** Optional propojení na clever-house etapu (Slice S18+). */
+  phaseId?: string | null;
+  /** Optional kategorie (S19+). */
+  categoryIds?: string[];
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ExpectedHistoryEntry {
+  amountCzk: number;
+  changedAt: string; // ISO date
+  changedBy: string;
+  note?: string;
+}
+
+/** V27 — invoice lifecycle status. */
+export type InvoiceStatus = "OPEN" | "PAID";
+
+/** Faktura pod sekcí — `/budget_sections/{sid}/invoices/{id}`. */
+export interface BudgetInvoice {
+  id: string;
+  sectionId: string;
+  /** Částka v celých Kč (zaokrouhleno). */
+  castka: number;
+  status: InvoiceStatus;
+  /** ISO date "YYYY-MM-DD". Povinné u PAID, optional u OPEN (S05+ doplní splatnost). */
+  datumPlatby?: string;
+  /** Splatnost (přijde v S05). */
+  splatnost?: string;
+  /** Účet ze kterého se hradí (S13 OWNER-managed list). */
+  ucetId?: string | null;
+  /** Volitelné — dodavatel free-text. */
+  supplier?: string;
+  /** Cesta k PDF v Firebase Storage (S07+). */
+  pdfPath?: string | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}

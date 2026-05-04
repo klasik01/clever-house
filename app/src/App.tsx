@@ -25,7 +25,10 @@ import KategorieDetail from "./routes/KategorieDetail";
 import LokaceManage from "./routes/LokaceManage";
 import DocumentTypesManage from "./routes/DocumentTypesManage";
 import PhasesManage from "./routes/PhasesManage";
-import Rozpocet from "./routes/Rozpocet";
+import RozpocetDashboard from "./routes/Rozpocet/Dashboard";
+import RozpocetSekce from "./routes/Rozpocet/Sekce";
+import RozpocetSekceDetail from "./routes/Rozpocet/SekceDetail";
+import RozpocetHypoteka from "./routes/Rozpocet/Hypoteka";
 import Ukoly from "./routes/Ukoly";
 import Zaznamy from "./routes/Zaznamy";
 import Dokumentace from "./routes/Dokumentace";
@@ -73,7 +76,10 @@ export default function App() {
           <Route path={ROUTES.nastaveniLokace} element={<LokaceManageForOwner />} />
           <Route path={ROUTES.nastaveniTypyDokumentu} element={<DocTypesForOwner />} />
           <Route path={ROUTES.nastaveniFaze} element={<PhasesForOwner />} />
-          <Route path={ROUTES.rozpocet} element={<RozpocetForPm />} />
+          <Route path={ROUTES.rozpocet} element={<RozpocetForOwner><RozpocetDashboard /></RozpocetForOwner>} />
+          <Route path={ROUTES.rozpocetSekce} element={<RozpocetForOwner><RozpocetSekce /></RozpocetForOwner>} />
+          <Route path={ROUTE_PATTERNS.rozpocetSekceDetail} element={<RozpocetForOwner><RozpocetSekceDetail /></RozpocetForOwner>} />
+          <Route path={ROUTES.rozpocetHypoteka} element={<RozpocetForOwner><RozpocetHypoteka /></RozpocetForOwner>} />
           <Route path={ROUTES.harmonogram} element={<Navigate to={ROUTES.dokumentace} replace />} />
           <Route path={ROUTE_PATTERNS.kategorieDetail} element={<KategorieDetailForOwner />} />
           <Route path={ROUTE_PATTERNS.lokaceDetail} element={<LokaceDetailForOwner />} />
@@ -149,14 +155,14 @@ function ExportForOwner() {
   return <Export />;
 }
 
-/** PM-only: redirect OWNER and CM away from `/rozpocet`. */
-function RozpocetForPm() {
+/** V27 — OWNER-only gate pro /rozpocet/* (Rozpočet mode). PM + CM redirect na /ukoly. */
+function RozpocetForOwner({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const roleState = useUserRole(user?.uid);
-  if (roleState.status === "ready" && roleState.profile.role !== "PROJECT_MANAGER") {
-    return <Navigate to={ROUTES.home} replace />;
+  if (roleState.status === "ready" && roleState.profile.role !== "OWNER") {
+    return <Navigate to={ROUTES.ukoly} replace />;
   }
-  return <Rozpocet />;
+  return <>{children}</>;
 }
 
 /** OWNER-only: redirect PM and CM away from `/nastaveni/lokace`. */

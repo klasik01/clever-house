@@ -441,7 +441,11 @@
     "cancel": "Zrušit",
     "close": "Zavřít",
     "delete": "Smazat",
-    "edit": "Upravit"
+    "edit": "Upravit",
+    "create": "Vytvořit",
+    "deleting": "Mažu…",
+    "saving": "Ukládám…",
+    "confirm": "Potvrdit"
   },
   "aria": {
     "mainNav": "Hlavní navigace",
@@ -954,5 +958,89 @@
     "createdAt": "Datum vytvoření",
     "title": "Název",
     "ariaLabel": "Řazení"
+  },
+  "budget": {
+    "mode": {
+      "denik": "Deník",
+      "rozpocet": "Rozpočet",
+      "switcherAria": "Přepínač režimu aplikace"
+    },
+    "tabs": {
+      "dashboard": "Přehled",
+      "sekce": "Sekce",
+      "hypoteka": "Hypotéka"
+    },
+    "dashboard": {
+      "title": "Rozpočet — přehled",
+      "kpiPaidLabel": "Zatím zaplaceno",
+      "kpiPaidSub": "+ {open} otevřených",
+      "errorLoad": "Nepovedlo se načíst data. Zkus refresh.",
+      "emptyTitle": "Zatím žádné faktury",
+      "emptyDesc": "Začni založením první sekce a přidáním faktury. Až budeš mít aspoň jednu zaplacenou, dashboard ukáže kolik jsi prostavěl.",
+      "emptyCta": "Přejít na Sekce",
+      "upcomingTitle": "Co dál ve slice 1+",
+      "upcomingS05": "S05 — splatnost faktury + status PO SPLATNOSTI",
+      "upcomingS06": "S06 — KPI „Otevřené faktury\" + sekce „Po splatnosti\"",
+      "upcomingS07": "S07 — PDF upload k faktuře",
+      "upcomingS08": "S08–S10 — Hypotéka, plán, 4 KPI complete"
+    },
+    "sekce": {
+      "title": "Sekce",
+      "addCta": "Nová sekce",
+      "loading": "Načítám sekce…",
+      "errorLoad": "Nepovedlo se načíst sekce.",
+      "totalLabel": "Celkem prostavěno",
+      "paidLabel": "Zaplaceno",
+      "openLabel": "Otevřené",
+      "emptyTitle": "Začni založením první sekce",
+      "emptyDesc": "Sekce je rozpočtová položka — třeba „Hrubá stavba\", „OKNA\", „Elektro\". Pod sekci pak budeš přidávat faktury.",
+      "missingTitle": "Sekce neexistuje.",
+      "backToList": "Zpět na seznam sekcí",
+      "editAria": "Upravit sekci",
+      "deleteAria": "Smazat sekci",
+      "errorDelete": "Nepovedlo se smazat sekci. Zkus znovu.",
+      "deleteConfirmTitle": "Smazat sekci?",
+      "deleteConfirmBody": "Opravdu smazat sekci „{title}\"? Smažou se i všechny faktury pod ní. Tato akce je nevratná.",
+      "deleteConfirmBtn": "Smazat sekci"
+    },
+    "section": {
+      "newTitle": "Nová sekce",
+      "editTitle": "Upravit sekci",
+      "titleLabel": "Název",
+      "titlePlaceholder": "např. OKNA, Hrubá stavba, Elektroinstalace",
+      "descLabel": "Popis (volitelný)",
+      "descPlaceholder": "K čemu se sekce vztahuje, dodavatel, etapa…"
+    },
+    "invoice": {
+      "newTitle": "Nová faktura",
+      "editTitle": "Upravit fakturu",
+      "listTitle": "Faktury",
+      "addCta": "Faktura",
+      "firstCta": "První faktura",
+      "loading": "Načítám faktury…",
+      "errorLoad": "Nepovedlo se načíst faktury.",
+      "errorDelete": "Nepovedlo se smazat fakturu.",
+      "emptyDesc": "Sekce je prázdná. Přidej první fakturu — třeba zálohovou.",
+      "amountLabel": "Částka (Kč)",
+      "statusLabel": "Stav faktury",
+      "statusOpen": "Otevřená (ještě nezaplaceno)",
+      "statusPaid": "Zaplaceno",
+      "datumPlatbyLabel": "Datum platby",
+      "errorAmount": "Zadej kladnou částku v Kč.",
+      "errorDatumPlatby": "U zaplacené faktury vyplň datum platby.",
+      "add": "Přidat",
+      "deleteAria": "Smazat fakturu {amount}",
+      "deleteConfirmTitle": "Smazat fakturu?",
+      "deleteConfirmBody": "Opravdu smazat fakturu {amount}? Tato akce je nevratná."
+    },
+    "status": {
+      "open": "Otevřená",
+      "paid": "Zaplaceno",
+      "overdue": "Po splatnosti"
+    },
+    "hypoteka": {
+      "title": "Hypotéka",
+      "comingSoon": "Tady bude limit hypotéky, historie čerpání a stav vůči plánu. Přijde v dalším kroku (S08)."
+    }
   }
 }

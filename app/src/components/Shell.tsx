@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Calendar, FileText, Megaphone, Notebook, Ellipsis, ListChecks } from "lucide-react";
-import { NavLink, Link } from "react-router-dom";
+import { Calendar, FileText, Megaphone, Notebook, Ellipsis, ListChecks, LayoutDashboard, FolderTree, Landmark, Settings as SettingsIcon } from "lucide-react";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import { useT } from "@/i18n/useT";
 import { useVisibleTasks } from "@/hooks/useVisibleTasks";
 import { useEventsActionCount } from "@/hooks/useEventsActionCount";
@@ -15,6 +15,7 @@ import NotificationBell from "./NotificationBell";
 import OnboardingModal from "./OnboardingModal";
 import { ROUTES } from "@/lib/routes";
 import FabRadial from "./FabRadial";
+import ModeSwitcher from "./budget/ModeSwitcher";
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,7 @@ export default function Shell({ children }: Props) {
       <NotificationPermissionBanner />
       <OnboardingModal />
       <Header />
+      <ModeSwitcherWrapper />
       <main
         id="main"
         className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+4.5rem)]"
@@ -104,18 +106,46 @@ function BottomTabs() {
   const roleState = useUserRole(user?.uid);
   const { tasks } = useVisibleTasks(Boolean(user));
   const eventsActionCount = useEventsActionCount(user?.uid);
-  // V10 — ball-on-me is assignee-driven across all roles. The badge counts
-  // every OPEN úkol where assigneeUid points at the current viewer.
   const ballOnMe = tasks.filter((tk) => isBallOnMeV10(tk, user?.uid)).length;
+  const location = useLocation();
 
-  // V24 — Stavbyvedoucí (CM):
-  //   - Záznamy tab skryt (rodinný brainstorming).
-  //   - Události dostává vlastní bottom tab (leftmost), místo Calendar
-  //     ikonky v headeru (která je pro CM skrytá). Důvod: CM má míň tabů
-  //     a Calendar v headeru působil osamoceně; bottom tab je natural.
-  //   Ostatní role beze změny.
   const role = roleState.status === "ready" ? roleState.profile.role : null;
   const isCm = role === "CONSTRUCTION_MANAGER";
+  // V27 — Rozpočet mode má vlastní bottom tabs.
+  const isBudgetMode = location.pathname.startsWith("/rozpocet");
+
+  if (isBudgetMode && role === "OWNER") {
+    return (
+      <nav
+        aria-label={t("aria.mainNav")}
+        className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
+      >
+        <ul className="mx-auto flex max-w-xl items-stretch justify-around">
+          <Tab
+            to={ROUTES.rozpocet}
+            end
+            icon={<LayoutDashboard aria-hidden size={20} />}
+            label={t("budget.tabs.dashboard")}
+          />
+          <Tab
+            to={ROUTES.rozpocetSekce}
+            icon={<FolderTree aria-hidden size={20} />}
+            label={t("budget.tabs.sekce")}
+          />
+          <Tab
+            to={ROUTES.rozpocetHypoteka}
+            icon={<Landmark aria-hidden size={20} />}
+            label={t("budget.tabs.hypoteka")}
+          />
+          <Tab
+            to={ROUTES.nastaveni}
+            icon={<SettingsIcon aria-hidden size={20} />}
+            label={t("tabs.more")}
+          />
+        </ul>
+      </nav>
+    );
+  }
 
   return (
     <nav
@@ -123,8 +153,6 @@ function BottomTabs() {
       className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur pb-safe"
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-        {/* Unified nav: Dokumentace / Záznamy · FAB · Úkoly / Nastavení.
-            V24 — pro CM se Záznamy skrývá a Události se přidá leftmost. */}
         {isCm && (
           <Tab
             to={ROUTES.events}
@@ -159,6 +187,22 @@ function BottomTabs() {
         />
       </ul>
     </nav>
+  );
+}
+
+/**
+ * V27 — wrapper kolem ModeSwitcher pillu. Renderuje se jen pro OWNER
+ * a jen pokud nejsme na /auth/* nebo přechodových routách.
+ */
+function ModeSwitcherWrapper() {
+  const { user } = useAuth();
+  const roleState = useUserRole(user?.uid);
+  if (roleState.status !== "ready") return null;
+  if (roleState.profile.role !== "OWNER") return null;
+  return (
+    <div className="border-b border-line bg-surface/90 backdrop-blur pt-2">
+      <ModeSwitcher />
+    </div>
   );
 }
 

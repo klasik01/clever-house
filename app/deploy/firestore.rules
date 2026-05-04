@@ -348,6 +348,32 @@ service cloud.firestore {
                     && resource.data.createdBy == request.auth.uid;
     }
 
+        // ============================================================
+    //  V27 — Rozpočet domu (in-app mode "Rozpočet")
+    //
+    //  OWNER-only finance tracker. Sdílí stejný Firestore projekt s
+    //  Deníkem (clever-house). Visible jen pro role OWNER.
+    //
+    //  Konvence: žádný PROJECT_MANAGER ani CONSTRUCTION_MANAGER tu
+    //  nemá přístup. Schváleno přes Discovery + Brief 2026-05-04.
+    // ============================================================
+
+    match /budget_sections/{sectionId} {
+      allow read, create, update, delete: if isOwner();
+
+      // Faktury — subcollection /budget_sections/{sid}/invoices/{iid}
+      match /invoices/{invoiceId} {
+        allow read, create, update, delete: if isOwner();
+      }
+    }
+
+    // CollectionGroup query — Dashboard fetchne všechny faktury jedním
+    // listenerem (collectionGroup(db, "invoices")). Vyžaduje "everywhere"
+    // rule pro tento subcollection name.
+    match /{path=**}/invoices/{invoiceId} {
+      allow read: if isOwner();
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;

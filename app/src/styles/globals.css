@@ -6,6 +6,7 @@
 
 @import "./tokens.css";
 @import "./tokens-v3.css";
+@import "./tokens-rozpocet.css";
 
 @tailwind base;
 @tailwind components;
