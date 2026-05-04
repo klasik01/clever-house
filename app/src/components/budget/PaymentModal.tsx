@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createPayment, updatePayment } from "@/lib/budget/payments";
 import { parseCzk } from "@/lib/budget/format";
 import type { BudgetPayment } from "@/types";
+import AccountPicker from "@/components/budget/AccountPicker";
 
 interface Props {
   open: boolean;
@@ -35,6 +36,7 @@ export default function PaymentModal({
   const [datum, setDatum] = useState("");
   const [supplier, setSupplier] = useState("");
   const [note, setNote] = useState("");
+  const [ucetId, setUcetId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,7 @@ export default function PaymentModal({
       setDatum(payment?.datum ?? (mode === "create" ? todayIso() : ""));
       setSupplier(payment?.supplier ?? "");
       setNote(payment?.note ?? "");
+      setUcetId(payment?.ucetId ?? null);
       setError(null);
       setSubmitting(false);
     }
@@ -78,7 +81,7 @@ export default function PaymentModal({
       if (mode === "create") {
         const id = await createPayment(
           sectionId,
-          { castka, datum, supplier, note },
+          { castka, datum, supplier, note, ucetId },
           user.uid,
         );
         onSaved?.(id);
@@ -88,6 +91,7 @@ export default function PaymentModal({
           datum,
           supplier,
           note,
+          ucetId,
         });
         onSaved?.(payment.id);
       }
@@ -172,6 +176,15 @@ export default function PaymentModal({
               disabled={submitting}
               placeholder={t("budget.payment.supplierPlaceholder")}
               className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-ink">
+            {t("budget.account.pickerLabel")}
+            <AccountPicker
+              value={ucetId}
+              onChange={setUcetId}
+              disabled={submitting}
             />
           </label>
 

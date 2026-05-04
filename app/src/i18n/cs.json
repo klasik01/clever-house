@@ -130,7 +130,9 @@
     },
     "phases": "Fáze stavby",
     "budgetSection": "Rozpočet",
-    "budgetHypoteka": "Hypotéka"
+    "budgetHypoteka": "Hypotéka",
+    "budgetAccounts": "Účty",
+    "budgetBalance": "Zůstatek BÚ"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -1181,6 +1183,55 @@
       "loading": "Načítám…",
       "errorLoad": "Nepovedlo se načíst platby.",
       "emptyDesc": "Žádné mimo-fakturní výdaje."
+    },
+    "account": {
+      "manageTitle": "Účty",
+      "newTitle": "Nový účet",
+      "editTitle": "Upravit účet",
+      "addCta": "Nový účet",
+      "intro": "Spravuj účty, ze kterých platíš stavbu. První 3 (běžný, hypoteční, hotovost) přidáme automaticky — můžeš je upravit nebo přidat další (např. manželčin BU).",
+      "labelLabel": "Název účtu",
+      "labelPlaceholder": "např. Stáňa BU mBank",
+      "kindLabel": "Druh účtu",
+      "kind": {
+        "BEZNY": "Běžný účet",
+        "HYPOTECNI": "Hypoteční účet",
+        "HOTOVOST": "Hotovost",
+        "CUSTOM": "Jiný"
+      },
+      "loading": "Načítám účty…",
+      "errorLoad": "Nepovedlo se načíst účty.",
+      "errorDelete": "Nepovedlo se smazat účet.",
+      "bootstrapping": "Připravuju výchozí 3 účty…",
+      "editAria": "Upravit účet {label}",
+      "deleteAria": "Smazat účet {label}",
+      "deleteConfirmTitle": "Smazat účet?",
+      "deleteConfirmBody": "Smazat účet „{label}\"? Faktury, platby a čerpání s ním spojené zůstanou, ale ztratí přiřazení.",
+      "pickerLabel": "Účet",
+      "pickerPlaceholder": "— vyber účet —"
+    },
+    "balance": {
+      "title": "Aktuální zůstatek BÚ",
+      "intro": "Manuálně doplň aktuální zůstatek na běžném účtu(ech). Slouží pro výpočet, jak dlouho ti peníze vydrží proti otevřeným fakturám.",
+      "currentLabel": "Aktuální zůstatek",
+      "lastUpdate": "Naposledy {when}",
+      "amountLabel": "Zůstatek (Kč)",
+      "amountHint": "Sečti zůstatky všech BÚ, hypotéčního účtu jen pokud na něm nejsou peníze čekající k vyčerpání.",
+      "noteLabel": "Poznámka (volitelná)",
+      "notePlaceholder": "např. po výplatě, po čerpání tranše, k dnešku…",
+      "errorAmount": "Zůstatek musí být nezáporné číslo.",
+      "saved": "Zůstatek aktualizován.",
+      "historyTitle": "Historie aktualizací (posledních 10)"
+    },
+    "runway": {
+      "title": "Cash runway",
+      "until": "Peníze vystačí do {monthName} ({months} měsíců)",
+      "lots": "Peníze vystačí na {months}+ měsíců",
+      "setupCta": "Nastav aktuální zůstatek BÚ",
+      "setupBody": "Bez zůstatku nelze počítat, jak dlouho ti peníze vydrží proti běžnému utrácení.",
+      "notEnoughData": "Nedostatek dat pro runway",
+      "notEnoughDataBody": "Potřebuju aspoň jednu zaplacenou fakturu nebo platbu v posledních 90 dnech.",
+      "staleNudge": "Zůstatek BÚ naposledy aktualizován před {n} dny — runway nemusí sedět"
     }
   }
 }

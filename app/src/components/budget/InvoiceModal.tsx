@@ -14,6 +14,7 @@ import {
 } from "@/lib/budget/storage";
 import { parseCzk } from "@/lib/budget/format";
 import type { BudgetInvoice, InvoiceStatus } from "@/types";
+import AccountPicker from "@/components/budget/AccountPicker";
 
 interface Props {
   open: boolean;
@@ -56,6 +57,7 @@ export default function InvoiceModal({
   // při uložení smažeme starý PDF i bez nahrazení.
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [removeExistingPdf, setRemoveExistingPdf] = useState(false);
+  const [ucetId, setUcetId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +73,7 @@ export default function InvoiceModal({
       );
       setPickedFile(null);
       setRemoveExistingPdf(false);
+      setUcetId(invoice?.ucetId ?? null);
       setError(null);
       setSubmitting(false);
     }
@@ -148,6 +151,7 @@ export default function InvoiceModal({
         status,
         datumPlatby: status === "PAID" ? datumPlatby : null,
         splatnost: splatnost || null,
+        ucetId,
       };
 
       let invoiceId: string;
@@ -302,6 +306,15 @@ export default function InvoiceModal({
               />
             </label>
           )}
+
+          <label className="block text-sm font-medium text-ink">
+            {t("budget.account.pickerLabel")}
+            <AccountPicker
+              value={ucetId}
+              onChange={setUcetId}
+              disabled={submitting}
+            />
+          </label>
 
           {/* PDF příloha */}
           <div className="space-y-2">

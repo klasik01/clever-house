@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, CalendarClock, ChevronRight } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronRight, Wallet } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
@@ -8,6 +8,7 @@ import { useAllPayments } from "@/hooks/useAllPayments";
 import { useBankDrawdowns } from "@/hooks/useBankDrawdowns";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { computeDashboardKpis, computeOverallVariance } from "@/lib/budget/totals";
+import { computeCashRunway, runwayUntilLabel } from "@/lib/budget/cashRunway";
 import {
   daysOverdue,
   getOverdueInvoices,
@@ -17,6 +18,7 @@ import { formatCzk } from "@/lib/budget/format";
 import KPITile from "@/components/budget/KPITile";
 import StatusChip from "@/components/budget/StatusChip";
 import { rozpocetSekce, rozpocetSekceDetail, ROUTES } from "@/lib/routes";
+import { Link } from "react-router-dom";
 import type { BudgetInvoice, BudgetSection } from "@/types";
 
 export default function RozpocetDashboard() {
@@ -60,6 +62,17 @@ export default function RozpocetDashboard() {
     () => getOverdueInvoices(allInvoicesFlat, today),
     [allInvoicesFlat, today],
   );
+  const allPaymentsFlat = useMemo(() => {
+    if (paymentsState.status !== "ready") return [];
+    return Object.values(paymentsState.paymentsBySectionId).flat();
+  }, [paymentsState]);
+
+  const runway = useMemo(() => {
+    const settings = settingsState.status === "ready" ? settingsState.settings : null;
+    const dd = drawdownsState.status === "ready" ? drawdownsState.drawdowns : [];
+    return computeCashRunway(settings, dd, allInvoicesFlat, allPaymentsFlat, today);
+  }, [settingsState, drawdownsState, allInvoicesFlat, allPaymentsFlat, today]);
+
   const overallVariance = useMemo(() => {
     if (sectionsState.status !== "ready" || invoicesState.status !== "ready") {
       return null;
@@ -155,6 +168,8 @@ export default function RozpocetDashboard() {
               onClick={() => navigate(rozpocetSekce())}
             />
           </div>
+
+          <RunwayBanner runway={runway} today={today} />
 
           {/* Po splatnosti */}
           <Panel
@@ -298,6 +313,85 @@ function DashboardInvoiceRow({
         <ChevronRight aria-hidden size={16} className="text-ink-subtle shrink-0" />
       </button>
     </li>
+  );
+}
+
+function RunwayBanner({
+  runway,
+  today,
+}: {
+  runway: ReturnType<typeof computeCashRunway>;
+  today: string;
+}) {
+  const t = useT();
+  const ringClass =
+    runway.threshold === "critical"
+      ? "ring-status-danger-border bg-status-danger-bg/40"
+      : runway.threshold === "caution"
+      ? "ring-status-warning-border bg-status-warning-bg/40"
+      : runway.threshold === "safe"
+      ? "ring-status-success-border bg-status-success-bg/30"
+      : "ring-line bg-bg-subtle";
+
+  // No-data nudge: balance not set or no data for burn.
+  if (runway.threshold === "no-data") {
+    return (
+      <Link
+        to={ROUTES.nastaveniRozpocetZustatek}
+        className="block rounded-md ring-1 ring-line bg-bg-subtle px-4 py-3 text-sm text-ink-muted hover:bg-bg-muted"
+      >
+        <div className="flex items-center gap-2">
+          <Wallet aria-hidden size={16} />
+          <span className="font-semibold text-ink">
+            {runway.lastBalanceUpdate === null
+              ? t("budget.runway.setupCta")
+              : t("budget.runway.notEnoughData")}
+          </span>
+        </div>
+        <p className="mt-1 text-xs">
+          {runway.lastBalanceUpdate === null
+            ? t("budget.runway.setupBody")
+            : t("budget.runway.notEnoughDataBody")}
+        </p>
+      </Link>
+    );
+  }
+
+  const nudge =
+    runway.daysSinceLastUpdate !== null && runway.daysSinceLastUpdate > 14;
+
+  return (
+    <div className={`rounded-md ring-1 px-4 py-3 ${ringClass}`}>
+      <div className="flex items-center gap-2">
+        <Wallet aria-hidden size={16} className="text-ink-muted" />
+        <span className="text-xs uppercase tracking-wide text-ink-muted">
+          {t("budget.runway.title")}
+        </span>
+      </div>
+      <p className="mt-1 text-base font-semibold text-ink">
+        {runway.months === null
+          ? "—"
+          : runway.months >= 24
+          ? t("budget.runway.lots", {
+              months: Math.round(runway.months),
+            })
+          : t("budget.runway.until", {
+              monthName: runwayUntilLabel(runway.months, today),
+              months: runway.months.toFixed(1),
+            })}
+      </p>
+      {nudge ? (
+        <Link
+          to={ROUTES.nastaveniRozpocetZustatek}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-ink-link hover:text-ink-link-hover"
+        >
+          <AlertTriangle aria-hidden size={12} />
+          {t("budget.runway.staleNudge", {
+            n: runway.daysSinceLastUpdate ?? 0,
+          })}
+        </Link>
+      ) : null}
+    </div>
   );
 }
 

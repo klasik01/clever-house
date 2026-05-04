@@ -389,6 +389,11 @@ service cloud.firestore {
       allow read, create, update, delete: if isOwner();
     }
 
+    // V27 S13 — BudgetAccounts (OWNER-managed seznam účtů)
+    match /budget_accounts/{accountId} {
+      allow read, create, update, delete: if isOwner();
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;

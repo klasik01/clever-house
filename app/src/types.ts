@@ -561,8 +561,24 @@ export interface BudgetSettings {
   mortgageBank?: string | null;
   /** Datum schválení (ISO date YYYY-MM-DD). */
   mortgageApprovedAt?: string | null;
+
+  // ---- S14 — currentAccountBalance ----
+  /** Aktuální zůstatek na BÚ — manuálně updatovaný OWNERem v neděli. null = nenastaveno. */
+  currentAccountBalanceCzk?: number | null;
+  /** ISO timestamp poslední aktualizace zůstatku. */
+  currentAccountBalanceUpdatedAt?: string | null;
+  /** Historie aktualizací zůstatku — pomáhá tracking trends. */
+  balanceUpdateHistory?: BalanceUpdateEntry[];
+
   updatedAt: number;
   updatedBy?: string;
+}
+
+export interface BalanceUpdateEntry {
+  amountCzk: number;
+  updatedAt: string;
+  updatedBy: string;
+  note?: string;
 }
 
 /** Čerpání tranše hypotéky. Top-level kolekce `/budget_drawdowns/{id}`. */
@@ -605,6 +621,23 @@ export interface BudgetPayment {
   note?: string;
   /** Volitelný účet pro budoucnost (S13 OWNER-managed seznam). */
   ucetId?: string | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ---- V27 S13 — Účty (OWNER-managed seznam pro Rozpočet) ----
+
+/** Druh účtu pro UI rozlišení a default seznam. */
+export type BudgetAccountKind = "BEZNY" | "HYPOTECNI" | "HOTOVOST" | "CUSTOM";
+
+/** Účet v top-level kolekci `/budget_accounts/{id}`. */
+export interface BudgetAccount {
+  id: string;
+  /** Lidské jméno: "Stáňa BU mBank", "Manželčin BU", "Hypoteční", "Hotovost". */
+  label: string;
+  /** Kind určuje barvu chipu + použití v defaultech. */
+  kind: BudgetAccountKind;
   createdBy: string;
   createdAt: number;
   updatedAt: number;

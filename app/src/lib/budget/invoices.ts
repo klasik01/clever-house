@@ -25,6 +25,7 @@ interface InvoiceInput {
   status: InvoiceStatus;
   datumPlatby?: string | null;
   splatnost?: string | null;
+  ucetId?: string | null;
 }
 
 function fromDocSnap(
@@ -48,6 +49,10 @@ function fromDocSnap(
     pdfPath:
       typeof data.pdfPath === "string" && data.pdfPath.length > 0
         ? data.pdfPath
+        : null,
+    ucetId:
+      typeof data.ucetId === "string" && data.ucetId.length > 0
+        ? data.ucetId
         : null,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: toMillis(data.createdAt),
@@ -92,6 +97,7 @@ export async function createInvoice(
       status: input.status,
       datumPlatby: input.status === "PAID" ? input.datumPlatby ?? null : null,
       splatnost: input.splatnost ?? null,
+      ucetId: input.ucetId ?? null,
       createdBy,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
