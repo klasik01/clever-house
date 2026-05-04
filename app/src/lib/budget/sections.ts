@@ -19,6 +19,8 @@ const COLL = "budget_sections";
 interface SectionInput {
   title: string;
   description?: string;
+  phaseId?: string | null;
+  categoryIds?: string[];
 }
 
 function fromDocSnap(id: string, data: Record<string, unknown>): BudgetSection {
@@ -33,6 +35,15 @@ function fromDocSnap(id: string, data: Record<string, unknown>): BudgetSection {
       typeof data.expectedAmountCzk === "number"
         ? Math.round(data.expectedAmountCzk)
         : null,
+    phaseId:
+      typeof data.phaseId === "string" && data.phaseId.length > 0
+        ? data.phaseId
+        : null,
+    categoryIds: Array.isArray(data.categoryIds)
+      ? (data.categoryIds as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.length > 0,
+        )
+      : [],
     expectedHistory: Array.isArray(data.expectedHistory)
       ? (data.expectedHistory as Array<Record<string, unknown>>).map((entry) => ({
           amountCzk:
@@ -73,6 +84,8 @@ export async function createSection(
   const ref = await addDoc(collection(db, COLL), {
     title,
     description: input.description?.trim() || null,
+    phaseId: input.phaseId ?? null,
+    categoryIds: input.categoryIds ?? [],
     createdBy,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -91,6 +104,8 @@ export async function updateSection(
   await updateDoc(doc(db, COLL, id), {
     title,
     description: input.description?.trim() || null,
+    phaseId: input.phaseId ?? null,
+    categoryIds: input.categoryIds ?? [],
     updatedAt: serverTimestamp(),
   });
 }

@@ -70,6 +70,8 @@ export const ROUTES = {
   nastaveniRozpocetUctu: "/nastaveni/rozpocet/uctu",
   /** Settings → Rozpočet → Zůstatek BÚ. */
   nastaveniRozpocetZustatek: "/nastaveni/rozpocet/zustatek",
+  /** Settings → Rozpočet → Kategorie. */
+  nastaveniRozpocetKategorie: "/nastaveni/rozpocet/kategorie",
   /** @deprecated V23 — replaced by /dokumentace. Kept for legacy redirect. */
   harmonogram: "/harmonogram",
 
@@ -154,6 +156,11 @@ export function nastaveniRozpocetUctu(): string {
 /** Settings → Rozpočet → Zůstatek BÚ. */
 export function nastaveniRozpocetZustatek(): string {
   return ROUTES.nastaveniRozpocetZustatek;
+}
+
+/** Settings → Rozpočet → Kategorie. */
+export function nastaveniRozpocetKategorie(): string {
+  return ROUTES.nastaveniRozpocetKategorie;
 }
 
 // ---------- Pattern templates (pro <Route path={...}>) ----------

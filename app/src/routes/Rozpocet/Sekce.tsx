@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Milestone, Plus, Tag } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
 import { useAllPayments } from "@/hooks/useAllPayments";
+import { usePhases } from "@/hooks/usePhases";
+import { useBudgetCategories } from "@/hooks/useBudgetCategories";
 import { computeSectionPaidTotal, computeSectionVariance } from "@/lib/budget/totals";
 import { formatCzk } from "@/lib/budget/format";
 import SectionModal from "@/components/budget/SectionModal";
 import VarianceChip from "@/components/budget/VarianceChip";
 import { rozpocetSekceDetail } from "@/lib/routes";
-import type { BudgetSection } from "@/types";
+import type { BudgetSection, BudgetCategory, Phase } from "@/types";
 
 export default function RozpocetSekce() {
   const t = useT();
@@ -18,7 +20,11 @@ export default function RozpocetSekce() {
   const sectionsState = useBudgetSections();
   const invoicesState = useAllInvoices();
   const paymentsState = useAllPayments();
+  const { phases } = usePhases(true);
+  const categoriesState = useBudgetCategories();
   const [modalOpen, setModalOpen] = useState(false);
+  const [phaseFilter, setPhaseFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const grandTotal = useMemo(() => {
     if (sectionsState.status !== "ready" || invoicesState.status !== "ready") return 0;
@@ -67,8 +73,29 @@ export default function RozpocetSekce() {
       ) : sectionsState.sections.length === 0 ? (
         <EmptyState onCreate={() => setModalOpen(true)} />
       ) : (
-        <ul className="space-y-2">
-          {sectionsState.sections.map((s) => {
+        <>
+          <FilterChips
+            phases={phases}
+            categories={categoriesState.status === "ready" ? categoriesState.categories : []}
+            phaseFilter={phaseFilter}
+            categoryFilter={categoryFilter}
+            onPhaseChange={setPhaseFilter}
+            onCategoryChange={setCategoryFilter}
+          />
+
+          <ul className="space-y-2">
+          {sectionsState.sections
+            .filter((s) => {
+              if (phaseFilter && s.phaseId !== phaseFilter) return false;
+              if (
+                categoryFilter &&
+                !(s.categoryIds ?? []).includes(categoryFilter)
+              ) {
+                return false;
+              }
+              return true;
+            })
+            .map((s) => {
             const invs =
               invoicesState.status === "ready"
                 ? invoicesState.invoicesBySectionId[s.id] ?? []
@@ -78,17 +105,27 @@ export default function RozpocetSekce() {
                 ? paymentsState.paymentsBySectionId[s.id] ?? []
                 : [];
             const v = computeSectionVariance(s, invs, pays);
+            const phase = s.phaseId ? phases.find((p) => p.id === s.phaseId) : undefined;
+            const cats =
+              categoriesState.status === "ready"
+                ? (s.categoryIds ?? [])
+                    .map((cid) => categoriesState.categories.find((c) => c.id === cid))
+                    .filter((c): c is BudgetCategory => !!c)
+                : [];
             return (
               <SectionRow
                 key={s.id}
                 section={s}
                 paidTotal={computeSectionPaidTotal(invs, pays)}
                 variance={v}
+                phase={phase}
+                categories={cats}
                 onClick={() => navigate(rozpocetSekceDetail(s.id))}
               />
             );
           })}
-        </ul>
+          </ul>
+        </>
       )}
 
       {sectionsState.status === "ready" && sectionsState.sections.length > 0 ? (
@@ -118,11 +155,15 @@ function SectionRow({
   section,
   paidTotal,
   variance,
+  phase,
+  categories,
   onClick,
 }: {
   section: BudgetSection;
   paidTotal: number;
   variance: ReturnType<typeof computeSectionVariance>;
+  phase?: Phase;
+  categories: BudgetCategory[];
   onClick: () => void;
 }) {
   const t = useT();
@@ -138,6 +179,21 @@ function SectionRow({
             {section.title}
           </span>
           <div className="flex items-center gap-2 flex-wrap">
+            {phase ? (
+              <span className="inline-flex items-center gap-1 rounded-pill bg-bg-subtle px-2 py-0.5 text-xs text-ink-muted">
+                <Milestone aria-hidden size={11} />
+                {phase.label}
+              </span>
+            ) : null}
+            {categories.map((c) => (
+              <span
+                key={c.id}
+                className="inline-flex items-center gap-1 rounded-pill border border-line bg-surface px-2 py-0.5 text-xs text-ink-muted"
+              >
+                <Tag aria-hidden size={11} />
+                {c.label}
+              </span>
+            ))}
             {variance.plannedCzk !== null ? (
               <span className="text-xs text-ink-muted tabular-nums">
                 {t("budget.sekce.planLabel")}: {formatCzk(variance.plannedCzk)}
@@ -158,6 +214,95 @@ function SectionRow({
         </div>
       </button>
     </li>
+  );
+}
+
+function FilterChips({
+  phases,
+  categories,
+  phaseFilter,
+  categoryFilter,
+  onPhaseChange,
+  onCategoryChange,
+}: {
+  phases: Phase[];
+  categories: BudgetCategory[];
+  phaseFilter: string | null;
+  categoryFilter: string | null;
+  onPhaseChange: (id: string | null) => void;
+  onCategoryChange: (id: string | null) => void;
+}) {
+  const t = useT();
+  if (phases.length === 0 && categories.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {phases.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-ink-subtle">{t("budget.sekce.filterPhaseLabel")}:</span>
+          <FilterPill
+            active={phaseFilter === null}
+            onClick={() => onPhaseChange(null)}
+          >
+            {t("budget.sekce.filterAll")}
+          </FilterPill>
+          {phases.map((p) => (
+            <FilterPill
+              key={p.id}
+              active={phaseFilter === p.id}
+              onClick={() => onPhaseChange(p.id)}
+            >
+              {p.label}
+            </FilterPill>
+          ))}
+        </div>
+      ) : null}
+      {categories.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-ink-subtle">{t("budget.sekce.filterCategoryLabel")}:</span>
+          <FilterPill
+            active={categoryFilter === null}
+            onClick={() => onCategoryChange(null)}
+          >
+            {t("budget.sekce.filterAll")}
+          </FilterPill>
+          {categories.map((c) => (
+            <FilterPill
+              key={c.id}
+              active={categoryFilter === c.id}
+              onClick={() => onCategoryChange(c.id)}
+            >
+              {c.label}
+            </FilterPill>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        "rounded-pill border px-2.5 py-0.5 text-xs font-medium transition-colors",
+        active
+          ? "border-accent bg-accent text-accent-on"
+          : "border-line bg-surface text-ink-muted hover:bg-bg-subtle",
+      ].join(" ")}
+    >
+      {children}
+    </button>
   );
 }
 

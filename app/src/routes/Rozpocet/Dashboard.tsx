@@ -10,6 +10,14 @@ import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { computeDashboardKpis, computeOverallVariance } from "@/lib/budget/totals";
 import { computeCashRunway, runwayUntilLabel } from "@/lib/budget/cashRunway";
 import {
+  bucketByMonth,
+  groupSectionsForDonut,
+  selectChartSections,
+} from "@/lib/budget/charts";
+import PlanVsActualChart from "@/components/budget/PlanVsActualChart";
+import CashflowChart from "@/components/budget/CashflowChart";
+import CostStructureDonut from "@/components/budget/CostStructureDonut";
+import {
   daysOverdue,
   getOverdueInvoices,
   getThisWeekInvoices,
@@ -83,6 +91,40 @@ export default function RozpocetDashboard() {
       sectionsState.sections,
       invoicesState.invoicesBySectionId,
       paymentsBy,
+    );
+  }, [sectionsState, invoicesState, paymentsState]);
+
+  // S15 — Top 5 sekcí podle |variance|.
+  const planVsActualData = useMemo(() => {
+    if (sectionsState.status !== "ready" || invoicesState.status !== "ready") return [];
+    const paymentsBy =
+      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
+    return selectChartSections(
+      sectionsState.sections,
+      invoicesState.invoicesBySectionId,
+      paymentsBy,
+      5,
+    );
+  }, [sectionsState, invoicesState, paymentsState]);
+
+  // S16 — Měsíční kumulativní cashflow.
+  const cashflowBuckets = useMemo(() => {
+    const dd = drawdownsState.status === "ready" ? drawdownsState.drawdowns : [];
+    return bucketByMonth(dd, allInvoicesFlat, allPaymentsFlat, today, 6);
+  }, [drawdownsState, allInvoicesFlat, allPaymentsFlat, today]);
+
+  // S17 — Donut struktury nákladů.
+  const donutData = useMemo(() => {
+    if (sectionsState.status !== "ready" || invoicesState.status !== "ready") {
+      return { slices: [], totalCzk: 0 };
+    }
+    const paymentsBy =
+      paymentsState.status === "ready" ? paymentsState.paymentsBySectionId : {};
+    return groupSectionsForDonut(
+      sectionsState.sections,
+      invoicesState.invoicesBySectionId,
+      paymentsBy,
+      5,
     );
   }, [sectionsState, invoicesState, paymentsState]);
   const thisWeek = useMemo(
@@ -217,14 +259,32 @@ export default function RozpocetDashboard() {
             )}
           </Panel>
 
-          {/* Roadmap card */}
-          <div className="rounded-md border border-status-info-border bg-status-info-bg px-4 py-3 text-sm text-status-info-fg">
-            <p className="font-semibold">{t("budget.dashboard.upcomingTitle")}</p>
-            <ul className="mt-2 ml-4 list-disc space-y-1 leading-relaxed">
-              <li>{t("budget.dashboard.upcomingS07")}</li>
-              <li>{t("budget.dashboard.upcomingS08")}</li>
-            </ul>
-          </div>
+          {/* S15 — Plán vs. skutečnost */}
+          <Panel
+            title={t("budget.charts.planVsActualTitle")}
+            tone="neutral"
+          >
+            <PlanVsActualChart data={planVsActualData} />
+          </Panel>
+
+          {/* S16 — Cashflow v čase */}
+          <Panel
+            title={t("budget.charts.cashflowTitle")}
+            tone="neutral"
+          >
+            <CashflowChart buckets={cashflowBuckets} />
+          </Panel>
+
+          {/* S17 — Donut struktury */}
+          <Panel
+            title={t("budget.charts.donutTitle")}
+            tone="neutral"
+          >
+            <CostStructureDonut
+              slices={donutData.slices}
+              totalCzk={donutData.totalCzk}
+            />
+          </Panel>
         </>
       )}
     </section>
@@ -238,7 +298,7 @@ function Panel({
   children,
 }: {
   title: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   tone: "danger" | "warning" | "neutral";
   children: React.ReactNode;
 }) {
@@ -257,7 +317,7 @@ function Panel({
   return (
     <div className={`rounded-md ring-1 ${ringClass} ${bgClass} px-4 py-3`}>
       <div className="mb-2 flex items-center gap-2">
-        {icon}
+        {icon ?? null}
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
       </div>
       {children}

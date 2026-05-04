@@ -104,6 +104,11 @@ export default function Settings() {
             icon={<Wallet size={18} aria-hidden />}
             label={t("settings.budgetBalance")}
           />
+          <LinkRow
+            to={ROUTES.nastaveniRozpocetKategorie}
+            icon={<Tag size={18} aria-hidden />}
+            label={t("settings.budgetCategories")}
+          />
         </SettingsGroup>
       )}
 

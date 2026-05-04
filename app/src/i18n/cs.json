@@ -132,7 +132,8 @@
     "budgetSection": "Rozpočet",
     "budgetHypoteka": "Hypotéka",
     "budgetAccounts": "Účty",
-    "budgetBalance": "Zůstatek BÚ"
+    "budgetBalance": "Zůstatek BÚ",
+    "budgetCategories": "Kategorie rozpočtu"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -1026,7 +1027,9 @@
       "filterEmpty": "Pro tento filtr nejsou žádné faktury.",
       "planLabel": "Plán",
       "editPlanCta": "Upravit plán",
-      "setPlanCta": "Nastavit plán"
+      "setPlanCta": "Nastavit plán",
+      "filterPhaseLabel": "Etapa",
+      "filterCategoryLabel": "Kategorie"
     },
     "section": {
       "newTitle": "Nová sekce",
@@ -1034,7 +1037,8 @@
       "titleLabel": "Název",
       "titlePlaceholder": "např. OKNA, Hrubá stavba, Elektroinstalace",
       "descLabel": "Popis (volitelný)",
-      "descPlaceholder": "K čemu se sekce vztahuje, dodavatel, etapa…"
+      "descPlaceholder": "K čemu se sekce vztahuje, dodavatel, etapa…",
+      "phaseLabel": "Etapa stavby (volitelná)"
     },
     "invoice": {
       "newTitle": "Nová faktura",
@@ -1232,6 +1236,50 @@
       "notEnoughData": "Nedostatek dat pro runway",
       "notEnoughDataBody": "Potřebuju aspoň jednu zaplacenou fakturu nebo platbu v posledních 90 dnech.",
       "staleNudge": "Zůstatek BÚ naposledy aktualizován před {n} dny — runway nemusí sedět"
+    },
+    "charts": {
+      "planVsActualTitle": "Plán vs. skutečnost",
+      "planVsActualSummary": "Top {n} sekcí podle odchylky od plánu. Klepni pro detail.",
+      "planVsActualEmpty": "Až přidáš plán a faktury, uvidíš tu odchylky proti plánu.",
+      "barAria": "{title}: skutečnost {actual}, plán {planned}",
+      "cashflowTitle": "Cashflow v čase",
+      "cashflowAria": "Kumulativní čerpání banky a zaplaceno za posledních 6 měsíců",
+      "cashflowEmpty": "Až proběhnou platby a tranše, uvidíš tu cashflow v čase.",
+      "donutTitle": "Struktura nákladů",
+      "donutAria": "Donut struktury nákladů podle sekcí",
+      "donutEmpty": "Až zaplatíš, donut ukáže rozdělení nákladů podle sekcí.",
+      "donutTotal": "Celkem zaplaceno: {value}",
+      "legendDrawn": "Banka uvolnila ({value})",
+      "legendPaid": "Zaplaceno ({value})",
+      "tableFallback": "Zobrazit jako tabulku",
+      "colSection": "Sekce",
+      "colPlan": "Plán",
+      "colActual": "Skutečnost",
+      "colVariance": "Odchylka",
+      "colMonth": "Měsíc",
+      "colDrawn": "Banka kum.",
+      "colPaid": "Zaplaceno kum.",
+      "colTotal": "Celkem"
+    },
+    "category": {
+      "manageTitle": "Kategorie rozpočtu",
+      "newTitle": "Nová kategorie",
+      "editTitle": "Upravit kategorii",
+      "addCta": "Nová kategorie",
+      "intro": "Vlastní seznam kategorií pro rozpočet (oddělený od kategorií clever-house). Příklady: stavební materiál, řemeslníci, vybavení, zahrada.",
+      "labelLabel": "Název",
+      "labelPlaceholder": "např. Stavební materiál, Řemeslníci, …",
+      "loading": "Načítám kategorie…",
+      "errorLoad": "Nepovedlo se načíst kategorie.",
+      "errorDelete": "Nepovedlo se smazat kategorii.",
+      "emptyTitle": "Žádné kategorie",
+      "emptyDesc": "Kategorie pomáhají filtrovat a seskupovat sekce — třeba podle dodavatele nebo druhu výdaje.",
+      "editAria": "Upravit kategorii {label}",
+      "deleteAria": "Smazat kategorii {label}",
+      "deleteConfirmTitle": "Smazat kategorii?",
+      "deleteConfirmBody": "Smazat kategorii „{label}\"? Sekce s ní spojené ji ztratí.",
+      "pickerLabel": "Kategorie (volitelné)",
+      "pickerEmpty": "— žádná kategorie —"
     }
   }
 }

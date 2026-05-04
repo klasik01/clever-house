@@ -2,46 +2,42 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useAuth } from "@/hooks/useAuth";
-import { createSection, updateSection } from "@/lib/budget/sections";
-import type { BudgetSection } from "@/types";
-import PhasePickerInline from "@/components/PhasePickerInline";
-import BudgetCategoryPickerField from "@/components/budget/BudgetCategoryPickerField";
+import {
+  createBudgetCategory,
+  updateBudgetCategory,
+} from "@/lib/budget/categories";
+import type { BudgetCategory } from "@/types";
 
 interface Props {
   open: boolean;
   mode: "create" | "edit";
-  section?: BudgetSection | null;
+  category?: BudgetCategory | null;
   onClose: () => void;
   onSaved?: (id: string) => void;
 }
 
-export default function SectionModal({
+export default function BudgetCategoryModal({
   open,
   mode,
-  section,
+  category,
   onClose,
   onSaved,
 }: Props) {
   const t = useT();
   const { user } = useAuth();
   const backdropRef = useRef<HTMLDivElement>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [phaseId, setPhaseId] = useState<string | null>(null);
-  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+
+  const [label, setLabel] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setTitle(section?.title ?? "");
-      setDescription(section?.description ?? "");
-      setPhaseId(section?.phaseId ?? null);
-      setCategoryIds(section?.categoryIds ?? []);
+      setLabel(category?.label ?? "");
       setError(null);
       setSubmitting(false);
     }
-  }, [open, section]);
+  }, [open, category]);
 
   useEffect(() => {
     if (!open) return;
@@ -59,19 +55,11 @@ export default function SectionModal({
     setSubmitting(true);
     try {
       if (mode === "create") {
-        const id = await createSection(
-          { title, description, phaseId, categoryIds },
-          user.uid,
-        );
+        const id = await createBudgetCategory({ label }, user.uid);
         onSaved?.(id);
-      } else if (section) {
-        await updateSection(section.id, {
-          title,
-          description,
-          phaseId,
-          categoryIds,
-        });
-        onSaved?.(section.id);
+      } else if (category) {
+        await updateBudgetCategory(category.id, { label });
+        onSaved?.(category.id);
       }
       onClose();
     } catch (err) {
@@ -93,15 +81,17 @@ export default function SectionModal({
       role="dialog"
       aria-modal="true"
       aria-label={
-        mode === "create" ? t("budget.section.newTitle") : t("budget.section.editTitle")
+        mode === "create"
+          ? t("budget.category.newTitle")
+          : t("budget.category.editTitle")
       }
     >
       <div className="w-full max-w-md overflow-hidden rounded-xl bg-bg shadow-xl ring-1 ring-line">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-base font-semibold text-ink">
             {mode === "create"
-              ? t("budget.section.newTitle")
-              : t("budget.section.editTitle")}
+              ? t("budget.category.newTitle")
+              : t("budget.category.editTitle")}
           </h2>
           <button
             type="button"
@@ -115,50 +105,20 @@ export default function SectionModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
           <label className="block text-sm font-medium text-ink">
-            {t("budget.section.titleLabel")}
+            {t("budget.category.labelLabel")}
             <span className="text-status-danger-fg" aria-hidden> *</span>
             <input
               type="text"
               required
-              maxLength={80}
+              maxLength={60}
               autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
               disabled={submitting}
-              placeholder={t("budget.section.titlePlaceholder")}
+              placeholder={t("budget.category.labelPlaceholder")}
               className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
             />
           </label>
-
-          <label className="block text-sm font-medium text-ink">
-            {t("budget.section.descLabel")}
-            <textarea
-              rows={3}
-              maxLength={500}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-              placeholder={t("budget.section.descPlaceholder")}
-              className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink focus:border-accent focus:outline-none"
-            />
-          </label>
-
-          <div className="space-y-2">
-            <span className="block text-sm font-medium text-ink">
-              {t("budget.section.phaseLabel")}
-            </span>
-            <PhasePickerInline
-              value={phaseId}
-              onChange={setPhaseId}
-              disabled={submitting}
-            />
-          </div>
-
-          <BudgetCategoryPickerField
-            value={categoryIds}
-            onChange={setCategoryIds}
-            disabled={submitting}
-          />
 
           {error ? (
             <p

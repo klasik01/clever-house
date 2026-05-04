@@ -394,6 +394,11 @@ service cloud.firestore {
       allow read, create, update, delete: if isOwner();
     }
 
+    // V27 S19 — BudgetCategories (separátní seznam kategorií pro Rozpočet)
+    match /budget_categories/{categoryId} {
+      allow read, create, update, delete: if isOwner();
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;

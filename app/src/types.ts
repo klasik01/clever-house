@@ -642,3 +642,13 @@ export interface BudgetAccount {
   createdAt: number;
   updatedAt: number;
 }
+
+// ---- V27 S19 — Budget kategorie (separátní od clever-house /categories) ----
+
+export interface BudgetCategory {
+  id: string;
+  label: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}

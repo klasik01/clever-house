@@ -58,7 +58,8 @@ export type ActionKey =
   | "budget.invoice.write"
   | "budget.settings.write"
   | "budget.drawdown.write"
-  | "budget.account.write";
+  | "budget.account.write"
+  | "budget.category.write";
 
 /**
  * Vlastnictví záznamu — určuje, jestli akce vyžaduje autorství navíc
@@ -270,6 +271,11 @@ export const PERMISSIONS: Record<ActionKey, PermissionRule> = {
     roles: ["OWNER"],
     description: "CRUD OWNER-managed seznamu účtů (BU, hypoteční, hotovost, custom).",
     rulesAt: "firestore.rules → match /budget_accounts/{accountId}",
+  },
+  "budget.category.write": {
+    roles: ["OWNER"],
+    description: "CRUD OWNER-managed seznamu rozpočtových kategorií.",
+    rulesAt: "firestore.rules → match /budget_categories/{categoryId}",
   },
 };
 
