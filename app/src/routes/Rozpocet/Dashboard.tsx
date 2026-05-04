@@ -1,12 +1,20 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangle, CalendarClock, ChevronRight } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
 import { computeDashboardKpis } from "@/lib/budget/totals";
+import {
+  daysOverdue,
+  getOverdueInvoices,
+  getThisWeekInvoices,
+} from "@/lib/budget/invoiceStatus";
 import { formatCzk } from "@/lib/budget/format";
 import KPITile from "@/components/budget/KPITile";
-import { rozpocetSekce } from "@/lib/routes";
+import StatusChip from "@/components/budget/StatusChip";
+import { rozpocetSekce, rozpocetSekceDetail } from "@/lib/routes";
+import type { BudgetInvoice, BudgetSection } from "@/types";
 
 export default function RozpocetDashboard() {
   const t = useT();
@@ -14,12 +22,37 @@ export default function RozpocetDashboard() {
   const sectionsState = useBudgetSections();
   const invoicesState = useAllInvoices();
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const allInvoicesFlat = useMemo(() => {
+    if (invoicesState.status !== "ready") return [] as BudgetInvoice[];
+    return Object.values(invoicesState.invoicesBySectionId).flat();
+  }, [invoicesState]);
+
   const kpis = useMemo(() => {
     if (invoicesState.status !== "ready") {
       return { paidTotalCzk: 0, openTotalCzk: 0 };
     }
     return computeDashboardKpis(invoicesState.invoicesBySectionId);
   }, [invoicesState]);
+
+  const overdue = useMemo(
+    () => getOverdueInvoices(allInvoicesFlat, today),
+    [allInvoicesFlat, today],
+  );
+  const thisWeek = useMemo(
+    () => getThisWeekInvoices(allInvoicesFlat, today),
+    [allInvoicesFlat, today],
+  );
+  const overdueTotal = useMemo(
+    () => overdue.reduce((s, i) => s + i.castka, 0),
+    [overdue],
+  );
+
+  const sectionsById = useMemo(() => {
+    if (sectionsState.status !== "ready") return {} as Record<string, BudgetSection>;
+    return Object.fromEntries(sectionsState.sections.map((s) => [s.id, s]));
+  }, [sectionsState]);
 
   const isLoading =
     sectionsState.status === "loading" || invoicesState.status === "loading";
@@ -57,26 +90,74 @@ export default function RozpocetDashboard() {
         <EmptyState onCreate={() => navigate(rozpocetSekce())} />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <KPITile
               label={t("budget.dashboard.kpiPaidLabel")}
               value={formatCzk(kpis.paidTotalCzk)}
+              onClick={() => navigate(rozpocetSekce())}
+            />
+            <KPITile
+              label={t("budget.dashboard.kpiOpenLabel")}
+              value={formatCzk(kpis.openTotalCzk)}
               subText={
-                kpis.openTotalCzk > 0
-                  ? t("budget.dashboard.kpiPaidSub", {
-                      open: formatCzk(kpis.openTotalCzk),
-                    })
+                overdueTotal > 0
+                  ? t("budget.dashboard.kpiOpenSub", { overdue: formatCzk(overdueTotal) })
                   : undefined
               }
               onClick={() => navigate(rozpocetSekce())}
             />
           </div>
 
+          {/* Po splatnosti */}
+          <Panel
+            title={t("budget.dashboard.overdueTitle")}
+            icon={<AlertTriangle aria-hidden size={16} className="text-status-danger-fg" />}
+            tone="danger"
+          >
+            {overdue.length === 0 ? (
+              <EmptyPanel text={t("budget.dashboard.overdueEmpty")} />
+            ) : (
+              <ul className="space-y-1.5">
+                {overdue.map((inv) => (
+                  <DashboardInvoiceRow
+                    key={inv.id}
+                    invoice={inv}
+                    section={sectionsById[inv.sectionId]}
+                    today={today}
+                    onClick={() => navigate(rozpocetSekceDetail(inv.sectionId))}
+                  />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {/* K zaplacení tento týden */}
+          <Panel
+            title={t("budget.dashboard.thisWeekTitle")}
+            icon={<CalendarClock aria-hidden size={16} className="text-status-warning-fg" />}
+            tone="warning"
+          >
+            {thisWeek.length === 0 ? (
+              <EmptyPanel text={t("budget.dashboard.thisWeekEmpty")} />
+            ) : (
+              <ul className="space-y-1.5">
+                {thisWeek.map((inv) => (
+                  <DashboardInvoiceRow
+                    key={inv.id}
+                    invoice={inv}
+                    section={sectionsById[inv.sectionId]}
+                    today={today}
+                    onClick={() => navigate(rozpocetSekceDetail(inv.sectionId))}
+                  />
+                ))}
+              </ul>
+            )}
+          </Panel>
+
+          {/* Roadmap card */}
           <div className="rounded-md border border-status-info-border bg-status-info-bg px-4 py-3 text-sm text-status-info-fg">
             <p className="font-semibold">{t("budget.dashboard.upcomingTitle")}</p>
             <ul className="mt-2 ml-4 list-disc space-y-1 leading-relaxed">
-              <li>{t("budget.dashboard.upcomingS05")}</li>
-              <li>{t("budget.dashboard.upcomingS06")}</li>
               <li>{t("budget.dashboard.upcomingS07")}</li>
               <li>{t("budget.dashboard.upcomingS08")}</li>
             </ul>
@@ -84,6 +165,91 @@ export default function RozpocetDashboard() {
         </>
       )}
     </section>
+  );
+}
+
+function Panel({
+  title,
+  icon,
+  tone,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  tone: "danger" | "warning" | "neutral";
+  children: React.ReactNode;
+}) {
+  const ringClass =
+    tone === "danger"
+      ? "ring-status-danger-border"
+      : tone === "warning"
+      ? "ring-status-warning-border"
+      : "ring-line";
+  const bgClass =
+    tone === "danger"
+      ? "bg-status-danger-bg/30"
+      : tone === "warning"
+      ? "bg-status-warning-bg/30"
+      : "bg-surface";
+  return (
+    <div className={`rounded-md ring-1 ${ringClass} ${bgClass} px-4 py-3`}>
+      <div className="mb-2 flex items-center gap-2">
+        {icon}
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function EmptyPanel({ text }: { text: string }) {
+  return <p className="text-xs text-ink-muted">{text}</p>;
+}
+
+function DashboardInvoiceRow({
+  invoice,
+  section,
+  today,
+  onClick,
+}: {
+  invoice: BudgetInvoice;
+  section: BudgetSection | undefined;
+  today: string;
+  onClick: () => void;
+}) {
+  const t = useT();
+  const overdueDays =
+    invoice.status === "OPEN" && invoice.splatnost && invoice.splatnost < today
+      ? daysOverdue(invoice.splatnost, today)
+      : undefined;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full min-h-tap items-center gap-2 rounded-md bg-surface px-3 py-2 text-left ring-1 ring-line hover:bg-bg-subtle"
+      >
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-ink truncate">
+              {section?.title ?? "—"}
+            </span>
+            {overdueDays !== undefined ? (
+              <StatusChip status="OVERDUE" daysOverdue={overdueDays} />
+            ) : null}
+          </div>
+          {invoice.splatnost ? (
+            <span className="text-xs text-ink-muted">
+              {t("budget.invoice.splatnostShort")}: {formatDateCs(invoice.splatnost)}
+            </span>
+          ) : null}
+        </div>
+        <span className="text-base font-semibold text-ink tabular-nums shrink-0">
+          {formatCzk(invoice.castka)}
+        </span>
+        <ChevronRight aria-hidden size={16} className="text-ink-subtle shrink-0" />
+      </button>
+    </li>
   );
 }
 
@@ -119,4 +285,13 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       </button>
     </div>
   );
+}
+
+function formatDateCs(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("cs-CZ");
+  } catch {
+    return iso;
+  }
 }

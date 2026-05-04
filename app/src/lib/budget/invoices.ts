@@ -15,6 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { BudgetInvoice, InvoiceStatus } from "@/types";
+import { deleteInvoicePdf } from "./storage";
 
 const SECTION_COLL = "budget_sections";
 const INVOICES_SUB = "invoices";
@@ -23,6 +24,7 @@ interface InvoiceInput {
   castka: number;
   status: InvoiceStatus;
   datumPlatby?: string | null;
+  splatnost?: string | null;
 }
 
 function fromDocSnap(
@@ -39,6 +41,14 @@ function fromDocSnap(
       typeof data.datumPlatby === "string" && data.datumPlatby.length > 0
         ? data.datumPlatby
         : undefined,
+    splatnost:
+      typeof data.splatnost === "string" && data.splatnost.length > 0
+        ? data.splatnost
+        : undefined,
+    pdfPath:
+      typeof data.pdfPath === "string" && data.pdfPath.length > 0
+        ? data.pdfPath
+        : null,
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     createdAt: toMillis(data.createdAt),
     updatedAt: toMillis(data.updatedAt),
@@ -64,6 +74,9 @@ function validateInvoiceInput(input: InvoiceInput): void {
   if (input.status === "PAID" && !input.datumPlatby) {
     throw new Error("U zaplacené faktury vyplň datum platby.");
   }
+  if (input.status === "OPEN" && !input.splatnost) {
+    throw new Error("U otevřené faktury vyplň splatnost.");
+  }
 }
 
 export async function createInvoice(
@@ -78,6 +91,7 @@ export async function createInvoice(
       castka: Math.round(input.castka),
       status: input.status,
       datumPlatby: input.status === "PAID" ? input.datumPlatby ?? null : null,
+      splatnost: input.splatnost ?? null,
       createdBy,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -96,6 +110,18 @@ export async function updateInvoice(
     castka: Math.round(input.castka),
     status: input.status,
     datumPlatby: input.status === "PAID" ? input.datumPlatby ?? null : null,
+    splatnost: input.splatnost ?? null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function setInvoicePdfPath(
+  sectionId: string,
+  id: string,
+  pdfPath: string | null,
+): Promise<void> {
+  await updateDoc(doc(db, SECTION_COLL, sectionId, INVOICES_SUB, id), {
+    pdfPath: pdfPath ?? null,
     updatedAt: serverTimestamp(),
   });
 }
@@ -103,11 +129,24 @@ export async function updateInvoice(
 export async function deleteInvoice(
   sectionId: string,
   id: string,
+  options?: { pdfPath?: string | null },
 ): Promise<void> {
+  // S07 — cascade delete PDF z Storage. Idempotentní (deleteInvoicePdf
+  // toleruje "object-not-found"). Děláme to PŘED delete dokumentu, aby
+  // při retry-after-fail bylo všechno stále v Firestore.
+  if (options?.pdfPath) {
+    try {
+      await deleteInvoicePdf(options.pdfPath);
+    } catch (err) {
+      console.warn("deleteInvoice: PDF cleanup failed (continuing)", err);
+    }
+  }
   await deleteDoc(doc(db, SECTION_COLL, sectionId, INVOICES_SUB, id));
 }
 
-/** Cascade: smaže všechny faktury pod sekcí (volá se před deleteSection). */
+/** Cascade: smaže všechny faktury pod sekcí (volá se před deleteSection).
+ *  Včetně PDF příloh ve Storage (best-effort, errors logované).
+ */
 export async function deleteAllInvoicesForSection(
   sectionId: string,
 ): Promise<void> {
@@ -115,6 +154,28 @@ export async function deleteAllInvoicesForSection(
     collection(db, SECTION_COLL, sectionId, INVOICES_SUB),
   );
   if (snap.empty) return;
+
+  // Sebrat PDF cesty PŘEDTÍM, než smažeme docs.
+  const pdfPaths: string[] = [];
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    if (typeof data.pdfPath === "string" && data.pdfPath.length > 0) {
+      pdfPaths.push(data.pdfPath);
+    }
+  });
+
+  // Smaž PDFs (best-effort).
+  await Promise.all(
+    pdfPaths.map(async (path) => {
+      try {
+        await deleteInvoicePdf(path);
+      } catch (err) {
+        console.warn("deleteAllInvoicesForSection: PDF cleanup failed", path, err);
+      }
+    }),
+  );
+
+  // Smaž faktura docs.
   const batch = writeBatch(db);
   snap.docs.forEach((d) => batch.delete(d.ref));
   await batch.commit();

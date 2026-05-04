@@ -982,7 +982,13 @@
       "upcomingS05": "S05 — splatnost faktury + status PO SPLATNOSTI",
       "upcomingS06": "S06 — KPI „Otevřené faktury\" + sekce „Po splatnosti\"",
       "upcomingS07": "S07 — PDF upload k faktuře",
-      "upcomingS08": "S08–S10 — Hypotéka, plán, 4 KPI complete"
+      "upcomingS08": "S08–S10 — Hypotéka, plán, 4 KPI complete",
+      "overdueTitle": "Po splatnosti",
+      "thisWeekTitle": "K zaplacení tento týden",
+      "overdueEmpty": "Nic po splatnosti, gratuluju.",
+      "thisWeekEmpty": "Tento týden nic neplatíš.",
+      "kpiOpenLabel": "Otevřené faktury",
+      "kpiOpenSub": "z toho {overdue} po splatnosti"
     },
     "sekce": {
       "title": "Sekce",
@@ -1001,7 +1007,12 @@
       "errorDelete": "Nepovedlo se smazat sekci. Zkus znovu.",
       "deleteConfirmTitle": "Smazat sekci?",
       "deleteConfirmBody": "Opravdu smazat sekci „{title}\"? Smažou se i všechny faktury pod ní. Tato akce je nevratná.",
-      "deleteConfirmBtn": "Smazat sekci"
+      "deleteConfirmBtn": "Smazat sekci",
+      "filterAll": "Vše",
+      "filterOpen": "Otevřené",
+      "filterOverdue": "Po splatnosti",
+      "filterPaid": "Zaplaceno",
+      "filterEmpty": "Pro tento filtr nejsou žádné faktury."
     },
     "section": {
       "newTitle": "Nová sekce",
@@ -1031,12 +1042,27 @@
       "add": "Přidat",
       "deleteAria": "Smazat fakturu {amount}",
       "deleteConfirmTitle": "Smazat fakturu?",
-      "deleteConfirmBody": "Opravdu smazat fakturu {amount}? Tato akce je nevratná."
+      "deleteConfirmBody": "Opravdu smazat fakturu {amount}? Tato akce je nevratná.",
+      "splatnostLabel": "Splatnost",
+      "errorSplatnost": "U otevřené faktury vyplň splatnost.",
+      "splatnostShort": "splatnost",
+      "pdfLabel": "PDF příloha",
+      "pdfHint": "(nepovinné, max 10 MB)",
+      "pdfAdd": "Přidat PDF",
+      "pdfReplace": "Vyměnit PDF",
+      "pdfExisting": "Existující PDF",
+      "pdfOpen": "Otevřít PDF",
+      "pdfAriaOpen": "Otevřít PDF přílohu faktury",
+      "pdfErrorOpen": "Nepovedlo se otevřít PDF.",
+      "uploading": "Nahrávám…",
+      "errorPdfType": "Příloha musí být PDF.",
+      "errorPdfSize": "PDF je moc velké ({mb} MB). Limit je 10 MB."
     },
     "status": {
       "open": "Otevřená",
       "paid": "Zaplaceno",
-      "overdue": "Po splatnosti"
+      "overdue": "Po splatnosti",
+      "overdueDays": "Po splatnosti ({n} dní)"
     },
     "hypoteka": {
       "title": "Hypotéka",
