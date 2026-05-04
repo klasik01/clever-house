@@ -80,7 +80,7 @@ export default function RozpocetSekce() {
             onCategoryChange={setCategoryFilter}
           />
 
-          <ul className="space-y-2">
+          <ul className="space-y-2 pb-20">
           {sectionsState.sections
             .filter((s) => {
               if (phaseFilter && s.phaseId !== phaseFilter) return false;

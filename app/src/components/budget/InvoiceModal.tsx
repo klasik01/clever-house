@@ -126,6 +126,17 @@ export default function InvoiceModal({
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+  // Body scroll lock — když je modal otevřený, zablokuj scroll pozadí
+  // (jinak by se dalo scrollovat skrz overlay, což působí "volně").
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -282,7 +293,6 @@ export default function InvoiceModal({
             {t("budget.invoice.nazevLabel")}
             <input
               type="text"
-              autoFocus
               maxLength={120}
               value={nazev}
               onChange={(e) => setNazev(e.target.value)}
@@ -359,7 +369,7 @@ export default function InvoiceModal({
                 value={splatnost}
                 onChange={(e) => setSplatnost(e.target.value)}
                 disabled={submitting}
-                className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+                className="mt-2 w-full max-w-[14rem] rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
               />
             </label>
           ) : (
@@ -373,7 +383,7 @@ export default function InvoiceModal({
                 onChange={(e) => setDatumPlatby(e.target.value)}
                 disabled={submitting}
                 max={todayIso()}
-                className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+                className="mt-2 w-full max-w-[14rem] rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
               />
             </label>
           )}

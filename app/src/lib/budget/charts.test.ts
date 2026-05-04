@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  bucketByMonth,
   groupSectionsForDonut,
   selectChartSections,
   DONUT_OTHER_ID,
@@ -84,67 +83,6 @@ describe("selectChartSections", () => {
     expect(selectChartSections([], {})).toEqual([]);
   });
 
-});
-
-describe("bucketByMonth", () => {
-  const today = "2026-05-04";
-
-  it("vytvoří 6 buckets ending today's month", () => {
-    const buckets = bucketByMonth([], [], [], today, 6);
-    expect(buckets.length).toBe(6);
-    expect(buckets[0]?.key).toBe("2025-12");
-    expect(buckets[5]?.key).toBe("2026-05");
-  });
-
-  it("přiřadí drawdown do správného měsíce", () => {
-    const drawdowns = [
-      dd({ datum: "2026-03-15", castka: 500_000 }),
-      dd({ datum: "2026-05-01", castka: 1_000_000 }),
-    ];
-    const buckets = bucketByMonth(drawdowns, [], [], today, 6);
-    expect(buckets.find((b) => b.key === "2026-03")?.drawnCzk).toBe(500_000);
-    expect(buckets.find((b) => b.key === "2026-05")?.drawnCzk).toBe(1_000_000);
-    // Cumulative
-    expect(buckets[buckets.length - 1]?.cumulativeDrawnCzk).toBe(1_500_000);
-  });
-
-  it("paid invoices se sčítají do paidCzk", () => {
-    const invoices = [
-      inv({ status: "PAID", castka: 50_000, datumPlatby: "2026-04-15" }),
-      inv({ status: "PAID", castka: 30_000, datumPlatby: "2026-04-20" }),
-    ];
-    const buckets = bucketByMonth([], invoices, [], today, 6);
-    expect(buckets.find((b) => b.key === "2026-04")?.paidCzk).toBe(80_000);
-  });
-
-  it("ignoruje OPEN invoices", () => {
-    const invoices = [
-      inv({ status: "OPEN", castka: 50_000, splatnost: "2026-05-15" }),
-    ];
-    const buckets = bucketByMonth([], invoices, [], today, 6);
-    expect(buckets.every((b) => b.paidCzk === 0)).toBe(true);
-  });
-
-  it("ignoruje data mimo window", () => {
-    const drawdowns = [dd({ datum: "2025-01-15", castka: 500_000 })]; // > 6 mo zpátky
-    const buckets = bucketByMonth(drawdowns, [], [], today, 6);
-    expect(buckets.every((b) => b.drawnCzk === 0)).toBe(true);
-  });
-
-  it("cumulative se akumuluje napříč měsíci", () => {
-    const drawdowns = [
-      dd({ datum: "2026-01-15", castka: 100_000 }),
-      dd({ datum: "2026-02-15", castka: 200_000 }),
-      dd({ datum: "2026-03-15", castka: 300_000 }),
-    ];
-    const buckets = bucketByMonth(drawdowns, [], [], today, 6);
-    const jan = buckets.find((b) => b.key === "2026-01")!;
-    const feb = buckets.find((b) => b.key === "2026-02")!;
-    const mar = buckets.find((b) => b.key === "2026-03")!;
-    expect(jan.cumulativeDrawnCzk).toBe(100_000);
-    expect(feb.cumulativeDrawnCzk).toBe(300_000);
-    expect(mar.cumulativeDrawnCzk).toBe(600_000);
-  });
 });
 
 describe("groupSectionsForDonut", () => {

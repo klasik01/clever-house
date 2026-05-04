@@ -8,12 +8,10 @@ import { useBankDrawdowns } from "@/hooks/useBankDrawdowns";
 import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { computeDashboardKpis, computeOverallVariance } from "@/lib/budget/totals";
 import {
-  bucketByMonth,
   groupSectionsForDonut,
   selectChartSections,
 } from "@/lib/budget/charts";
 import PlanVsActualChart from "@/components/budget/PlanVsActualChart";
-import CashflowChart from "@/components/budget/CashflowChart";
 import CostStructureDonut from "@/components/budget/CostStructureDonut";
 import {
   daysOverdue,
@@ -83,12 +81,6 @@ export default function RozpocetDashboard() {
       5,
     );
   }, [sectionsState, invoicesState]);
-
-  // S16 — Měsíční kumulativní cashflow.
-  const cashflowBuckets = useMemo(() => {
-    const dd = drawdownsState.status === "ready" ? drawdownsState.drawdowns : [];
-    return bucketByMonth(dd, allInvoicesFlat, undefined, today, 6);
-  }, [drawdownsState, allInvoicesFlat, today]);
 
   // S17 — Donut struktury nákladů.
   const donutData = useMemo(() => {
@@ -238,14 +230,6 @@ export default function RozpocetDashboard() {
             tone="neutral"
           >
             <PlanVsActualChart data={planVsActualData} />
-          </Panel>
-
-          {/* S16 — Cashflow v čase */}
-          <Panel
-            title={t("budget.charts.cashflowTitle")}
-            tone="neutral"
-          >
-            <CashflowChart buckets={cashflowBuckets} />
           </Panel>
 
           {/* S17 — Donut struktury */}

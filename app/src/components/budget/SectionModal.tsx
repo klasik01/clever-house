@@ -51,6 +51,17 @@ export default function SectionModal({
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+  // Body scroll lock — když je modal otevřený, zablokuj scroll pozadí
+  // (jinak by se dalo scrollovat skrz overlay, což působí "volně").
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

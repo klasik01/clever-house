@@ -57,6 +57,17 @@ export default function DrawdownModal({
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+  // Body scroll lock — když je modal otevřený, zablokuj scroll pozadí
+  // (jinak by se dalo scrollovat skrz overlay, což působí "volně").
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -155,7 +166,7 @@ export default function DrawdownModal({
               onChange={(e) => setDatum(e.target.value)}
               disabled={submitting}
               max={todayIso()}
-              className="mt-2 w-full rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
+              className="mt-2 w-full max-w-[14rem] rounded-md border border-line bg-surface px-3 py-2 text-base text-ink min-h-tap focus:border-accent focus:outline-none"
             />
           </label>
 
