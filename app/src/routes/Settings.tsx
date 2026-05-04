@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, LogOut, MapPin, Milestone, RefreshCw, Tag } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, Copy, FileDown, FileText, Landmark, LogOut, MapPin, Milestone, RefreshCw, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { signOut } from "@/lib/auth";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -83,6 +83,17 @@ export default function Settings() {
           <LinkRow to={ROUTES.nastaveniTypyDokumentu} icon={<FileText size={18} aria-hidden />} label={t("settings.documentTypes")} />
           <LinkRow to={ROUTES.nastaveniFaze} icon={<Milestone size={18} aria-hidden />} label={t("settings.phases")} />
           <LinkRow to={ROUTES.export} icon={<FileDown size={18} aria-hidden />} label={t("settings.export")} />
+        </SettingsGroup>
+      )}
+
+      {/* V27 — Rozpočet sekce (OWNER-only) */}
+      {roleHas("budget.read", role) && (
+        <SettingsGroup title={t("settings.budgetSection")}>
+          <LinkRow
+            to={ROUTES.nastaveniRozpocetHypoteka}
+            icon={<Landmark size={18} aria-hidden />}
+            label={t("settings.budgetHypoteka")}
+          />
         </SettingsGroup>
       )}
 

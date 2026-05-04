@@ -128,7 +128,9 @@
       "title": "Přehled",
       "hint": "Čeká na mě, po termínu, uvízlé."
     },
-    "phases": "Fáze stavby"
+    "phases": "Fáze stavby",
+    "budgetSection": "Rozpočet",
+    "budgetHypoteka": "Hypotéka"
   },
   "otazky": {
     "pageTitle": "Otázky pro Projektanta",
@@ -445,7 +447,8 @@
     "create": "Vytvořit",
     "deleting": "Mažu…",
     "saving": "Ukládám…",
-    "confirm": "Potvrdit"
+    "confirm": "Potvrdit",
+    "settings": "Nastavení"
   },
   "aria": {
     "mainNav": "Hlavní navigace",
@@ -981,14 +984,17 @@
       "upcomingTitle": "Co dál ve slice 1+",
       "upcomingS05": "S05 — splatnost faktury + status PO SPLATNOSTI",
       "upcomingS06": "S06 — KPI „Otevřené faktury\" + sekce „Po splatnosti\"",
-      "upcomingS07": "S07 — PDF upload k faktuře",
-      "upcomingS08": "S08–S10 — Hypotéka, plán, 4 KPI complete",
+      "upcomingS07": "S10 — Plán + 4. KPI „Rozdíl proti plánu\" + history",
+      "upcomingS08": "S11–S14 — Quotes / Payments / Účty / Cash runway",
       "overdueTitle": "Po splatnosti",
       "thisWeekTitle": "K zaplacení tento týden",
       "overdueEmpty": "Nic po splatnosti, gratuluju.",
       "thisWeekEmpty": "Tento týden nic neplatíš.",
       "kpiOpenLabel": "Otevřené faktury",
-      "kpiOpenSub": "z toho {overdue} po splatnosti"
+      "kpiOpenSub": "z toho {overdue} po splatnosti",
+      "kpiBankaLabel": "Banka uvolnila",
+      "kpiBankaSub": "z {limit}",
+      "kpiBankaSubNoLimit": "Nastav limit hypotéky"
     },
     "sekce": {
       "title": "Sekce",
@@ -1066,7 +1072,48 @@
     },
     "hypoteka": {
       "title": "Hypotéka",
-      "comingSoon": "Tady bude limit hypotéky, historie čerpání a stav vůči plánu. Přijde v dalším kroku (S08)."
+      "comingSoon": "Tady bude limit hypotéky, historie čerpání a stav vůči plánu.",
+      "loading": "Načítám…",
+      "errorLoad": "Nepovedlo se načíst čerpání.",
+      "statusTitle": "Stav hypotéky",
+      "listTitle": "Čerpání",
+      "settingsAria": "Otevřít nastavení hypotéky",
+      "settingsMissingTitle": "Nastav nejdřív schválenou částku",
+      "settingsMissingBody": "Bez schválené částky se nedá počítat zbývající limit ani přidávat čerpání.",
+      "settingsMissingCta": "Nastavit hypotéku",
+      "emptyTitle": "Banka zatím nic neuvolnila",
+      "emptyDesc": "Až banka uvolní první tranši, přidej její záznam tady. Bude se přičítat ke státu vyčerpání."
+    },
+    "settings": {
+      "hypotekaTitle": "Hypotéka",
+      "amountLabel": "Schválená částka (Kč)",
+      "amountHint": "Celková částka, kterou banka schválila k čerpání.",
+      "bankaLabel": "Banka",
+      "bankaPlaceholder": "např. ČS, Komerčka, Air Bank…",
+      "datumLabel": "Datum schválení",
+      "errorAmount": "Schválená částka musí být nezáporné číslo.",
+      "saved": "Uloženo.",
+      "statusLimit": "Limit",
+      "statusDrawn": "Vyčerpáno",
+      "statusRemaining": "Zbývá"
+    },
+    "drawdown": {
+      "newTitle": "Nové čerpání",
+      "editTitle": "Upravit čerpání",
+      "addCta": "Nové čerpání",
+      "amountLabel": "Částka tranše (Kč)",
+      "datumLabel": "Datum čerpání",
+      "bankaLabel": "Banka",
+      "bankaPlaceholder": "např. ČS, Komerčka…",
+      "noteLabel": "Poznámka (volitelná)",
+      "notePlaceholder": "např. po dokončení hrubé stavby, etapa 2…",
+      "errorAmount": "Částka musí být kladné číslo.",
+      "errorDatum": "Vyplň datum čerpání.",
+      "errorDelete": "Nepovedlo se smazat čerpání.",
+      "add": "Přidat",
+      "deleteAria": "Smazat čerpání {amount}",
+      "deleteConfirmTitle": "Smazat čerpání?",
+      "deleteConfirmBody": "Opravdu smazat čerpání {amount}? Tato akce je nevratná."
     }
   }
 }

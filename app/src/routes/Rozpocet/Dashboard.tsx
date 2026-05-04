@@ -4,6 +4,8 @@ import { AlertTriangle, CalendarClock, ChevronRight } from "lucide-react";
 import { useT } from "@/i18n/useT";
 import { useBudgetSections } from "@/hooks/useBudgetSections";
 import { useAllInvoices } from "@/hooks/useAllInvoices";
+import { useBankDrawdowns } from "@/hooks/useBankDrawdowns";
+import { useBudgetSettings } from "@/hooks/useBudgetSettings";
 import { computeDashboardKpis } from "@/lib/budget/totals";
 import {
   daysOverdue,
@@ -13,7 +15,7 @@ import {
 import { formatCzk } from "@/lib/budget/format";
 import KPITile from "@/components/budget/KPITile";
 import StatusChip from "@/components/budget/StatusChip";
-import { rozpocetSekce, rozpocetSekceDetail } from "@/lib/routes";
+import { rozpocetSekce, rozpocetSekceDetail, ROUTES } from "@/lib/routes";
 import type { BudgetInvoice, BudgetSection } from "@/types";
 
 export default function RozpocetDashboard() {
@@ -21,6 +23,8 @@ export default function RozpocetDashboard() {
   const navigate = useNavigate();
   const sectionsState = useBudgetSections();
   const invoicesState = useAllInvoices();
+  const drawdownsState = useBankDrawdowns();
+  const settingsState = useBudgetSettings();
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -30,11 +34,22 @@ export default function RozpocetDashboard() {
   }, [invoicesState]);
 
   const kpis = useMemo(() => {
+    const dd = drawdownsState.status === "ready" ? drawdownsState.drawdowns : [];
+    const settings = settingsState.status === "ready" ? settingsState.settings : null;
     if (invoicesState.status !== "ready") {
-      return { paidTotalCzk: 0, openTotalCzk: 0 };
+      return {
+        paidTotalCzk: 0,
+        openTotalCzk: 0,
+        drawnTotalCzk: 0,
+        mortgageLimitCzk: settings?.mortgageApprovedAmountCzk ?? null,
+      };
     }
-    return computeDashboardKpis(invoicesState.invoicesBySectionId);
-  }, [invoicesState]);
+    return computeDashboardKpis(
+      invoicesState.invoicesBySectionId,
+      dd,
+      settings,
+    );
+  }, [invoicesState, drawdownsState, settingsState]);
 
   const overdue = useMemo(
     () => getOverdueInvoices(allInvoicesFlat, today),
@@ -90,7 +105,7 @@ export default function RozpocetDashboard() {
         <EmptyState onCreate={() => navigate(rozpocetSekce())} />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <KPITile
               label={t("budget.dashboard.kpiPaidLabel")}
               value={formatCzk(kpis.paidTotalCzk)}
@@ -105,6 +120,18 @@ export default function RozpocetDashboard() {
                   : undefined
               }
               onClick={() => navigate(rozpocetSekce())}
+            />
+            <KPITile
+              label={t("budget.dashboard.kpiBankaLabel")}
+              value={formatCzk(kpis.drawnTotalCzk)}
+              subText={
+                kpis.mortgageLimitCzk !== null
+                  ? t("budget.dashboard.kpiBankaSub", {
+                      limit: formatCzk(kpis.mortgageLimitCzk),
+                    })
+                  : t("budget.dashboard.kpiBankaSubNoLimit")
+              }
+              onClick={() => navigate(ROUTES.rozpocetHypoteka)}
             />
           </div>
 

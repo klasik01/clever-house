@@ -64,6 +64,8 @@ export const ROUTES = {
   rozpocet: "/rozpocet",
   rozpocetSekce: "/rozpocet/sekce",
   rozpocetHypoteka: "/rozpocet/hypoteka",
+  /** Settings → Rozpočet → Hypotéka (limit, banka, datum). */
+  nastaveniRozpocetHypoteka: "/nastaveni/rozpocet/hypoteka",
   /** @deprecated V23 — replaced by /dokumentace. Kept for legacy redirect. */
   harmonogram: "/harmonogram",
 
@@ -133,6 +135,11 @@ export function rozpocetHypoteka(): string {
 /** Rozpočet — dashboard (= /rozpocet). */
 export function rozpocetDashboard(): string {
   return ROUTES.rozpocet;
+}
+
+/** Settings → Rozpočet → Hypotéka. */
+export function nastaveniRozpocetHypoteka(): string {
+  return ROUTES.nastaveniRozpocetHypoteka;
 }
 
 // ---------- Pattern templates (pro <Route path={...}>) ----------

@@ -550,3 +550,33 @@ export interface BudgetInvoice {
   createdAt: number;
   updatedAt: number;
 }
+
+// ---- V27 S08 — Hypotéka: Settings singleton + drawdown history ----
+
+/** Singleton settings v Firestore na cestě `/budget_settings/main`. */
+export interface BudgetSettings {
+  /** Schválená výše hypotéky v Kč. null = nenastaveno. */
+  mortgageApprovedAmountCzk?: number | null;
+  /** Banka, která hypotéku poskytuje. */
+  mortgageBank?: string | null;
+  /** Datum schválení (ISO date YYYY-MM-DD). */
+  mortgageApprovedAt?: string | null;
+  updatedAt: number;
+  updatedBy?: string;
+}
+
+/** Čerpání tranše hypotéky. Top-level kolekce `/budget_drawdowns/{id}`. */
+export interface BankDrawdown {
+  id: string;
+  /** Částka tranše v Kč (zaokrouhleno). */
+  castka: number;
+  /** Datum čerpání (ISO date). */
+  datum: string;
+  /** Volitelná banka — defaultně `BudgetSettings.mortgageBank`. */
+  banka?: string;
+  note?: string;
+  pdfPath?: string | null;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}

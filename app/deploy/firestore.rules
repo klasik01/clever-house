@@ -374,6 +374,16 @@ service cloud.firestore {
       allow read: if isOwner();
     }
 
+    // V27 S08 — BudgetSettings singleton (limit hypotéky, banka, datum)
+    match /budget_settings/{settingsId} {
+      allow read, create, update, delete: if isOwner();
+    }
+
+    // V27 S08 — BankDrawdowns (čerpání hypotéky, top-level kolekce)
+    match /budget_drawdowns/{drawdownId} {
+      allow read, create, update, delete: if isOwner();
+    }
+
     // Default deny everything else
     match /{document=**} {
       allow read, write: if false;
